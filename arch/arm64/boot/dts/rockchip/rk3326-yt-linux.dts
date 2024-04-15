@@ -1,0 +1,318 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3326-evb-lp3-v10-linux.dts"
+
+/ {
+	model = "Rockchip rk3326 evb lpddr3 v12 board for linux";
+	compatible = "rockchip,rk3326-evb-lp3-v12-linux", "rockchip,rk3326";
+};
+
+&dsi {
+	status = "disabled";
+};
+
+/ {
+        aliases {
+                tcon0 = &tcon0;
+        };
+
+        reserved-memory {
+                waveform_reserved: waveform@8000000 {
+                        reg = <0x0 0x08000000 0x0 0x100000>;
+                };
+
+                display_reserved: framebuffer@10000000 {
+                        reg = <0x0 0x10000000 0x0 0x800000>;
+                };
+        };
+
+        tcon0: tcon@ff460000 {
+                compatible = "rockchip,px30-eink-tcon";
+                reg = <0x0 0xff460000 0x0 0x1fc>;
+                interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+                clocks = <&cru ACLK_VOPB>, <&cru DCLK_VOPB>,
+                         <&cru HCLK_VOPB>;
+                clock-names = "aclk", "dclk", "hclk";
+                power-domains = <&power PX30_PD_VO>;
+                rockchip,grf = <&grf>;
+
+                pinctrl-names = "default";
+                pinctrl-0 = <&lcdc_m0_rgb_pins>;
+                status = "disabled";
+        };
+
+        eink: eink {
+                compatible = "rockchip,eink";
+                tcon = <&tcon0>;
+                memory-region = <&display_reserved>;
+                waveform-region = <&waveform_reserved>;
+                nvmem = <&otp>;
+                nvmem-names = "rockchip-otp";
+                status = "disabled";
+        };
+};
+
+&eink {
+        status = "okay";
+        tcon = <&tcon0>;
+
+        panel,width = <1872>;
+        panel,height = <1404>;
+        panel,vir_width = <1872>;
+        panel,vir_height = <1404>;
+        panel,sdck = <34000000>;
+	panel,pixels-per-sdck = <8>;
+        panel,lsl = <18>;
+        panel,lbl = <17>;
+        panel,ldl = <234>;
+        panel,lel = <7>;
+        panel,gdck-sta = <34>;
+        panel,lgonl = <192>;
+        panel,fsl = <1>;
+        panel,fbl = <4>;
+        panel,fdl = <1404>;
+        panel,fel = <12>;
+        panel,mirror = <0>;
+	panel,vcom-mv = <1250>;
+        panel,color_panel = <0>;
+        panel,width-mm = <157>;
+        panel,height-mm = <210>;
+};
+
+&tcon0 {
+        status = "okay";
+	pinctrl-0 = <&eink_tcon_pins>;
+};
+
+&display_subsystem {
+        force-disconnected;
+        status = "okay";
+};
+
+&vopb {
+        status = "okay";
+};
+
+&vopb_mmu {
+        status = "disabled";
+};
+
+&wireless_wlan {
+	status = "disabled";
+};
+
+&wireless_bt {
+	status = "disabled";
+};
+
+&rk817 {
+	interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
+};
+
+&i2c1 {
+	status = "okay";
+
+	tsc@24 {
+		status = "okay";
+		compatible = "parade,pt_i2c_adapter";
+		reg = <0x24>;
+		//interrupt-parent = <&gpio0>;
+		//interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsc_gpio>;
+		parade,irq-gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+		parade,rst-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+		parade,adapter_id = "pt_i2c_adapter";
+
+		parade,core {
+			parade,name = "pt_core";
+			parade,hid_desc_register = <1>;
+			/*
+			* PT_CORE_FLAG_NONE = 0x00
+			* PT_CORE_FLAG_POWEROFF_ON_SLEEP = 0x02
+			* PT_CORE_FLAG_RESTORE_PARAMETERS = 0x04
+			* PT_CORE_FLAG_DEEP_STANDBY = 0x08
+			* PT_CORE_FLAG_SKIP_SYS_SLEEP = 0x10
+			* PT_CORE_FLAG_SKIP_RUNTIME = 0x20
+			* PT_CORE_FLAG_SKIP_RESUME = 0x40
+			*/
+			parade,flags = <6>;
+			/* PT_CORE_EWG_NONE */
+			parade,easy_wakeup_gesture = <0>;
+			/* 0:AUTO 1:PIP1_ONLY 2:PIP2_CAPABLE*/
+			parade,config_dut_generation = <1>;
+			/* 0:False 1:True*/
+			parade,watchdog_force_stop = <0>;
+			/*
+			* PT_PANEL_ID_DISABLE = 0x00
+			* PT_PANEL_ID_BY_BL  = 0x01
+			* PT_PANEL_ID_BY_SYS_INFO  = 0x02
+			* PT_PANEL_ID_BY_MFG_DATA  = 0x04
+			*/
+			parade,panel_id_support = <0>;
+			parade,btn_keys = <172 /* KEY_HOMEPAGE */
+			/* previously was KEY_HOME, new Android versions use KEY_HOMEPAGE */
+						139 /* KEY_MENU */
+						158 /* KEY_BACK */
+						217 /* KEY_SEARCH */
+						114 /* KEY_VOLUMEDOWN */
+						115 /* KEY_VOLUMEUP */
+						212 /* KEY_CAMERA */
+						116>; /* KEY_POWER */
+			parade,btn_keys-tag = <0>;
+
+			parade,mt {
+				parade,name = "pt_mt";
+				parade,inp_dev_name = "pt_mt";
+				/*
+				* PT_MT_FLAG_NONE = 0x00
+				* PT_MT_FLAG_FLIP = 0x08
+				* PT_MT_FLAG_INV_X = 0x10
+				* PT_MT_FLAG_INV_Y = 0x20
+				* PT_MT_FLAG_VKEYS = 0x40
+				*/
+				parade,flags = <0x30>; /* PT_MT_FLAG_NONE */
+				parade,abs =
+					/* ABS_MT_POSITION_X, PT_ABS_MIN_X, PT_ABS_MAX_X, 0, 0 */
+					<0x35 0 1404 0 0
+					/* ABS_MT_POSITION_Y, PT_ABS_MIN_Y, PT_ABS_MAX_Y, 0, 0 */
+					0x36 0 1872 0 0
+					/* ABS_MT_PRESSURE, PT_ABS_MIN_P, PT_ABS_MAX_P, 0, 0 */
+					0x3a 0 255 0 0
+					/* PT_IGNORE_VALUE, PT_ABS_MIN_W, PT_ABS_MAX_W, 0, 0 */
+					0xffff 0 255 0 0
+					/* ABS_MT_TRACKING_ID, PT_ABS_MIN_T, PT_ABS_MAX_T, 0, 0 */
+					0x39 0 15 0 0
+					/* ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0 */
+					0x30 0 255 0 0
+					/* ABS_MT_TOUCH_MINOR, 0, 255, 0, 0 */
+					0x31 0 255 0 0
+					/* ABS_MT_ORIENTATION, -127, 127, 0, 0 */
+					0x34 0xffffff81 127 0 0
+					/* ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0 */
+					0x37 0 1 0 0
+					/* ABS_DISTANCE, 0, 255, 0, 0 */
+					0x19 0 255 0 0>;
+					parade,vkeys_x = <1404>;
+					parade,vkeys_y = <1872>;
+
+					parade,virtual_keys = /* KeyCode CenterX CenterY Width Height */
+					/* KEY_BACK */
+					<158 90 1960 160 180
+					/* KEY_MENU */
+					139 270 1960 160 180
+					/* KEY_HOMEPAGE */
+					172 450 1960 160 180
+					/* KEY SEARCH */
+					217 630 1960 160 180>;
+			};
+
+			parade,btn {
+				parade,name = "pt_btn";
+				parade,inp_dev_name = "pt_btn";
+			};
+
+			parade,proximity {
+				parade,name = "pt_proximity";
+				parade,inp_dev_name = "pt_proximity";
+				parade,abs =
+					/* ABS_DISTANCE, PT_PROXIMITY_MIN_VAL, PT_PROXIMITY_MAX_VAL, 0, 0 */
+					<0x19 0 1 0 0>;
+			};
+		};
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	sy7673a: sy7673a@62 {
+		status = "okay";
+		compatible = "sy,sy7673a";
+		reg = <0x62>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sy7673a_gpio>;
+		chipen-gpios = <&gpio2 RK_PA4 GPIO_ACTIVE_HIGH>; /*PMIC_ON*/
+		vcomctl-gpios = <&gpio2 RK_PA1 GPIO_ACTIVE_HIGH>; /*PMIC_CTRL*/
+		pwrgood-gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>; /*PMIC_PG*/
+		pvddctrl-gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_HIGH>; /*PMIC_WAKEUP*/
+		pwren-gpios = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>; /* PWR_EN */
+		pwr3v3en-gpios = <&gpio2 RK_PB6 GPIO_ACTIVE_HIGH>; /* 3V3_EN */
+	};
+};
+
+&pinctrl {
+	tps_pmic {
+		sy7673a_gpio: sy7673a-gpio {
+			rockchip,pins =
+				<2 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>,
+				<2 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>,
+				<2 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>,
+				<2 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>,
+				<2 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>,
+				<2 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+	eink_tcon {
+		eink_tcon_pins: eink-tcon-pins {
+			rockchip,pins =
+				<3 RK_PA0 1 &pcfg_pull_none_8ma>,       /* LCDC_DCLK */
+				<3 RK_PA1 1 &pcfg_pull_none_8ma>,       /* LCDC_HSYNC */
+				<3 RK_PA2 1 &pcfg_pull_none_8ma>,       /* LCDC_VSYNC */
+				<3 RK_PA3 1 &pcfg_pull_none_8ma>,       /* LCDC_DEN */
+				<3 RK_PA4 1 &pcfg_pull_none_8ma>,       /* LCDC_D0 */
+				<3 RK_PA5 1 &pcfg_pull_none_8ma>,       /* LCDC_D1 */
+				<3 RK_PA6 1 &pcfg_pull_none_8ma>,       /* LCDC_D2 */
+				<3 RK_PA7 1 &pcfg_pull_none_8ma>,       /* LCDC_D3 */
+				<3 RK_PB0 1 &pcfg_pull_none_8ma>,       /* LCDC_D4 */
+				<3 RK_PB1 1 &pcfg_pull_none_8ma>,       /* LCDC_D5 */
+				<3 RK_PB2 1 &pcfg_pull_none_8ma>,       /* LCDC_D6 */
+				<3 RK_PB3 1 &pcfg_pull_none_8ma>,       /* LCDC_D7 */
+				<3 RK_PB4 1 &pcfg_pull_none_8ma>,       /* LCDC_D8 */
+				<3 RK_PB5 1 &pcfg_pull_none_8ma>,       /* LCDC_D9 */
+				<3 RK_PB6 1 &pcfg_pull_none_8ma>,       /* LCDC_D10 */
+				<3 RK_PB7 1 &pcfg_pull_none_8ma>,       /* LCDC_D11 */
+				<3 RK_PC0 1 &pcfg_pull_none_8ma>,       /* LCDC_D12 */
+				<3 RK_PC1 1 &pcfg_pull_none_8ma>,       /* LCDC_D13 */
+				<3 RK_PC2 1 &pcfg_pull_none_8ma>,       /* LCDC_D14 */
+				<3 RK_PC3 1 &pcfg_pull_none_8ma>,       /* LCDC_D15 */
+				<3 RK_PC4 1 &pcfg_pull_none_8ma>,       /* LCDC_D16 */
+				<3 RK_PC5 1 &pcfg_pull_none_8ma>,       /* LCDC_D17 */
+				<3 RK_PC6 1 &pcfg_pull_none_8ma>,       /* LCDC_D18 */
+				<3 RK_PC7 1 &pcfg_pull_none_8ma>,       /* LCDC_D19 */
+				<3 RK_PD0 1 &pcfg_pull_none_8ma>,       /* LCDC_D20 */
+				<3 RK_PD1 1 &pcfg_pull_none_8ma>,       /* LCDC_D21 */
+				<3 RK_PD2 1 &pcfg_pull_none_8ma>,       /* LCDC_D22 */
+				<3 RK_PD3 1 &pcfg_pull_none_8ma>;       /* LCDC_D23 */
+		  };
+	};
+
+	tsc {
+		tsc_gpio: tsc-gpio {
+			rockchip,pins =
+				<0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	lm3630a {
+		lm3630a_gpio: lm3630a-gpio {
+			rockchip,pins =
+				<2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+	pmic {
+		pmic_int: pmic_int {
+                        rockchip,pins =
+                                <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+

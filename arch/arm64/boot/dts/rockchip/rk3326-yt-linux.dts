@@ -80,7 +80,7 @@
         panel,fel = <12>;
         panel,mirror = <0>;
 	panel,vcom-mv = <1250>;
-        panel,color_panel = <0>;
+        panel,color_panel = <1>;
         panel,width-mm = <157>;
         panel,height-mm = <210>;
 };

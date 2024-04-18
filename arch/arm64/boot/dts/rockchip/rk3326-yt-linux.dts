@@ -246,6 +246,18 @@
 		pwren-gpios = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>; /* PWR_EN */
 		pwr3v3en-gpios = <&gpio2 RK_PB6 GPIO_ACTIVE_HIGH>; /* 3V3_EN */
 	};
+
+	lm3630a_bl@36 {
+		status = "okay";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "ti,lm3630a";
+		reg = <0x36>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lm3630a_gpio>;
+		hwen_gpio = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
+		led-sources = <0>, <1>;
+	};
 };
 
 &pinctrl {
@@ -308,6 +320,7 @@
 				<2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+
 	pmic {
 		pmic_int: pmic_int {
                         rockchip,pins =

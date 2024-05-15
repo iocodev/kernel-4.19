@@ -9,6 +9,7 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/gpio.h>
 #include <linux/iopoll.h>
 #include <linux/math64.h>
 #include <linux/module.h>
@@ -294,6 +295,9 @@ struct dw_mipi_dsi {
 
 	const struct dw_mipi_dsi_plat_data *pdata;
 	struct rockchip_drm_sub_dev sub_dev;
+
+	bool disable_hold_mode;
+	struct gpio_desc *te_gpio;
 };
 
 static inline struct dw_mipi_dsi *host_to_dsi(struct mipi_dsi_host *host)
@@ -1417,6 +1421,11 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	if (dsi->id && !dsi->dphy.phy)
 		s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 
+	if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO)) {
+		s->soft_te = dsi->te_gpio ? true : false;
+		s->hold_mode = dsi->disable_hold_mode ? false : true;
+	}
+
 	return 0;
 }
 
@@ -1734,6 +1743,17 @@ static const struct regmap_config dw_mipi_dsi_regmap_config = {
 	.max_register = DSI_MAX_REGISGER,
 };
 
+static irqreturn_t dw_mipi_dsi_te_irq_handler(int irq, void *dev_id)
+{
+	struct dw_mipi_dsi *dsi = (struct dw_mipi_dsi *)dev_id;
+	struct drm_encoder *encoder = &dsi->encoder;
+
+	if (encoder->crtc)
+		rockchip_drm_te_handle(encoder->crtc);
+
+	return IRQ_HANDLED;
+}
+
 static int dw_mipi_dsi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1793,6 +1813,23 @@ static int dw_mipi_dsi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(dsi->grf);
 		DRM_DEV_ERROR(dsi->dev, "Unable to get grf: %d\n", ret);
 		return ret;
+	}
+
+	if (device_property_read_bool(dev, "disable-hold-mode"))
+		dsi->disable_hold_mode = true;
+
+	dsi->te_gpio = devm_gpiod_get_optional(dsi->dev, "te", GPIOD_IN);
+	if (IS_ERR(dsi->te_gpio))
+		dsi->te_gpio = NULL;
+
+	if (dsi->te_gpio) {
+		ret = devm_request_irq(dev, gpiod_to_irq(dsi->te_gpio),
+				       dw_mipi_dsi_te_irq_handler,
+				       IRQF_TRIGGER_RISING, "PANEL-TE", dsi);
+		if (ret) {
+			dev_err(dsi->dev, "failed to request TE IRQ: %d\n", ret);
+			return ret;
+		}
 	}
 
 	dsi->rst = devm_reset_control_get(dev, "apb");

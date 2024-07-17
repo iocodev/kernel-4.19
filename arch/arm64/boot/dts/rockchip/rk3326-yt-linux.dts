@@ -18,22 +18,18 @@
 };
 
 / {
-        aliases {
-                tcon0 = &tcon0;
-        };
-
         reserved-memory {
                 waveform_reserved: waveform@8000000 {
                         reg = <0x0 0x08000000 0x0 0x100000>;
                 };
 
-                display_reserved: framebuffer@10000000 {
+                logo_reserved: logo@10000000 {
                         reg = <0x0 0x10000000 0x0 0x800000>;
                 };
         };
 
-        tcon0: tcon@ff460000 {
-                compatible = "rockchip,px30-eink-tcon";
+        soft_tcon: soft-tcon@ff460000 {
+                compatible = "rockchip,ebc-soft-tcon";
                 reg = <0x0 0xff460000 0x0 0x1fc>;
                 interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
                 clocks = <&cru ACLK_VOPB>, <&cru DCLK_VOPB>,
@@ -48,9 +44,9 @@
         };
 
         eink: eink {
-                compatible = "rockchip,eink";
-                tcon = <&tcon0>;
-                memory-region = <&display_reserved>;
+                compatible = "rockchip,ebc";
+                tcon = <&soft_tcon>;
+                logo-region = <&logo_reserved>;
                 waveform-region = <&waveform_reserved>;
                 nvmem = <&otp>;
                 nvmem-names = "rockchip-otp";
@@ -60,14 +56,14 @@
 
 &eink {
         status = "okay";
-        tcon = <&tcon0>;
+        tcon = <&soft_tcon>;
+        pmic = <&sy7673a>;
+        //pmic = <&sy7636a>;
 
         panel,width = <1872>;
         panel,height = <1404>;
-        panel,vir_width = <1872>;
-        panel,vir_height = <1404>;
         panel,sdck = <34000000>;
-	panel,pixels-per-sdck = <8>;
+        panel,pixels-per-sdck = <8>;
         panel,lsl = <18>;
         panel,lbl = <17>;
         panel,ldl = <234>;
@@ -80,12 +76,12 @@
         panel,fel = <12>;
         panel,mirror = <0>;
 	panel,vcom-mv = <1250>;
-        panel,color_panel = <1>;
+        panel,color_panel = <6>;
         panel,width-mm = <157>;
         panel,height-mm = <210>;
 };
 
-&tcon0 {
+&soft_tcon {
         status = "okay";
 	pinctrl-0 = <&eink_tcon_pins>;
 };

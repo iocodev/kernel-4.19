@@ -12,7 +12,7 @@
 #include <dt-bindings/sensor-dev.h>
 #include <dt-bindings/display/drm_mipi_dsi.h>
 #include "rk3566.dtsi"
-#include "rk3568-android.dtsi"
+#include "rk3568-linux.dtsi"
 #include "rk3566-eink.dtsi"
 
 / {
@@ -21,8 +21,8 @@
 
 	charge-animation {
 		compatible = "rockchip,uboot-charge";
-		rockchip,uboot-charge-on = <0>;
-		rockchip,android-charge-on = <1>;
+		rockchip,uboot-charge-on = <1>;
+		rockchip,android-charge-on = <0>;
 		rockchip,uboot-low-power-voltage = <3350>;
 		rockchip,screen-on-voltage = <3400>;
 		rockchip,auto-wakeup-interval = <60>;
@@ -266,6 +266,20 @@
 	};
 };
 
+&reserved_memory {
+	logo_reserved: logo@10000000 {
+		reg = <0x0 0x12900000 0x0 0x1000000>;
+	};
+
+	linux,cma {
+		compatible = "shared-dma-pool";
+		inactive;
+		reusable;
+		reg = <0x0 0x20000000 0x0 0x08000000>;
+		linux,cma-default;
+	};
+};
+
 &ebc {
 	/* clock rate 1000M/n, (n=1~32) */
 	assigned-clocks = <&cru CPLL_333M>, <&cru DCLK_EBC>;
@@ -274,6 +288,8 @@
 };
 
 &ebc_dev {
+	compatible = "rockchip,ebc-linux";
+	logo-region = <&logo_reserved>;
 	pmic = <&tps65185>;
 	status = "okay";
 #if 0
@@ -697,7 +713,7 @@
 		};
 
 		battery {
-			status = "disabled";
+			status = "okay";
 			compatible = "rk817,battery";
 			ocv_table = <3400 3513 3578 3687 3734 3752 3763
 				     3766 3771 3784 3804 3836 3885 3925
@@ -1007,11 +1023,11 @@
 	tps_pmic {
 		tps65185_gpio: tps65185-gpio {
 			rockchip,pins =
-					<4 RK_PB2 RK_FUNC_GPIO &pcfg_output_low>,
-					<3 RK_PA5 RK_FUNC_GPIO &pcfg_output_low>,
-					<3 RK_PA6 RK_FUNC_GPIO &pcfg_output_low>,
-					<3 RK_PB0 RK_FUNC_GPIO &pcfg_output_low>,
-					<3 RK_PB1 RK_FUNC_GPIO &pcfg_output_low>;
+					<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
+					<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>,
+					<3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,
+					<3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,
+					<3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -1220,12 +1236,10 @@
 };
 
 &usb2phy0 {
-	extcon = <&fusb0>;
 	status = "okay";
 };
 
 &usbdrd_dwc3 {
-	extcon = <&fusb0>;
 	status = "okay";
 };
 

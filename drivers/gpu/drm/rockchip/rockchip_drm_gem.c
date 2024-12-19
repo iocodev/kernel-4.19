@@ -670,6 +670,9 @@ rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
 	struct rockchip_gem_object *rk_obj;
 	int ret;
 
+#if IS_ENABLED(CONFIG_EBC_USE_DRM)
+	flags |= ROCKCHIP_BO_DMA32;
+#endif
 	rk_obj = rockchip_gem_alloc_object(drm, size, flags);
 	if (IS_ERR(rk_obj))
 		return rk_obj;

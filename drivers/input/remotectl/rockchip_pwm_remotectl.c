@@ -582,6 +582,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct clk *p_clk;
 	struct cpumask cpumask;
+	unsigned long irq_flags = IRQF_NO_SUSPEND | IRQF_SHARED;
 	int num;
 	int irq;
 	int ret;
@@ -711,7 +712,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	cpumask_set_cpu(cpu_id, &cpumask);
 	irq_set_affinity(irq, &cpumask);
 	ret = devm_request_irq(&pdev->dev, irq, rockchip_pwm_irq,
-			       IRQF_NO_SUSPEND, "rk_pwm_irq", ddata);
+			       irq_flags, "pwm_rc", ddata);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", irq);
 		goto error_irq;

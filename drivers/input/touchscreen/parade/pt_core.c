@@ -32,6 +32,7 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/time.h>
+#include <linux/fs.h>
 #include "pt_regs.h"
 
 #define PT_CORE_STARTUP_RETRY_COUNT		3
@@ -11061,6 +11062,14 @@ int _pt_pip2_file_read(struct device *dev, u8 file_handle, u16 num_bytes,
  ******************************************************************************/
 int _pt_read_us_file(struct device *dev, u8 *file_path, u8 *buf, int *size)
 {
+#if 1
+	(void)dev;
+	(void)file_path;
+	(void)buf;
+	(void)size;
+	pr_info("%s:%d\n", __func__, __LINE__);
+	return 0;
+#else
 	struct file *filp = NULL;
 	struct inode *inode = NULL;
 	unsigned int file_len = 0;
@@ -11131,6 +11140,7 @@ exit:
 err:
 	set_fs(oldfs);
 	return rc;
+#endif
 }
 
 /*******************************************************************************

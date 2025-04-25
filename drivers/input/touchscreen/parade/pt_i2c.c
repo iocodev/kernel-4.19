@@ -227,7 +227,7 @@ static int pt_i2c_probe(struct i2c_client *client,
  * PARAMETERS:
  *      *client - pointer to i2c client structure
  ******************************************************************************/
-static int pt_i2c_remove(struct i2c_client *client)
+static void pt_i2c_remove(struct i2c_client *client)
 {
 #ifdef CONFIG_TOUCHSCREEN_PARADE_DEVICETREE_SUPPORT
 	const struct of_device_id *match;
@@ -242,8 +242,6 @@ static int pt_i2c_remove(struct i2c_client *client)
 	if (match)
 		pt_devtree_clean_pdata(dev);
 #endif
-
-	return 0;
 }
 
 static const struct i2c_device_id pt_i2c_id[] = {

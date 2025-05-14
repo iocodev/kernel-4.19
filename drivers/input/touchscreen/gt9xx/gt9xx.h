@@ -1,18 +1,18 @@
 /* drivers/input/touchscreen/gt9xx.h
- * 
+ *
  * 2010 - 2013 Goodix Technology.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be a reference 
- * to you, when you are integrating the GOODiX's CTP IC into your system, 
- * but WITHOUT ANY WARRANTY; without even the implied warranty of 
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU 
+ *
+ * This program is distributed in the hope that it will be a reference
+ * to you, when you are integrating the GOODiX's CTP IC into your system,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- * 
+ *
  */
 
 #ifndef _GOODIX_GT9XX_H_
@@ -78,8 +78,8 @@
 #define GTP_GESTURE_WAKEUP    0    // gesture wakeup
 
 #define GTP_DEBUG_ON          1
-#define GTP_DEBUG_ARRAY_ON    0
-#define GTP_DEBUG_FUNC_ON     0
+#define GTP_DEBUG_ARRAY_ON    1
+#define GTP_DEBUG_FUNC_ON     1
 
 /* init use fixed clk num */
 /* if open, u8 p_main_clk[6] = {69,69,69,69,69,167}; */
@@ -132,7 +132,7 @@ struct goodix_ts_data {
     int rst_val;
 	u8 pendown;
     unsigned long irq_flags;
-    
+
 #if GTP_WITH_PEN
     struct input_dev *pen_dev;
 #endif
@@ -162,14 +162,14 @@ struct goodix_ts_data {
 // STEP_1(REQUIRED): Define Configuration Information Group(s)
 // Sensor_ID Map:
 /* sensor_opt1 sensor_opt2 Sensor_ID
-    GND         GND         0 
-    VDDIO       GND         1 
-    NC          GND         2 
-    GND         NC/300K     3 
-    VDDIO       NC/300K     4 
-    NC          NC/300K     5 
+    GND         GND         0
+    VDDIO       GND         1
+    NC          GND         2
+    GND         NC/300K     3
+    VDDIO       NC/300K     4
+    NC          NC/300K     5
 */
-// TODO: define your own default or for Sensor_ID == 0 config here. 
+// TODO: define your own default or for Sensor_ID == 0 config here.
 // The predefined one is just a sample config, which is not suitable for your tp in most cases.
 /*
 #define CTP_CFG_GROUP1 {\
@@ -269,7 +269,7 @@ struct goodix_ts_data {
                                             GTP_GPIO_AS_INPUT(pin);\
                                             s3c_gpio_cfgpin(pin, GTP_INT_CFG);\
                                         }while(0)
-*/                                        
+*/
 #define GTP_GPIO_GET_VALUE(pin)         gpio_get_value(pin)
 #define GTP_GPIO_OUTPUT(pin,level)      gpio_direction_output(pin,level)
 #define GTP_GPIO_REQUEST(pin, label)    gpio_request(pin, label)
@@ -288,7 +288,7 @@ struct goodix_ts_data {
 #endif
 #define GTP_MAX_TOUCH         10
 
-// STEP_4(optional): If keys are available and reported as keys, config your key info here                             
+// STEP_4(optional): If keys are available and reported as keys, config your key info here
 #if GTP_HAVE_TOUCH_KEY
     #define GTP_KEY_TAB  {KEY_MENU, KEY_HOME, KEY_BACK}
 #endif
@@ -297,7 +297,7 @@ struct goodix_ts_data {
 #define GTP_DRIVER_VERSION          "V2.2<2014/01/14>"
 #define GTP_I2C_NAME                "Goodix-TS"
 #define GT91XX_CONFIG_PROC_FILE     "gt9xx_config"
-#define GTP_POLL_TIME         10    
+#define GTP_POLL_TIME         10
 #define GTP_ADDR_LENGTH       2
 #define GTP_CONFIG_MIN_LENGTH 186
 #define GTP_CONFIG_MAX_LENGTH 240
@@ -311,7 +311,7 @@ struct goodix_ts_data {
 #define GTP_REG_MAIN_CLK                0x8020
 #define GTP_REG_CHIP_TYPE               0x8000
 #define GTP_REG_HAVE_KEY                0x804E
-#define GTP_REG_MATRIX_DRVNUM           0x8069     
+#define GTP_REG_MATRIX_DRVNUM           0x8069
 #define GTP_REG_MATRIX_SENNUM           0x806A
 
 #define GTP_FL_FW_BURN              0x00

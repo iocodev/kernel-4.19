@@ -2431,6 +2431,8 @@ static int __init rockchip_drm_init(void)
 	num_rockchip_sub_drivers = 0;
 #if IS_ENABLED(CONFIG_DRM_ROCKCHIP_VKMS)
 	ADD_ROCKCHIP_SUB_DRIVER(rockchip_vkms_platform_driver, CONFIG_DRM_ROCKCHIP_VKMS);
+#elif IS_ENABLED(CONFIG_EBC_USE_DRM)
+	ADD_ROCKCHIP_SUB_DRIVER(vebc_platform_driver, CONFIG_EBC_USE_DRM);
 #else
 	ADD_ROCKCHIP_SUB_DRIVER(vop_platform_driver, CONFIG_ROCKCHIP_VOP);
 	ADD_ROCKCHIP_SUB_DRIVER(vop2_platform_driver, CONFIG_ROCKCHIP_VOP2);

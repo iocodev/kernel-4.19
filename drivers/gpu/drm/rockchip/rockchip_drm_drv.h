@@ -718,6 +718,7 @@ extern struct platform_driver rockchip_tve_driver;
 extern struct platform_driver dw_dp_driver;
 extern struct platform_driver vconn_platform_driver;
 extern struct platform_driver rockchip_vkms_platform_driver;
+extern struct platform_driver vebc_platform_driver;
 
 static inline struct rockchip_encoder *to_rockchip_encoder(struct drm_encoder *encoder)
 {

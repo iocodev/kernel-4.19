@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menuconfig ROCKCHIP_EBC_LINUX
+	tristate "EBC"
+	depends on ARCH_ROCKCHIP
+	select LZ4_DECOMPRESS
+	help
+	  ebc module for linux sdk.
+
+if ROCKCHIP_EBC_LINUX
+
+config EBC_TPS65185_SENSOR
+    bool "eink pmic Tps65185"
+
+config EBC_SY7636A_PMIC
+	bool "EINK PMIC SY7636A Support"
+	help
+	  If you say yes here you get support for the Silergy SY7636A PMIC.
+
+config EBC_SY7673A_PMIC
+	bool "EINK PMIC SY7673A Support"
+	help
+	  If you say yes here you get support for the Silergy SY7673A PMIC.
+
+config EBC_USE_MULTI_THREAD
+	bool "Use Multi-Thread"
+	default y
+	help
+	  use multi-thread to process frame data
+
+config EBC_USE_DRM
+	bool "Use DRM"
+	default y
+	help
+	  use DRM
+
+endif

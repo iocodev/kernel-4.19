@@ -1,0 +1,180 @@
+/ {
+	model = "Rockchip RK3506 EInk Board";
+	compatible = "rockchip,rk3506-eink", "rockchip,rk3506";
+
+	eink: eink {
+		compatible = "rockchip,ebc";
+		tcon = <&soft_tcon>;
+		logo-region = <&logo_reserved>;
+		waveform-region = <&waveform_reserved>;
+		status = "disabled";
+	};
+
+	soft_tcon: soft-tcon {
+		compatible = "rockchip,rk3506-eink-soft-tcon";
+		reg = <0xff600000 0x200>;
+		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>,
+			 <&cru HCLK_VOP>;
+		clock-names = "aclk", "dclk", "hclk";
+		rockchip,grf = <&grf>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&mcu_rgb888_pins>;
+		status = "disabled";
+	};
+};
+
+&i2c2 {
+	sy7636a: sy7636a@62 {
+		compatible = "silergy,sy7636a-pmic";
+		reg = <0x62>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sy7636a_default>;
+		// TODO
+		enable-gpios = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+		pgood-gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+		thermal-zone = "ebcpmic-thermal";
+		#thermal-sensor-cells = <0>;
+
+		regulators {
+			compatible = "sy7636a-regulator";
+			reg_ebcpmic: vcom {
+				regulator-name = "vcom";
+				regulator-min-microvolt = <0>;
+				regulator-max-microvolt = <5000000>;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+		};
+
+		sy7636a_thermal: sy7636a_thermal {
+			compatible = "sy7636a-thermal";
+		};
+	};
+};
+
+&reserved_memory {
+	waveform_reserved: waveform@f600000 {
+		reg = <0xf600000 0x100000>;
+	};
+
+	logo_reserved: logo@f700000 {
+		reg = <0xf700000 0x200000>;
+	};
+};
+
+&thermal_zones {
+	ebcpmic_thermal: ebcpmic-thermal {
+		polling-delay = <0>;
+		polling-delay-passive = <0>;
+		thermal-sensors = <&sy7636a>;
+
+		trips {
+			sy7636a_dummy_trip: sy7636a-dummy-trip {
+				temperature = <100000>;
+				hysteresis = <0>;
+				type = "hot";
+			};
+		};
+	};
+};
+
+&display_subsystem {
+	status = "disabled";
+};
+
+&dsi {
+	status = "disabled";
+};
+
+&dsi_dphy {
+	status = "disabled";
+};
+
+&dsi_in_vop {
+	status = "disabled";
+};
+
+&vop {
+	status = "disabled";
+};
+
+&route_dsi {
+	status = "disabled";
+};
+
+&pinctrl {
+	sy7636a {
+		sy7636a_default: sy7636a_default {
+			// TODO
+			rockchip,pins =
+				<1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>,
+				<1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+
+		};
+	};
+	vo_lcdc {
+		mcu_rgb8bit_pins: mcu-rgb8bit-pins {
+			rockchip,pins =
+				/* vo_lcdc_clk */
+				//<1 RK_PA3 1 &pcfg_pull_none>,
+				/* vo_lcdc_d0 */
+				<1 RK_PD3 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d1 */
+				<1 RK_PD2 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d2 */
+				<1 RK_PD1 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d3 */
+				<1 RK_PD0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d4 */
+				<1 RK_PC7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d5 */
+				<1 RK_PC6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d6 */
+				<1 RK_PC5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d7 */
+				<1 RK_PC4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d8 */
+				//<1 RK_PC3 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d9 */
+				//<1 RK_PC2 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d10 */
+				//<1 RK_PC1 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d11 */
+				//<1 RK_PC0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d12 */
+				//<1 RK_PB7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d13 */
+				//<1 RK_PB6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d14 */
+				//<1 RK_PB5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d15 */
+				//<1 RK_PB4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d16 */
+				//<1 RK_PB3 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d17 */
+				//<1 RK_PB2 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d18 */
+				<1 RK_PB1 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d19 */
+				<1 RK_PB0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d20 */
+				<1 RK_PA7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d21 */
+				<1 RK_PA6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d22 */
+				<1 RK_PA5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d23 */
+				<1 RK_PA4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_den */
+				//<1 RK_PA0 1 &pcfg_pull_none>,
+				/* vo_lcdc_hsync */
+				<1 RK_PA2 1 &pcfg_pull_none>;
+				/* vo_lcdc_vsync */
+				//<1 RK_PA1 1 &pcfg_pull_none>;
+		};
+	};
+};

@@ -1244,6 +1244,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3502g-evb1-v10.dtb \
 	rk3503g-evb1-v10.dtb \
 	rk3506b-evb1-v10.dtb \
+	rk3506b-ebook-v10.dtb \
 	rk3506b-test2-v10.dtb \
 	rk3506g-demo-display-control.dtb \
 	rk3506g-evb1-v10.dtb \

@@ -1,0 +1,132 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3506.dtsi"
+#include "rk3506-ebook-v10.dtsi"
+
+/ {
+	model = "Rockchip RK3506B(BGA) EBook V10 Board";
+	compatible = "rockchip,rk3506b-ebook-v10", "rockchip,rk3506";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff0a0000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rw rootwait";
+	};
+};
+
+&soft_tcon {
+	pinctrl-0 = <&mcu_rgb8bit_pins>;
+	status = "okay";
+};
+
+&sy7636a {
+	status = "okay";
+	enable-gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
+	pgood-gpio = <&gpio1 RK_PA3 GPIO_ACTIVE_LOW>;
+};
+
+&cma {
+	size = <0x2000000>;
+};
+
+&eink {
+	status = "okay";
+	tcon = <&soft_tcon>;
+	pmic = <&sy7636a>;
+	backlight = <&backlight>;
+
+	panel,width = <1024>;
+	panel,height = <758>;
+	panel,vir_width = <1024>;
+	panel,vir_height = <758>;
+	panel,sdck = <20000000>;
+	panel,lsl = <6>;
+	panel,lbl = <6>;
+	panel,ldl = <256>;
+	panel,lel = <38>;
+	panel,gdck-sta = <4>;
+	panel,lgonl = <262>;
+	panel,fsl = <2>;
+	panel,fbl = <4>;
+	panel,fdl = <758>;
+	panel,fel = <5>;
+	panel,mirror = <0>;
+	panel,vcom-mv = <1850>;
+	panel,panel_16bit = <0>;
+	panel,panel_color = <0>;
+	panel,width-mm = <101>;
+	panel,height-mm = <138>;
+};
+
+&es8388 {
+	status = "disabled";
+};
+
+&es8388_sound {
+	status = "disabled";
+};
+
+&gmac0 {
+	status = "disabled";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io14_i2c1_scl &rm_io15_i2c1_sda>;
+	status = "okay";
+
+	gt9xx: gt9xx@5d {
+		compatible = "goodix,gt9xx";
+		reg = <0x5d>;
+		touch-gpio = <&gpio0 RK_PC3 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpio = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+		power-gpio = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
+		max-x = <1024>;
+		max-y = <756>;
+		//configfile-num = <1>;
+		status = "okay";
+		tp-size = <911>;
+		//tp-supply = <&vcc_3v3_tpemr_en>;
+        pinctrl-names = "default";
+		pinctrl-0 = <&gt9xx_tp>;
+	};
+};
+
+&gt9xx {
+	status = "okay";
+};
+
+&audio_codec {
+	status = "disabled";
+};
+
+&sai1 {
+	status = "okay";
+};
+
+&pinctrl {
+	sy7636a {
+		sy7636a_default: sy7636a_default {
+			rockchip,pins =
+				<1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>,
+				<1 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+	touch {
+		touch_gpio: touch-gpio {
+			rockchip,pins =
+				<0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+    gt9xx_touch{
+        gt9xx_tp: gt9xx-tp {
+            rockchip,pins =
+                <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+        };
+    };
+};

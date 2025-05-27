@@ -2409,8 +2409,8 @@ static int cm_normal_adapter_det(struct charger_manager *cm)
 
 	fc_config = cm->fc_config;
 	fc_config->adaper_power_init_flag = 0;
-	cm->is_normal_charge = false;
-	cm->is_fast_charge = false;
+	cm->is_normal_charge = true;
+	cm->is_pd_charge = false;
 	cm->is_pps_charge = false;
 
 	ret = power_supply_get_property(desc->tcpm_psy,
@@ -2474,7 +2474,8 @@ static void cm_adapter_disattach(struct charger_manager *cm)
 	cm->is_fast_charge = 0;
 	fc_config->charge_type = CHARGE_TYPE_DISCHARGE;
 #if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
-	cm_charge_limit_update(cm);
+	if (!IS_ERR_OR_NULL(cm->desc->tcpm_psy))
+		cm_charge_limit_update(cm);
 #endif
 	if (!cm->desc->dc_charger_status || !cm->desc->support_dc_charger) {
 		set_sw_charger_input_limit_current(cm, USB_SDP_INPUT_CURRENT);
@@ -2492,6 +2493,9 @@ static void cm_adapter_disattach(struct charger_manager *cm)
 	cm->fc_charger_enabled = 0;
 	cm->fc_config->sw_ovp_flag = 0;
 	cm->fc_config->fc_charge_error = false;
+	cm->is_normal_charge = false;
+	cm->is_pd_charge = false;
+	cm->is_pps_charge = false;
 
 	if (cm->desc->measure_battery_temp)
 		cm->fc_config->jeita_enable_charge = true;
@@ -2513,8 +2517,7 @@ static int charger_extcon_notifier(struct notifier_block *self,
 	struct charger_manager *cm =
 		container_of(self, struct charger_manager, nb);
 	struct charger_desc *desc = cm->desc;
-	union power_supply_propval val;
-	int tcpm_wait = 0;
+	struct fastcharge_config *fc_config;
 	int ret;
 
 	/*
@@ -2525,73 +2528,41 @@ static int charger_extcon_notifier(struct notifier_block *self,
 
 	CM_DBG("%s, %d\n", __func__, cm->attached);
 	if (event) {
+		fc_config = cm->fc_config;
 		cm->is_charge = 1;
 		pm_stay_awake(cm->dev);
+		if (cm->is_pps_charge || cm->is_pd_charge || cm->is_normal_charge)
+			return NOTIFY_DONE;
 
-		if (extcon_get_state(desc->extcon_dev, EXTCON_CHG_USB_DCP) > 0) {
+		if (extcon_get_state(desc->extcon_dev, EXTCON_CHG_USB_SDP) > 0) {
+			CM_DBG("EXTCON_CHG_USB_SDP\n");
+			fc_config->charge_type = CHARGE_TYPE_NORMAL;
+			if (!cm->desc->dc_charger_status) {
+				ret = set_sw_charger_input_limit_current(cm, USB_SDP_INPUT_CURRENT);
+				if (ret)
+					return NOTIFY_BAD;
+			}
+		} else if (extcon_get_state(desc->extcon_dev, EXTCON_CHG_USB_DCP) > 0) {
 			CM_DBG("EXTCON_CHG_USB_DCP\n");
-			ret = power_supply_get_property(desc->tcpm_psy,
-							POWER_SUPPLY_PROP_ONLINE,
-							&val);
-			if (ret) {
-				dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_CURRENT_MAX\n", __LINE__);
-				return ret;
-			}
-			while (tcpm_wait++ < 30) {
-				if (!val.intval)
-					break;
-				ret = power_supply_get_property(desc->tcpm_psy,
-								POWER_SUPPLY_PROP_ONLINE,
-								&val);
-				if (ret) {
-					dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_CURRENT_MAX\n", __LINE__);
-					return ret;
-				}
-				if (!val.intval)
-					break;
-				msleep(20);
-			}
-		}
-
-		ret = power_supply_get_property(desc->tcpm_psy,
-						POWER_SUPPLY_PROP_USB_TYPE,
-						&val);
-		if (ret) {
-			dev_err(cm->dev, "[%d] failed to get POWER_SUPPLY_PROP_CURRENT_MAX\n", __LINE__);
-			return ret;
-		}
-		switch (val.intval) {
-		case POWER_SUPPLY_USB_TYPE_PD:
-			if (!cm->is_pps_charge && !cm->is_pd_charge) {
-				ret = cm_pd_adapter_det(cm);
-				CM_DBG("USB-TYPE: POWER_SUPPLY_USB_TYPE_PD\n");
+			fc_config->charge_type = CHARGE_TYPE_NORMAL;
+			if (!cm->desc->dc_charger_status) {
+				ret = set_sw_charger_input_limit_current(cm, USB_DCP_INPUT_CURRENT);
 				if (ret)
 					return NOTIFY_BAD;
 			}
-		break;
-		case POWER_SUPPLY_USB_TYPE_PD_PPS:
-			if (!cm->is_pps_charge) {
-				ret = cm_pps_adapter_det(cm);
-				if (ret)
-					return NOTIFY_BAD;
-				CM_DBG("USB-TYPE: POWER_SUPPLY_USB_TYPE_PD\n");
-			}
-		break;
-		default:
-			if (!cm->is_pps_charge && !cm->is_pd_charge && !cm->is_normal_charge) {
-				ret = cm_normal_adapter_det(cm);
+		} else if (extcon_get_state(desc->extcon_dev, EXTCON_CHG_USB_CDP) > 0) {
+			CM_DBG("EXTCON_CHG_USB_CDP:%duA dc_charger_status: %d\n",
+			       USB_CDP_INPUT_CURRENT, cm->desc->dc_charger_status);
+			fc_config->charge_type = CHARGE_TYPE_NORMAL;
+			if (!cm->desc->dc_charger_status) {
+				ret = set_sw_charger_input_limit_current(cm, USB_CDP_INPUT_CURRENT);
 				if (ret)
 					return NOTIFY_BAD;
 			}
-		break;
 		}
-
-		if (val.intval != POWER_SUPPLY_USB_TYPE_PD_PPS) {
-			if (cm->fc_config->jeita_charge_support) {
-				cancel_delayed_work(&cm->cm_jeita_work);
-				queue_delayed_work(cm->cm_wq, &cm->cm_jeita_work, 0);
-			}
-		}
+		ret = set_sw_charger_enable(cm);
+		if (ret)
+			return NOTIFY_BAD;
 	} else {
 		cm_adapter_disattach(cm);
 	}
@@ -2676,6 +2647,9 @@ static int cm_pd_notifier_call(struct notifier_block *self,
 static int cm_pd_init(struct charger_manager *cm)
 {
 	int ret;
+
+	if (IS_ERR_OR_NULL(cm->desc->tcpm_psy))
+		return 0;
 
 	cm->pd_nb.notifier_call = cm_pd_notifier_call;
 	ret = power_supply_reg_notifier(&cm->pd_nb);
@@ -2830,12 +2804,10 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 	CM_DBG("cm-fuel-gauge: %s\n", desc->psy_fuel_gauge);
 
 	desc->tcpm_psy = power_supply_get_by_phandle(np, "cm-chargers-phandle");
-	if (IS_ERR_OR_NULL(desc->tcpm_psy)) {
-		CM_DBG("cm-chargers-phandle is error\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	CM_DBG("tcpm_psy name : %s\n", desc->tcpm_psy->desc->name);
+	if (IS_ERR_OR_NULL(desc->tcpm_psy))
+		CM_DBG("cm-chargers-phandle is error or null!\n");
+	else
+		CM_DBG("tcpm_psy name : %s\n", desc->tcpm_psy->desc->name);
 
 	desc->extcon_dev = extcon_get_edev_by_phandle(dev, 0);
 	if (IS_ERR_OR_NULL(desc->extcon_dev)) {

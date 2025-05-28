@@ -1874,7 +1874,7 @@ static s8 gtp_request_io_port(struct goodix_ts_data *ts)
     }
 
 #if 1
-   gpio_direction_output(ts->pwr_pin,1);
+   gpio_direction_output(ts->pwr_pin, 1);
 
    gpio_direction_output(ts->rst_pin, 0);
    mdelay(10);
@@ -2003,6 +2003,10 @@ static int goodix_ts_early_suspend(struct tp_device *tp_d)
 	reg = regulator_disable(ts->tp_regulator);
 	if (reg < 0)
 		GTP_ERROR("failed to disable tp regulator\n");
+
+	gpio_direction_output(ts->pwr_pin, 0);
+	gpio_direction_output(ts->rst_pin, 0);
+
 	msleep(20);
 	return 0;
 }
@@ -2020,10 +2024,14 @@ static int goodix_ts_early_resume(struct tp_device *tp_d)
     struct goodix_ts_data *ts;
     s8 ret = -1;
     int reg = 0;
+
     ts = container_of(tp_d, struct goodix_ts_data, tp);
     GTP_DEBUG_FUNC();
 
     GTP_INFO("System resume.");
+
+	gpio_direction_output(ts->rst_pin, 1);
+	gpio_direction_output(ts->pwr_pin, 1);
 
 	reg = regulator_enable(ts->tp_regulator);
 	if (reg < 0)

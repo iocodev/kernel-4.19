@@ -18,7 +18,7 @@
 #define EBC_FB_BLANK		(2)
 #define EBC_FB_UNBLANK		(3)
 
-#if IS_REACHABLE(CONFIG_ROCKCHIP_EBC_DEV)
+#if IS_REACHABLE(CONFIG_ROCKCHIP_EBC_DEV) || IS_REACHABLE(CONFIG_ROCKCHIP_EBC_LINUX)
 int ebc_register_notifier(struct notifier_block *nb);
 int ebc_unregister_notifier(struct notifier_block *nb);
 int ebc_notify(unsigned long event);

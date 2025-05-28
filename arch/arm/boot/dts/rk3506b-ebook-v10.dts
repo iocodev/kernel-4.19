@@ -90,13 +90,9 @@
 		status = "okay";
 		tp-size = <911>;
 		//tp-supply = <&vcc_3v3_tpemr_en>;
-        pinctrl-names = "default";
+		pinctrl-names = "default";
 		pinctrl-0 = <&gt9xx_tp>;
 	};
-};
-
-&gt9xx {
-	status = "okay";
 };
 
 &audio_codec {
@@ -121,12 +117,12 @@
 				<0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
-    gt9xx_touch{
-        gt9xx_tp: gt9xx-tp {
-            rockchip,pins =
-                <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,
+	gt9xx_touch{
+		gt9xx_tp: gt9xx-tp {
+			rockchip,pins =
+				<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,
 				<0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>,
 				<0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
-        };
-    };
+		};
+	};
 };

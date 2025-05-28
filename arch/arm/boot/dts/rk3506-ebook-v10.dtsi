@@ -193,20 +193,6 @@
 		regulator-max-microvolt = <1800000>;
 		vin-supply = <&vcc3v3_stb>;
 	};
-
-	vcc_3v3_tpemr: vcc-3v3-tpemr {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_3v3_tpemr";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		enable-active-high;
-		gpio = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&vcc_io>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&vcc_3v3_tpemr_en>;
-	};
 };
 
 &audio_codec {
@@ -305,9 +291,7 @@
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-state-mem {
-					regulator-mode = <0x2>;
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <950000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -320,9 +304,7 @@
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-state-mem {
-					regulator-mode = <0x2>;
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1000000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -357,8 +339,7 @@
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1800000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -369,8 +350,7 @@
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-state-mem {
-					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1800000>;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -468,11 +448,6 @@
 			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 	};
-	touch_3v3 {
-		vcc_3v3_tpemr_en: vcc-3v3-tpemr-en {
-			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>; /* gpio0_a2 */
-		};
-	};
 	bl_3v3{
 		vcc_3v3_bl_en: vcc-3v3-bl-en {
 			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>; /* gpio0_a3 */
@@ -502,11 +477,10 @@
 &rockchip_suspend {
 	rockchip,sleep-mode-config = <
 		(0
-		| RKPM_ARMOFF_DDRPD
+		| RKPM_ARMOFF_LOGOFF
 		| RKPM_24M_OSC_DIS
 		| RKPM_32K_CLK
 		| RKPM_32K_SRC_RC
-		| RKPM_PWM0_CH0_REGULATOR
 		)
 	>;
 
@@ -516,22 +490,11 @@
 		)
 	>;
 
-#define GPIO0_IOC_GPIO0A_PULL_REG	0xff950200
 #define GPIO0_IOC_GPIO0B_PULL_REG	0xff950204
-#define GPIO0_IOC_GPIO0C_PULL_REG	0xff950208
-#define IOC0_GPIO0C5_SMT_REG		0xff950408
-
-#define GPIO0A02_PULL_Z			0x00330000
-#define GPIO0A3_PULL_DOWN		0x00c00080
 #define GPIO0B0_PULL_DOWN		0x00030002
-#define GPIO0C5_PULL_Z			0x0c000000
-#define GPIO0C5_SMT_DISABLE		0x00200000
 
 	/* Note: support max 16 pairs */
 	rockchip,sleep-io-config = <
-		GPIO0_IOC_GPIO0C_PULL_REG GPIO0C5_PULL_Z    /* PWM0_CH0_CPU */
-		IOC0_GPIO0C5_SMT_REG GPIO0C5_SMT_DISABLE    /* PWM0_CH0_CPU */
-		GPIO0_IOC_GPIO0A_PULL_REG GPIO0A3_PULL_DOWN /* PWM0_CH2_LCD_BL */
 		GPIO0_IOC_GPIO0B_PULL_REG GPIO0B0_PULL_DOWN /* SAI1_MCLK */
 	>;
 };

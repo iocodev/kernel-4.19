@@ -122,30 +122,6 @@
 		};
 	};
 
-	es8388_sound: es8388-sound {
-		status = "disabled";
-		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip-es8388";
-		spk-con-gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
-		rockchip,pre-power-on-delay-ms = <30>;
-		rockchip,post-power-down-delay-ms = <40>;
-		rockchip,format = "i2s";
-		rockchip,mclk-fs = <256>;
-		rockchip,cpu = <&sai1>;
-		rockchip,codec = <&es8388>;
-		rockchip,audio-routing =
-			"Speaker", "LOUT1",
-			"Speaker", "ROUT1",
-			"Speaker", "Speaker Power",
-			"Speaker", "Speaker Power",
-			"LINPUT1", "Main Mic",
-			"LINPUT2", "Main Mic",
-			"RINPUT1", "Main Mic",
-			"RINPUT2", "Main Mic";
-		pinctrl-names = "default";
-		pinctrl-0 = <&spk_ctrl>;
-	};
-
 	fiq_debugger: fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
 		rockchip,serial-id = <0>;
@@ -240,19 +216,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&rm_io4_i2c0_scl
 		     &rm_io5_i2c0_sda>;
-
-	es8388: es8388@11 {
-		status = "disabled";
-		#sound-dai-cells = <0>;
-		compatible = "everest,es8388", "everest,es8323";
-		reg = <0x11>;
-		clocks = <&mclkout_sai1>;
-		clock-names = "mclk";
-		assigned-clocks = <&mclkout_sai1>;
-		assigned-clock-rates = <12288000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&rm_io8_sai1_mclk>;
-	};
 
 	rk805: rk805@18 {
 		compatible = "rockchip,rk805";
@@ -376,7 +339,7 @@
 		pinctrl-0 = <&charger_ok>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PA7 IRQ_TYPE_EDGE_FALLING>; /* IRQ_TYPE_LEVEL_LOW>;*/
-		charger-phandle = <&usb2phy>;
+		extcon = <&usb2phy>;
 		sc,battery-regulation-voltage = <4350000>; /* 4200000,4.2V , 4350000, 4232000*/
 		sc,charge-current = <3000000>; /*2040000,* 2.040A, 3000000 */
 		sc,termination-current = <180000>;  /* 180mA, 180000 */
@@ -385,12 +348,12 @@
 		sc,boost-voltage = <5000000>; /*5100000, 5.1V */
 		sc,boost-max-current = <1500000>; /*1200000, 1200mA */
 
-		sc,use-stat-pin = <0>; /* enable stat pin */
+		//sc,use-stat-pin = <0>; /* enable stat pin */
 		sc,boost-freq = <0>; /* 1.5MHz */
 
 		//monitored-battery = <&bat>;
 		regulators {
-			otg-en-pin = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+			//otg-en-pin = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
 			vbus5v0_typec: vbus5v0-typec {
 				regulator-compatible = "otg-vbus";
 				regulator-name = "vbus5v0_typec";
@@ -470,10 +433,6 @@
 	status = "okay";
 };
 
-&rng {
-	status = "okay";
-};
-
 &rockchip_suspend {
 	rockchip,sleep-mode-config = <
 		(0
@@ -490,12 +449,12 @@
 		)
 	>;
 
-#define GPIO0_IOC_GPIO0B_PULL_REG	0xff950204
-#define GPIO0B0_PULL_DOWN		0x00030002
+#define GPIO0_IOC_GPIO0C_PULL_REG   0xff950208
+#define GPIO0C3_PULL_DOWN           0x00c00080
 
 	/* Note: support max 16 pairs */
 	rockchip,sleep-io-config = <
-		GPIO0_IOC_GPIO0B_PULL_REG GPIO0B0_PULL_DOWN /* SAI1_MCLK */
+		GPIO0_IOC_GPIO0C_PULL_REG GPIO0C3_PULL_DOWN /* TP_INT_L */
 	>;
 };
 
@@ -509,10 +468,11 @@
 		     &rm_io10_idle_pins
 		     &rm_io11_idle_pins
 		     &rm_io12_idle_pins>;
+	status = "disabled";
 };
 
-&sai4 {
-	status = "okay";
+&gmac0 {
+	status = "disabled";
 };
 
 &saradc {
@@ -525,8 +485,7 @@
 };
 
 &uart5 {
-	pinctrl-0 = <&uart5m0_xfer_pins &uart5m0_ctsn_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &u2phy_otg0 {

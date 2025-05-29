@@ -61,18 +61,6 @@
 	panel,height-mm = <138>;
 };
 
-&es8388 {
-	status = "disabled";
-};
-
-&es8388_sound {
-	status = "disabled";
-};
-
-&gmac0 {
-	status = "disabled";
-};
-
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&rm_io14_i2c1_scl &rm_io15_i2c1_sda>;
@@ -99,10 +87,6 @@
 	status = "disabled";
 };
 
-&sai1 {
-	status = "okay";
-};
-
 &pinctrl {
 	sy7636a {
 		sy7636a_default: sy7636a_default {
@@ -111,17 +95,11 @@
 				<1 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
-	touch {
-		touch_gpio: touch-gpio {
-			rockchip,pins =
-				<0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
 	gt9xx_touch{
 		gt9xx_tp: gt9xx-tp {
 			rockchip,pins =
 				<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,
-				<0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>,
 				<0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};

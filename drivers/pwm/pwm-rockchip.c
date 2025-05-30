@@ -10,6 +10,8 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -23,7 +25,11 @@
 #define PWM_CTRL_OUTPUT_EN	(1 << 3)
 
 #define PWM_ENABLE		(1 << 0)
-#define PWM_CONTINUOUS		(1 << 1)
+#define PWM_MODE_SHIFT		1
+#define PWM_MODE_MASK		(0x3 << PWM_MODE_SHIFT)
+#define PWM_ONESHOT		(0 << PWM_MODE_SHIFT)
+#define PWM_CONTINUOUS		(1 << PWM_MODE_SHIFT)
+#define PWM_CAPTURE		(2 << PWM_MODE_SHIFT)
 #define PWM_DUTY_POSITIVE	(1 << 3)
 #define PWM_DUTY_NEGATIVE	(0 << 3)
 #define PWM_INACTIVE_NEGATIVE	(0 << 4)
@@ -37,6 +43,11 @@
 #define PWM_ONESHOT_COUNT_SHIFT	24
 #define PWM_ONESHOT_COUNT_MAX	256
 
+#define PWM_REG_INTSTS(n)	((3 - (n)) * 0x10 + 0x10)
+#define PWM_REG_INT_EN(n)	((3 - (n)) * 0x10 + 0x14)
+
+#define PWM_CH_INT(n)		BIT(n)
+
 struct rockchip_pwm_chip {
 	struct pwm_chip chip;
 	struct clk *clk;
@@ -49,6 +60,10 @@ struct rockchip_pwm_chip {
 	bool vop_pwm_en; /* indicate voppwm mirror register state */
 	bool center_aligned;
 	bool oneshot;
+	bool capture_en;
+	int channel_id;
+	int irq;
+	u8 capture_cnt;
 };
 
 struct rockchip_pwm_regs {
@@ -94,6 +109,11 @@ static void rockchip_pwm_get_state(struct pwm_chip *chip,
 	tmp = readl_relaxed(pc->base + pc->data->regs.duty);
 	tmp *= pc->data->prescaler * NSEC_PER_SEC;
 	state->duty_cycle =  DIV_ROUND_CLOSEST_ULL(tmp, pc->clk_rate);
+
+	if (pc->capture_en) {
+		enable_conf &= ~PWM_MODE_MASK;
+		enable_conf |= PWM_CAPTURE;
+	}
 
 	val = readl_relaxed(pc->base + pc->data->regs.ctrl);
 	if (pc->data->supports_polarity)
@@ -209,12 +229,25 @@ static int rockchip_pwm_enable(struct pwm_chip *chip,
 			val |= PWM_OUTPUT_CENTER;
 	}
 
+	if (pc->oneshot) {
+		enable_conf &= ~PWM_MODE_MASK;
+		enable_conf |= PWM_ONESHOT;
+	} else if (pc->capture_en) {
+		enable_conf &= ~PWM_MODE_MASK;
+		enable_conf |= PWM_CAPTURE;
+	}
+
 	if (enable) {
 		val |= enable_conf;
-		if (pc->oneshot)
-			val &= ~PWM_CONTINUOUS;
 	} else {
-		val &= ~enable_conf;
+		/*
+		 * The PWM io input/output state is controlled by PWM mode
+		 * configuration. In order to avoid the antagonistic drive
+		 * state between the PWM pin and the external pin, keep the
+		 * PWM mode fixed in capture mode although PWM is disabled.
+		 */
+		if (pc->capture_en)
+			val |= PWM_CAPTURE;
 	}
 
 	writel_relaxed(val, pc->base + pc->data->regs.ctrl);
@@ -271,11 +304,141 @@ out:
 	return ret;
 }
 
+static void rockchip_pwm_set_capture(struct pwm_chip *chip, struct pwm_device *pwm, bool enable)
+{
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	u32 int_ctrl;
+
+	int_ctrl = readl_relaxed(pc->base + PWM_REG_INT_EN(pc->channel_id));
+	if (enable)
+		int_ctrl |= PWM_CH_INT(pc->channel_id);
+	else
+		int_ctrl &= ~PWM_CH_INT(pc->channel_id);
+	writel_relaxed(int_ctrl, pc->base + PWM_REG_INT_EN(pc->channel_id));
+
+	pc->capture_en = enable;
+	pc->capture_cnt = 0;
+}
+
+static int rockchip_pwm_get_capture_result(struct pwm_chip *chip, struct pwm_device *pwm,
+					   struct pwm_capture *capture_res)
+{
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	u64 tmp;
+
+	tmp = readl_relaxed(pc->base + pc->data->regs.period);
+	tmp *= pc->data->prescaler * NSEC_PER_SEC;
+	capture_res->duty_cycle = DIV_ROUND_CLOSEST_ULL(tmp, pc->clk_rate);
+
+	tmp = readl_relaxed(pc->base + pc->data->regs.duty);
+	tmp *= pc->data->prescaler * NSEC_PER_SEC;
+	capture_res->period = DIV_ROUND_CLOSEST_ULL(tmp, pc->clk_rate) + capture_res->duty_cycle;
+
+	if (!capture_res->duty_cycle || !capture_res->period)
+		return -EINVAL;
+
+	writel_relaxed(0, pc->base + pc->data->regs.period);
+	writel_relaxed(0, pc->base + pc->data->regs.duty);
+
+	return 0;
+}
+
+static int rockchip_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
+				struct pwm_capture *capture_res, unsigned long timeout_ms)
+{
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	struct pwm_state curstate;
+	int ret = 0;
+
+	pwm_get_state(pwm, &curstate);
+	if (curstate.enabled) {
+		dev_err(chip->dev, "Failed to enable capture mode because PWM%d is busy\n",
+			pc->channel_id);
+		return -EBUSY;
+	}
+
+	ret = clk_enable(pc->pclk);
+	if (ret)
+		return ret;
+
+	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
+	if (ret) {
+		dev_err(chip->dev, "Failed to select pinctrl state\n");
+		goto err_disable_pclk;
+	}
+
+	rockchip_pwm_set_capture(chip, pwm, true);
+	ret = rockchip_pwm_enable(chip, pwm, true);
+	if (ret) {
+		dev_err(chip->dev, "Failed to enable capture mode\n");
+		goto err_disable_pclk;
+	}
+
+	usleep_range(timeout_ms * USEC_PER_MSEC, timeout_ms * USEC_PER_MSEC);
+
+	if (pc->capture_cnt > 3) {
+		ret = rockchip_pwm_get_capture_result(chip, pwm, capture_res);
+		if (ret)
+			dev_err(chip->dev, "Failed to get capture result\n");
+	} else {
+		dev_err(chip->dev, "Failed to wait for LPR/HPR interrupt\n");
+		ret = -ETIMEDOUT;
+	}
+
+	rockchip_pwm_enable(chip, pwm, false);
+	rockchip_pwm_set_capture(chip, pwm, false);
+
+err_disable_pclk:
+	clk_disable(pc->pclk);
+
+	return ret;
+}
+
 static const struct pwm_ops rockchip_pwm_ops = {
+	.capture = rockchip_pwm_capture,
 	.get_state = rockchip_pwm_get_state,
 	.apply = rockchip_pwm_apply,
 	.owner = THIS_MODULE,
 };
+
+static irqreturn_t rockchip_pwm_irq(int irq, void *data)
+{
+	struct rockchip_pwm_chip *pc = data;
+	u32 int_ctrl;
+	unsigned int id = pc->channel_id;
+	int val;
+
+	if (id > 3)
+		return IRQ_NONE;
+	val = readl_relaxed(pc->base + PWM_REG_INTSTS(id));
+
+	if ((val & PWM_CH_INT(id)) == 0)
+		return IRQ_NONE;
+
+	writel_relaxed(PWM_CH_INT(id), pc->base + PWM_REG_INTSTS(id));
+
+	if (pc->capture_en) {
+		/*
+		 * Capture input waveform:
+		 *    _______                 _______
+		 *   |       |               |       |
+		 * __|       |_______________|       |________
+		 *   ^0      ^1              ^2
+		 *
+		 * At position 0, the interrupt comes, and DUTY_LPR reg shows the
+		 * low polarity cycles which should be ignored. The effective high
+		 * and low polarity cycles will be calculated in position 1 and
+		 * position 2, where the interrupt comes.
+		 */
+		if (pc->capture_cnt++ > 3) {
+			int_ctrl = readl_relaxed(pc->base + PWM_REG_INT_EN(pc->channel_id));
+			int_ctrl &= ~PWM_CH_INT(pc->channel_id);
+			writel_relaxed(int_ctrl, pc->base + PWM_REG_INT_EN(pc->channel_id));
+		}
+	}
+
+	return IRQ_HANDLED;
+}
 
 static const struct rockchip_pwm_data pwm_data_v1 = {
 	.regs = {
@@ -348,6 +511,13 @@ static const struct of_device_id rockchip_pwm_dt_ids[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rockchip_pwm_dt_ids);
+
+static int rockchip_pwm_get_channel_id(const char *name)
+{
+	int len = strlen(name);
+
+	return name[len - 2] - '0';
+}
 
 static int rockchip_pwm_probe(struct platform_device *pdev)
 {
@@ -430,6 +600,17 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	pc->chip.base = -1;
 	pc->chip.npwm = 1;
 	pc->clk_rate = clk_get_rate(pc->clk);
+	pc->channel_id = rockchip_pwm_get_channel_id(pdev->dev.of_node->full_name);
+
+	pc->irq = platform_get_irq(pdev, 0);
+	if (pc->irq > 0) {
+		ret = devm_request_irq(&pdev->dev, pc->irq, rockchip_pwm_irq,
+					IRQF_NO_SUSPEND | IRQF_SHARED, "rk_pwm_irq", pc);
+		if (ret) {
+			dev_err(&pdev->dev, "Claim IRQ failed\n");
+			goto err_pclk;
+		}
+	}
 
 	if (pc->data->supports_polarity) {
 		pc->chip.of_xlate = of_pwm_xlate_with_flags;

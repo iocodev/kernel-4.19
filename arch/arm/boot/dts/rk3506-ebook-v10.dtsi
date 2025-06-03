@@ -169,6 +169,31 @@
 		regulator-max-microvolt = <1800000>;
 		vin-supply = <&vcc3v3_stb>;
 	};
+
+	bat: battery {
+		compatible = "simple-battery";
+		charge-full-design-microamp-hours = <1500000>;
+		precharge-current-microamp = <180000>;
+		precharge-upper-limit-microvolt = <3600000>;
+		charge-term-current-microamp = <300000>;
+		constant-charge-current-max-microamp = <10000000>;
+		constant-charge-voltage-max-microvolt = <4200000>;
+		factory-internal-resistance-micro-ohms = <80>;
+		voltage-max-design-microvolt = <4200000>;
+		voltage-min-design-microvolt = <3000000>;
+	};
+
+	charger-manager {
+		compatible = "rockchip-charger-manager";
+		cm-name = "battery";
+		cm-poll-mode = <2>;
+		cm-poll-interval = <1000>;
+
+		cm-chargers = "sc89601-charger";
+		cm-fuel-gauge = "cw2015-battery";
+		monitored-battery = <&bat>;
+		extcon = <&usb2phy>;
+	};
 };
 
 &audio_codec {
@@ -339,8 +364,7 @@
 		pinctrl-0 = <&charger_ok>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PA7 IRQ_TYPE_EDGE_FALLING>; /* IRQ_TYPE_LEVEL_LOW>;*/
-		extcon = <&usb2phy>;
-		sc,battery-regulation-voltage = <4350000>; /* 4200000,4.2V , 4350000, 4232000*/
+		sc,battery-regulation-voltage = <4200000>; /* 4200000,4.2V , 4350000, 4232000*/
 		sc,charge-current = <3000000>; /*2040000,* 2.040A, 3000000 */
 		sc,termination-current = <180000>;  /* 180mA, 180000 */
 		sc,precharge-current = <180000>; /* 180mA */
@@ -351,7 +375,7 @@
 		//sc,use-stat-pin = <0>; /* enable stat pin */
 		sc,boost-freq = <0>; /* 1.5MHz */
 
-		//monitored-battery = <&bat>;
+		monitored-battery = <&bat>;
 		regulators {
 			//otg-en-pin = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
 			vbus5v0_typec: vbus5v0-typec {
@@ -359,6 +383,24 @@
 				regulator-name = "vbus5v0_typec";
 			};
 		};
+	};
+
+	cw2015: cw2015@62 {
+		compatible = "cellwise,cw2015";
+		status = "okay";
+		reg = <0x62>;
+		//bat_low_gpio = <&gpio2 RK_PD7 GPIO_ACTIVE_LOW>;
+		cellwise,battery-profile = /bits/ 8
+			<0x15 0x7E 0x7A 0x6E 0x6A 0x67 0x63 0x62 0x62 0x61 0x5E  \
+			0x59 0x56 0x57 0x51 0x3C 0x30 0x27 0x29 0x29 0x2E 0x3A  \
+			0x49 0x57 0x64 0x57 0x0B 0x85 0x30 0x50 0x60 0x67 0x6A  \
+			0x6C 0x6A 0x6C 0x39 0x14 0x64 0x0E 0x04 0x2A 0x4E 0x81  \
+			0x8E 0x90 0x90 0x43 0x64 0x83 0x96 0xA5 0x80 0x86 0xAC  \
+			0xCB 0x2F 0x00 0x64 0xA5 0xB5 0x00 0xF8 0x31>;
+
+		cellwise,monitor-interval-ms = <5000>;
+		monitored-battery = <&bat>;
+		power-supplies = <&sc89601>;
 	};
 };
 

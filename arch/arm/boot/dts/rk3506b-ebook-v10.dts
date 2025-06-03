@@ -15,6 +15,37 @@
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff0a0000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rw rootwait";
 	};
+
+	gpio_ctrl: gpio-ctrl {
+		compatible = "hdk,gpio-ctrl";
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_ctrl_gpios>;
+		//tp_gpio = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
+		sd_gpio = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
+		//rp_not_deep_leep = <1>;
+	};
+
+	gpio_leds: gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_led>;
+		status = "okay";
+		work {
+			gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+			label = "work";
+			default-state = "off";
+		};
+	};
+
+	hall_sensor: hall-mh248 {
+		compatible = "hall-mh248";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mh248_irq_gpio>;
+		irq-gpio = <&gpio0 RK_PA0 IRQ_TYPE_EDGE_BOTH>;
+		hall-active = <1>;
+		status = "okay";
+	};
 };
 
 &soft_tcon {
@@ -101,6 +132,21 @@
 				<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,
 				<0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>,
 				<0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+	gpio-leds {
+		gpio_led: gpio-led {
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+	gpios_nas {
+		gpio_ctrl_gpios: gpio-ctrl-gpios{
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+	hall {
+		mh248_irq_gpio: mh248-irq-gpio {
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

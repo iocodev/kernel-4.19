@@ -1735,4 +1735,9 @@ config GPIO_SIM
 
 endmenu
 
+config GPIO_CTRL
+	bool "Enable gpio_ctrl for HDK_eink"
+	help
+	  This option enables support for gpio_ctrl on HDK_eink.
+
 endif

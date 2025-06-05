@@ -131,45 +131,6 @@
 		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	vcc12v_dc: vcc12v-dc {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc12v_dc";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <12000000>;
-		regulator-max-microvolt = <12000000>;
-	};
-
-	vcc_sys: vcc-sys {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_sys";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		vin-supply = <&vcc12v_dc>;
-	};
-
-	vcc3v3_stb: vcc3v3-stb {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_stb";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_sys>;
-	};
-
-	vcc_1v8: vcc-1v8 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_1v8";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		vin-supply = <&vcc3v3_stb>;
-	};
-
 	bat: battery {
 		compatible = "simple-battery";
 		charge-full-design-microamp-hours = <1500000>;
@@ -270,7 +231,7 @@
 		};
 
 		regulators {
-			vdd_arm: DCDC_REG1 {
+			vdd_arm: DCDC_REG1 { // pwm, off
 				regulator-name = "vdd_arm";
 				regulator-min-microvolt = <712500>;
 				regulator-max-microvolt = <1450000>;
@@ -279,25 +240,29 @@
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-state-mem {
+					regulator-mode = <0x2>;
 					regulator-off-in-suspend;
+					regulator-suspend-microvolt = <1000000>;
 				};
 			};
 
-			vdd_logic: DCDC_REG2 {
+			vdd_logic: DCDC_REG2 { // vdd_0v9 auto, off
 				regulator-name = "vdd_logic";
-				regulator-min-microvolt = <712500>;
-				regulator-max-microvolt = <1450000>;
-				regulator-initial-mode = <0x1>;
-				regulator-ramp-delay = <12500>;
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+				regulator-initial-mode = <0x2>;
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-state-mem {
+					regulator-mode = <0x2>;
 					regulator-off-in-suspend;
+					regulator-suspend-microvolt = <900000>;
 				};
 			};
 
-			vcc_ddr: DCDC_REG3 {
+			vcc_ddr: DCDC_REG3 { // auto, on
 				regulator-name = "vcc_ddr";
+				regulator-initial-mode = <0x2>;
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-state-mem {
@@ -306,11 +271,11 @@
 				};
 			};
 
-			vcc_io: DCDC_REG4 {
-				regulator-name = "vcc_io";
+			vcc_3v3_sys: DCDC_REG4 { // auto, on
+				regulator-name = "vcc_3v3_sys";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-initial-mode = <0x1>;
+				regulator-initial-mode = <0x2>;
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-state-mem {
@@ -320,37 +285,39 @@
 				};
 			};
 
-			vcc_18: LDO_REG1 {
-				regulator-name = "vcc_18";
+			vcc_1v8: LDO_REG1 { // off
+				regulator-name = "vcc_1v8";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-suspend-microvolt = <1800000>;
 				};
 			};
 
-			vcc_18emmc: LDO_REG2 {
-				regulator-name = "vcc_18emmc";
+			vcc_1v8_sys: LDO_REG2 { // off
+				regulator-name = "vcc_1v8_sys";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-suspend-microvolt = <1800000>;
 				};
 			};
 
-			vdd_10: LDO_REG3 {
-				regulator-name = "vdd_10";
-				regulator-min-microvolt = <1000000>;
-				regulator-max-microvolt = <1000000>;
+			vdd_0v9_sys: LDO_REG3 { // on
+				regulator-name = "vdd_0v9_sys";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <1000000>;
+					regulator-suspend-microvolt = <900000>;
 				};
 			};
 		};
@@ -489,14 +456,6 @@
 		(0
 		| RKPM_PWREN_SLEEP_GPIO0A6 | RKPM_PWREN_SLEEP_ACT_HIGH
 		)
-	>;
-
-#define GPIO0_IOC_GPIO0C_PULL_REG   0xff950208
-#define GPIO0C3_PULL_DOWN           0x00c00080
-
-	/* Note: support max 16 pairs */
-	rockchip,sleep-io-config = <
-		GPIO0_IOC_GPIO0C_PULL_REG GPIO0C3_PULL_DOWN /* TP_INT_L */
 	>;
 };
 

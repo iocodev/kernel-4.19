@@ -2,7 +2,7 @@
 	model = "Rockchip RK3506 EInk Board";
 	compatible = "rockchip,rk3506-eink", "rockchip,rk3506";
 
-	eink: eink {
+	ebc_dev: ebc-dev {
 		compatible = "rockchip,ebc";
 		tcon = <&soft_tcon>;
 		logo-region = <&logo_reserved>;
@@ -83,7 +83,7 @@
 };
 
 &display_subsystem {
-	status = "disabled";
+	status = "okay";
 };
 
 &dsi {

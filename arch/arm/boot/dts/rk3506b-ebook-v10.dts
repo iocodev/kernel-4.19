@@ -63,7 +63,7 @@
 	size = <0x2000000>;
 };
 
-&eink {
+&ebc_dev {
 	status = "okay";
 	tcon = <&soft_tcon>;
 	pmic = <&sy7636a>;

@@ -2357,7 +2357,7 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 	int ret;
 
 	ret = rockchip_drm_platform_of_probe(dev);
-#if !IS_ENABLED(CONFIG_DRM_ROCKCHIP_VKMS)
+#if !IS_ENABLED(CONFIG_DRM_ROCKCHIP_VKMS) && !IS_ENABLED(CONFIG_EBC_USE_DRM)
 	if (ret)
 		return ret;
 #endif

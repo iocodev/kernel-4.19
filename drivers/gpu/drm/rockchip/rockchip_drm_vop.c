@@ -2928,9 +2928,16 @@ static void vop_crtc_te_handler(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop, mcu_frame_st, 1);
 	} else {
 		/*
-		 * As the IC design, VOP will flash a new frame if edpi_wms_fs
-		 * bit, which can take effect immediately, is set then cleared
-		 * in response to MIPI TE signal.
+		 * For software TE mode, we register a gpio IRQ to respond to
+		 * the TE signal from the panel. If the TE signal is detected
+		 * via gpio, a new frame will be sent to the panel for display
+		 * only by controlling the edpi_wms_fs bit.
+		 *
+		 * As the IC design, the VOP will only refresh one new frame
+		 * of image when the ​​edpi_wms_fs​​ bit, which can take effect
+		 * immediately, is first written with ​​1​ and then cleared to 0​​.
+		 * If only written to ​​1​​, it will result in ​​two frames being
+		 * refreshed​​ instead.
 		 */
 		VOP_CTRL_SET(vop, edpi_wms_fs, 1);
 		VOP_CTRL_SET(vop, edpi_wms_fs, 0);

@@ -57,6 +57,10 @@
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/debug.h>
 
+#if IS_ENABLED(CONFIG_ROCKCHIP_MINIDUMP)
+#include <soc/rockchip/rk_minidump.h>
+#endif
+
 EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_raise);
 EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_entry);
 EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_exit);
@@ -878,6 +882,10 @@ void arch_irq_work_raise(void)
 static void __noreturn local_cpu_stop(unsigned int cpu)
 {
 	set_cpu_online(cpu, false);
+	if (system_state <= SYSTEM_RUNNING) {
+		pr_crit("CPU%u: stopping\n", smp_processor_id());
+		dump_stack();
+	}
 
 	local_daif_mask();
 	sdei_mask_local_cpu();
@@ -981,6 +989,9 @@ static void do_handle_IPI(int ipinr)
 			unreachable();
 		} else {
 			trace_android_vh_ipi_stop(get_irq_regs());
+#if IS_ENABLED(CONFIG_ROCKCHIP_MINIDUMP)
+			rk_minidump_update_cpu_regs(get_irq_regs());
+#endif
 			local_cpu_stop(cpu);
 		}
 		break;

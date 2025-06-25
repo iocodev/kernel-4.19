@@ -1600,6 +1600,9 @@ static void purge_configs_funcs(struct gadget_info *gi)
 					f->name, f);
 				f->unbind(c, f);
 			}
+
+			if (f->bind_deactivated)
+				usb_function_activate(f);
 		}
 		c->next_interface_id = 0;
 		memset(c->interface, 0, sizeof(c->interface));

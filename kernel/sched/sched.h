@@ -82,6 +82,7 @@ struct cfs_rq;
 struct rt_rq;
 struct sched_group;
 struct cpuidle_state;
+#include <soc/rockchip/rockchip_performance.h>
 
 #ifdef CONFIG_PARAVIRT
 # include <asm/paravirt.h>

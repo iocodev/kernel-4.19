@@ -102,6 +102,10 @@ struct uvcg_frame {
 		u16	w_height;
 		u32	dw_min_bit_rate;
 		u32	dw_max_bit_rate;
+		/*
+		 * dw_max_video_frame_buffer_size is only for uncompressed and
+		 * mjpeg format
+		 */
 		u32	dw_max_video_frame_buffer_size;
 		u32	dw_default_frame_interval;
 		u8	b_frame_interval_type;

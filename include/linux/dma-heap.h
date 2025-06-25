@@ -10,6 +10,7 @@
 #define _DMA_HEAPS_H
 
 #include <linux/types.h>
+#include <uapi/linux/dma-heap.h>
 
 struct dma_heap;
 
@@ -26,6 +27,9 @@ struct dma_heap_ops {
 				    u32 fd_flags,
 				    u64 heap_flags);
 	long (*get_pool_size)(struct dma_heap *heap);
+#if IS_ENABLED(CONFIG_NO_GKI)
+	int (*get_phys)(struct dma_heap *heap, struct dma_heap_phys_data *phys);
+#endif
 };
 
 /**

@@ -375,7 +375,7 @@
 	status = "okay";
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&rm_io25_i2c2_scl &rm_io26_i2c2_sda>;
+	pinctrl-0 = <&rm_io27_i2c2_scl &rm_io28_i2c2_sda>;
 };
 
 &mmc {

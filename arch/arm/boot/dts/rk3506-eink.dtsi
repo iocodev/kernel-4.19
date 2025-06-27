@@ -142,33 +142,33 @@
 				/* vo_lcdc_d9 */
 				//<1 RK_PC2 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d10 */
-				//<1 RK_PC1 1 &pcfg_pull_none_drv_level_0>,
+				<1 RK_PC1 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d11 */
-				//<1 RK_PC0 1 &pcfg_pull_none_drv_level_0>,
+				<1 RK_PC0 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d12 */
-				//<1 RK_PB7 1 &pcfg_pull_none_drv_level_0>,
+				<1 RK_PB7 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d13 */
-				//<1 RK_PB6 1 &pcfg_pull_none_drv_level_0>,
+				<1 RK_PB6 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d14 */
-				//<1 RK_PB5 1 &pcfg_pull_none_drv_level_0>,
+				<1 RK_PB5 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d15 */
-				//<1 RK_PB4 1 &pcfg_pull_none_drv_level_0>,
+				<1 RK_PB4 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d16 */
 				//<1 RK_PB3 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d17 */
 				//<1 RK_PB2 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d18 */
-				<1 RK_PB1 1 &pcfg_pull_none_drv_level_0>,
+				//<1 RK_PB1 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d19 */
-				<1 RK_PB0 1 &pcfg_pull_none_drv_level_0>,
+				//<1 RK_PB0 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d20 */
-				<1 RK_PA7 1 &pcfg_pull_none_drv_level_0>,
+				//<1 RK_PA7 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d21 */
-				<1 RK_PA6 1 &pcfg_pull_none_drv_level_0>,
+				//<1 RK_PA6 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d22 */
-				<1 RK_PA5 1 &pcfg_pull_none_drv_level_0>,
+				//<1 RK_PA5 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_d23 */
-				<1 RK_PA4 1 &pcfg_pull_none_drv_level_0>,
+				//<1 RK_PA4 1 &pcfg_pull_none_drv_level_0>,
 				/* vo_lcdc_den */
 				//<1 RK_PA0 1 &pcfg_pull_none>,
 				/* vo_lcdc_hsync */

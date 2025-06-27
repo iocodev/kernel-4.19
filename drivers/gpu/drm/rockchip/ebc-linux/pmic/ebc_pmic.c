@@ -15,9 +15,10 @@
 
 #define EINK_VCOM_MAX 64
 static int vcom = 0;
-extern struct ebc_dev_t *g_ebc_dev;
+static int vcom_dts = 0;
+static int get_vcom(void);
 
-int ebc_pmic_set_vcom_impl(struct ebc_pmic *pmic, int value)
+int ebc_pmic_set_vcom(struct ebc_pmic *pmic, int value)
 {
 	int ret;
 	char data[EINK_VCOM_MAX] = { 0 };
@@ -45,18 +46,14 @@ int ebc_pmic_set_vcom_impl(struct ebc_pmic *pmic, int value)
 	return 0;
 }
 
-void ebc_pmic_verity_vcom_impl(struct ebc_pmic *pmic, int dts_vcom)
+void ebc_pmic_verity_vcom(struct ebc_pmic *pmic)
 {
 	int ret;
 	int value_chip;
 	int value_vendor;
 
-	// 优先使用驱动参数vcom；其次使用dts配置的vcom_mv
-	if (vcom > 0)
-		value_vendor = vcom;
-	else
-		value_vendor = dts_vcom;
-
+	//check vcom value
+	value_vendor = get_vcom();
 	if (value_vendor <= VCOM_MIN_MV || value_vendor > VCOM_MAX_MV) {
 		dev_err(pmic->dev, "invaild vcom value %d from vendor storage\n", value_vendor);
 		return;
@@ -73,7 +70,7 @@ void ebc_pmic_verity_vcom_impl(struct ebc_pmic *pmic, int dts_vcom)
 	return;
 }
 
-int ebc_regulator_set_vcom_impl(struct regulator *r, int value)
+int ebc_regulator_set_vcom(struct regulator *r, int value)
 {
 	int ret;
 	char data[EINK_VCOM_MAX] = { 0 };
@@ -86,7 +83,7 @@ int ebc_regulator_set_vcom_impl(struct regulator *r, int value)
 
 	pr_info("set chip vcom to: %dmV\n", value);
 
-	ret = regulator_set_voltage(r, value * 1000, value * 1000 + 1);
+	ret = regulator_set_voltage(r, value * 1000, VCOM_MAX_MV * 1000);
 	if (ret) {
 		pr_err("Failed to set vcom:%d\n", ret);
 		return ret;
@@ -105,18 +102,13 @@ int ebc_regulator_set_vcom_impl(struct regulator *r, int value)
 	return 0;
 }
 
-void ebc_regulator_verity_vcom_impl(struct regulator *r, int dts_vcom)
+void ebc_regulator_verity_vcom(struct regulator *r)
 {
 	int ret;
 	int value_chip;
 	int value_vendor;
 
-	// 优先使用驱动参数vcom；其次使用dts配置的vcom_mv
-	if (vcom > 0)
-		value_vendor = vcom;
-	else
-		value_vendor = dts_vcom;
-
+	value_vendor = get_vcom();
 	if (value_vendor <= VCOM_MIN_MV || value_vendor > VCOM_MAX_MV) {
 		pr_err("invaild vcom value %d from vendor storage\n", value_vendor);
 		return;
@@ -126,7 +118,7 @@ void ebc_regulator_verity_vcom_impl(struct regulator *r, int dts_vcom)
 	if (value_chip != value_vendor) {
 		pr_info("chip_vcom %d != vendor_vcom %d, set vcom from vendor\n", value_chip,
 			value_vendor);
-		ret = regulator_set_voltage(r, value_vendor * 1000, value_vendor * 1000 + 1);
+		ret = regulator_set_voltage(r, value_vendor * 1000, VCOM_MAX_MV * 1000);
 		if (ret)
 			pr_err("set vcom value failed\n");
 	}
@@ -134,7 +126,45 @@ void ebc_regulator_verity_vcom_impl(struct regulator *r, int dts_vcom)
 
 module_param(vcom, int, 0644);
 
-int pmic_setup_device(struct device *dev, struct pmic_dev_t *pmic)
+/**
+ * 若vendor vcom值有效，则返回vendor vcom
+ * 否则，若dts vcom值有效，则返回dts vcom
+ * 否则，返回默认vcom
+ */
+static int get_vcom(void)
+{
+	#define VCOM_DEFAULT_VALUE	1650
+	int vcom_value = 0;
+
+	if (vcom == 0) {
+		// vcom=0表征未从vendor storage读取过vcom值，此时先从vendor storage读取一次
+		char data[EINK_VCOM_MAX+1] = { 0 };
+		if (rk_vendor_read(EINK_VCOM_ID, (void *)data, EINK_VCOM_MAX) > 0) {
+			pr_info("Read vendor vcom: %smV\n", data);
+			if (kstrtoint(data, 10, &vcom) != 0 || vcom == 0) {
+				vcom = -1; // vendor vcom存储的值并非数值，或者是0值
+			}
+		} else {
+			pr_info("Read vendor vcom failed\n");
+			vcom = -1;
+		}
+	}
+
+	if (vcom > VCOM_MIN_MV && vcom <= VCOM_MAX_MV) {
+		vcom_value = vcom;
+		pr_info("use vendor vcom %d\n", vcom_value);
+	} else if (vcom_dts > VCOM_MIN_MV && vcom_dts <= VCOM_MAX_MV) {
+		vcom_value = vcom_dts;
+		pr_info("use dts vcom %d\n", vcom_value);
+	} else {
+		vcom_value = VCOM_DEFAULT_VALUE;
+		pr_info("use default vcom %d\n", vcom_value);
+	}
+
+	return vcom_value;
+}
+
+int pmic_setup_device(struct device *dev, struct pmic_dev_t *pmic, u32 vcom)
 {
 	int ret;
 	struct device_node *pmic_node;
@@ -142,6 +172,7 @@ int pmic_setup_device(struct device *dev, struct pmic_dev_t *pmic)
 	const char *tz_name;
 
 	dev_info(dev, "In %s\n", __func__);
+	vcom_dts = vcom;
 
 	pmic_node = of_parse_phandle(dev->of_node, "pmic", 0);
 	if (!pmic_node) {
@@ -155,6 +186,7 @@ int pmic_setup_device(struct device *dev, struct pmic_dev_t *pmic)
 		dev_err(dev, "not find pmic i2c client\n");
 		return -ENODEV;
 	}
+	device_link_add(dev, &pmic_client->dev, DL_FLAG_STATELESS);
 
 	pmic->pmic = i2c_get_clientdata(pmic_client);
 	if (pmic->pmic == NULL) {

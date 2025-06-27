@@ -72,8 +72,19 @@ static struct pmic_mfd_data silergy_sy7636a = {
 	.mfd_cell_size = ARRAY_SIZE(sy7636a_cells),
 };
 
+static const struct mfd_cell fp9931_cells[] = {
+	{ .name = "fp9931-regulator", },
+	{ .name = "fp9931-thermal", },
+};
+
+static struct pmic_mfd_data fitipower_fp9931 = {
+	.mfd_cell = fp9931_cells,
+	.mfd_cell_size = ARRAY_SIZE(fp9931_cells),
+};
+
 static const struct of_device_id pmic_mfd_i2c_of_match[] = {
 	{ .compatible = "silergy,sy7636a-pmic", .data = &silergy_sy7636a},
+	{ .compatible = "fitipower,fp9931-pmic", .data = &fitipower_fp9931},
 	{}
 };
 MODULE_DEVICE_TABLE(of, pmic_mfd_i2c_of_match);

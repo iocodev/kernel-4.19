@@ -1,7 +1,7 @@
 #ifndef __EBC_UAPI_H__
 #define __EBC_UAPI_H__
 
-#define EBC_DRV_VERSION         "0.19.1"
+#define EBC_DRV_VERSION         "0.19.2"
 
 /**
  * The display mode is composed of three parts:
@@ -19,8 +19,13 @@
 	EBC_X(NORM_PART, GC16, NORM, PART), \
 	EBC_X(TRANS_FULL, GC16, TRANS, FULL), \
 	EBC_X(TRANS_PART, GC16, TRANS, PART), \
-	EBC_X(REGAL_FULL, GLR16, NORM, FULL), \
-	EBC_X(REGAL_PART, GLR16, NORM, PART), \
+	EBC_X(GL16_FULL, GL16, NORM, FULL), \
+	EBC_X(GL16_PART, GL16, NORM, PART), \
+	EBC_X(GCC16_FULL, GCC16, NORM, FULL), \
+	EBC_X(GCC16_PART, GCC16, NORM, PART), \
+	EBC_X(A2, A2, NORM, FULL), \
+	EBC_X(DU, GRAY2, NORM, FULL), \
+	EBC_X(GC16_MONO_PART, GC16, MONO, PART), \
 
 enum wf_lut_type {
 	WF_TYPE_RESET = 0,
@@ -56,6 +61,26 @@ enum ebc_disp_mode_t {
 	#define EBC_X(name, wf, refresh, update) EBC_DISP_##name = EBC_DISP_MODE(wf, refresh, update)
 	EBC_MODE_LIST
 };
+
+// The refresh mode corresponding to the Android platform
+#define EPD_AUTO            EBC_DISP_GC16_MONO_PART
+#define EPD_OVERLAY         EBC_DISP_HANDWRITE
+#define EPD_FULL_GC16       EBC_DISP_NORM_FULL
+#define EPD_FULL_GL16       EBC_DISP_GL16_FULL
+#define EPD_FULL_GLR16      // unsupport
+#define EPD_FULL_GLD16      // unsupport
+#define EPD_FULL_GCC16      EBC_DISP_GCC16_FULL
+#define EPD_PART_GC16       EBC_DISP_NORM_PART
+#define EPD_PART_GL16       EBC_DISP_GL16_PART
+#define EPD_PART_GLR16      // unsupport
+#define EPD_PART_GLD16      // unsupport
+#define EPD_PART_GCC16      EBC_DISP_GCC16_PART
+#define EPD_A2              EBC_DISP_A2
+#define EPD_A2_FAST         // unsupport
+#define EPD_DU              EBC_DISP_DU
+#define EPD_A2_ENTER        // unsupport
+#define EPD_RESET           EBC_DISP_RESET
+#define EPD_AUTO_DU         // unsupport
 
 enum EBC_TRANS_TYPE {
 	// wipe

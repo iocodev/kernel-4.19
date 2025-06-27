@@ -32,10 +32,10 @@ struct pmic_dev_t {
 	struct thermal_zone_device *tz;
 };
 
-int ebc_pmic_set_vcom_impl(struct ebc_pmic *pmic, int value);
-void ebc_pmic_verity_vcom_impl(struct ebc_pmic *pmic, int dts_vcom);
-int ebc_regulator_set_vcom_impl(struct regulator *r, int value);
-void ebc_regulator_verity_vcom_impl(struct regulator *r, int dts_vcom);
+int ebc_pmic_set_vcom(struct ebc_pmic *pmic, int value);
+void ebc_pmic_verity_vcom(struct ebc_pmic *pmic);
+int ebc_regulator_set_vcom(struct regulator *r, int value);
+void ebc_regulator_verity_vcom(struct regulator *r);
 
 static inline int pmic_power_on(struct pmic_dev_t *pmic)
 {
@@ -96,19 +96,19 @@ static inline int pmic_get_vcom(struct pmic_dev_t *pmic)
 static inline int pmic_set_vcom(struct pmic_dev_t *pmic, int value)
 {
 	if (pmic->pmic)
-		return ebc_pmic_set_vcom_impl(pmic->pmic, value);
+		return ebc_pmic_set_vcom(pmic->pmic, value);
 	else
-		return ebc_regulator_set_vcom_impl(pmic->vcom, value);
+		return ebc_regulator_set_vcom(pmic->vcom, value);
 }
 
-static inline void pmic_verity_vcom(struct pmic_dev_t *pmic, int dts_vcom)
+static inline void pmic_verity_vcom(struct pmic_dev_t *pmic)
 {
 	if (pmic->pmic)
-		return ebc_pmic_verity_vcom_impl(pmic->pmic, dts_vcom);
+		return ebc_pmic_verity_vcom(pmic->pmic);
 	else
-		return ebc_regulator_verity_vcom_impl(pmic->vcom, dts_vcom);
+		return ebc_regulator_verity_vcom(pmic->vcom);
 }
 
-int pmic_setup_device(struct device *dev, struct pmic_dev_t *pmic);
+int pmic_setup_device(struct device *dev, struct pmic_dev_t *pmic, u32 vcom);
 
 #endif

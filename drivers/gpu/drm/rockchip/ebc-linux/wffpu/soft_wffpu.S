@@ -46,14 +46,13 @@ soft_make_line_full:
 	.loc 1 82 2 is_stmt 1 view .LVU7
 	.loc 1 83 12 is_stmt 0 view .LVU8
 	ldrb	r6, [r4]	@ zero_extendqisi2
-	.loc 1 88 12 view .LVU9
+	.loc 1 86 12 view .LVU9
 	ldr	r4, .L4+4
 	.loc 1 83 23 view .LVU10
 	add	r6, r6, r1
-	.loc 1 88 12 view .LVU11
+	.loc 1 86 12 view .LVU11
 	ldrb	r4, [r4]	@ zero_extendqisi2
-	.loc 1 88 23 view .LVU12
-	adds	r4, r4, #4
+	.loc 1 86 23 view .LVU12
 	add	r4, r4, r1
 .LVL2:
 .L2:
@@ -64,7 +63,7 @@ soft_make_line_full:
 	.loc 1 82 2 discriminator 1 view .LVU15
 	cmp	r5, r3
 	blt	.L3
-	.loc 1 93 1 view .LVU16
+	.loc 1 95 1 view .LVU16
 	pop	{r4, r5, r6, r7, pc}
 .LVL4:
 .L3:
@@ -93,13 +92,12 @@ soft_make_line_full:
 .LVL5:
 	.loc 1 84 3 is_stmt 1 discriminator 3 view .LVU24
 	.loc 1 86 3 discriminator 3 view .LVU25
-	.loc 1 88 3 discriminator 3 view .LVU26
 .LBB51:
-	.loc 1 88 25 discriminator 3 view .LVU27
-	.loc 1 88 25 discriminator 3 view .LVU28
-	.loc 1 88 25 discriminator 3 view .LVU29
-	.loc 1 88 25 discriminator 3 view .LVU30
-	.loc 1 88 25 discriminator 3 view .LVU31
+	.loc 1 86 25 discriminator 3 view .LVU26
+	.loc 1 86 25 discriminator 3 view .LVU27
+	.loc 1 86 25 discriminator 3 view .LVU28
+	.loc 1 86 25 discriminator 3 view .LVU29
+	.loc 1 86 25 discriminator 3 view .LVU30
 	ldr	r1, [r2, #-16]
 	ldrb	r7, [r0, r1]	@ zero_extendqisi2
 	ldr	r1, [r2, #-12]
@@ -113,16 +111,16 @@ soft_make_line_full:
 	ldrb	r7, [r0, r7]	@ zero_extendqisi2
 	orr	r1, r1, r7, lsl #2
 .LBE51:
-	.loc 1 88 23 is_stmt 0 discriminator 3 view .LVU32
+	.loc 1 86 23 is_stmt 0 discriminator 3 view .LVU31
 	strb	r1, [r4, r5, lsl #3]
 .LVL6:
-	.loc 1 89 3 is_stmt 1 discriminator 3 view .LVU33
-	.loc 1 91 3 discriminator 3 view .LVU34
-	.loc 1 82 21 discriminator 3 view .LVU35
-	.loc 1 82 22 is_stmt 0 discriminator 3 view .LVU36
+	.loc 1 87 3 is_stmt 1 discriminator 3 view .LVU32
+	.loc 1 90 3 discriminator 3 view .LVU33
+	.loc 1 82 21 discriminator 3 view .LVU34
+	.loc 1 82 22 is_stmt 0 discriminator 3 view .LVU35
 	adds	r5, r5, #1
 .LVL7:
-	.loc 1 82 22 discriminator 3 view .LVU37
+	.loc 1 82 22 discriminator 3 view .LVU36
 	b	.L2
 .L5:
 	.align	2
@@ -143,89 +141,88 @@ soft_make_line_part:
 	.fnstart
 .LVL8:
 .LFB4450:
-	.loc 1 96 1 is_stmt 1 view -0
+	.loc 1 98 1 is_stmt 1 view -0
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	.loc 1 97 2 view .LVU39
-	.loc 1 98 2 view .LVU40
-	.loc 1 96 1 is_stmt 0 view .LVU41
+	.loc 1 99 2 view .LVU38
+	.loc 1 100 2 view .LVU39
+	.loc 1 98 1 is_stmt 0 view .LVU40
 	push	{r4, r5, r6, r7, r8, lr}
 	.save {r4, r5, r6, r7, r8, lr}
 .LCFI1:
 	adds	r2, r2, #32
 .LVL9:
-	.loc 1 101 12 view .LVU42
+	.loc 1 103 12 view .LVU41
 	ldr	r4, .L37
-	.loc 1 98 6 view .LVU43
+	.loc 1 100 6 view .LVU42
 	ldr	r0, [r0, #12]
 .LVL10:
-	.loc 1 100 2 is_stmt 1 view .LVU44
-	.loc 1 100 8 is_stmt 0 view .LVU45
+	.loc 1 102 2 is_stmt 1 view .LVU43
+	.loc 1 102 8 is_stmt 0 view .LVU44
 	movs	r5, #0
-	.loc 1 101 12 view .LVU46
+	.loc 1 103 12 view .LVU45
 	ldrb	r6, [r4]	@ zero_extendqisi2
-	.loc 1 106 12 view .LVU47
+	.loc 1 106 12 view .LVU46
 	ldr	r4, .L37+4
-	.loc 1 101 23 view .LVU48
+	.loc 1 103 23 view .LVU47
 	add	r6, r6, r1
-	.loc 1 106 12 view .LVU49
+	.loc 1 106 12 view .LVU48
 	ldrb	r4, [r4]	@ zero_extendqisi2
-	.loc 1 106 23 view .LVU50
-	adds	r4, r4, #4
+	.loc 1 106 23 view .LVU49
 	add	r4, r4, r1
 .LVL11:
 .L7:
-	.loc 1 100 12 is_stmt 1 discriminator 2 view .LVU51
-	.loc 1 100 2 is_stmt 0 discriminator 2 view .LVU52
+	.loc 1 102 12 is_stmt 1 discriminator 2 view .LVU50
+	.loc 1 102 2 is_stmt 0 discriminator 2 view .LVU51
 	cmp	r5, r3
 	blt	.L16
-	.loc 1 111 1 view .LVU53
+	.loc 1 115 1 view .LVU52
 	pop	{r4, r5, r6, r7, r8, pc}
 .LVL12:
 .L16:
-	.loc 1 101 3 is_stmt 1 view .LVU54
+	.loc 1 103 3 is_stmt 1 view .LVU53
 .LBB52:
-	.loc 1 101 25 view .LVU55
+	.loc 1 103 25 view .LVU54
 	ldrd	r8, r1, [r2, #-32]
 .LVL13:
-	.loc 1 101 25 view .LVU56
+	.loc 1 103 25 view .LVU55
 	ldrd	ip, lr, [r2, #-24]
 .LVL14:
-	.loc 1 101 25 view .LVU57
-	.loc 1 101 25 view .LVU58
+	.loc 1 103 25 view .LVU56
+	.loc 1 103 25 view .LVU57
 	cmp	r8, #0
 	ite	eq
 	moveq	r7, #0
 	movne	r7, #192
 .LVL15:
-	.loc 1 101 25 view .LVU59
+	.loc 1 103 25 view .LVU58
 	cbz	r1, .L9
-	.loc 1 101 25 discriminator 4 view .LVU60
+	.loc 1 103 25 discriminator 4 view .LVU59
 	orr	r7, r7, #48
 .LVL16:
 .L9:
-	.loc 1 101 25 discriminator 6 view .LVU61
+	.loc 1 103 25 discriminator 6 view .LVU60
 	cmp	ip, #0
 	beq	.L10
-	.loc 1 101 25 discriminator 7 view .LVU62
+	.loc 1 103 25 discriminator 7 view .LVU61
 	orr	r7, r7, #12
 .LVL17:
 .L10:
-	.loc 1 101 25 discriminator 9 view .LVU63
+	.loc 1 103 25 discriminator 9 view .LVU62
 	cmp	lr, #0
 	beq	.L11
-	.loc 1 101 25 discriminator 10 view .LVU64
+	.loc 1 103 25 discriminator 10 view .LVU63
 	orr	r7, r7, #3
 .LVL18:
 .L11:
-	.loc 1 101 25 discriminator 12 view .LVU65
+	.loc 1 103 25 discriminator 12 view .LVU64
 	ldrb	r1, [r0, r1]	@ zero_extendqisi2
 .LVL19:
-	.loc 1 101 25 is_stmt 0 discriminator 12 view .LVU66
+	.loc 1 103 25 is_stmt 0 discriminator 12 view .LVU65
 	ldrb	r8, [r0, r8]	@ zero_extendqisi2
 	ldrb	lr, [r0, lr]	@ zero_extendqisi2
 .LVL20:
-	.loc 1 101 25 discriminator 12 view .LVU67
+	.loc 1 103 25 discriminator 12 view .LVU66
 	ldrb	ip, [r0, ip]	@ zero_extendqisi2
 	lsls	r1, r1, #4
 	orr	r1, r1, r8, lsl #6
@@ -233,59 +230,58 @@ soft_make_line_part:
 	orr	r1, r1, ip, lsl #2
 	ands	r1, r1, r7
 .LBE52:
-	.loc 1 101 23 discriminator 12 view .LVU68
+	.loc 1 103 23 discriminator 12 view .LVU67
 	strb	r1, [r6, r5, lsl #3]
 .LVL21:
-	.loc 1 102 3 is_stmt 1 discriminator 12 view .LVU69
-	.loc 1 104 3 discriminator 12 view .LVU70
-	.loc 1 106 3 discriminator 12 view .LVU71
+	.loc 1 104 3 is_stmt 1 discriminator 12 view .LVU68
+	.loc 1 106 3 discriminator 12 view .LVU69
 .LBB53:
-	.loc 1 106 25 discriminator 12 view .LVU72
+	.loc 1 106 25 discriminator 12 view .LVU70
 	ldrd	r8, r1, [r2, #-16]
 .LVL22:
-	.loc 1 106 25 discriminator 12 view .LVU73
+	.loc 1 106 25 discriminator 12 view .LVU71
 	ldrd	ip, lr, [r2, #-8]
 .LVL23:
-	.loc 1 106 25 discriminator 12 view .LVU74
-	.loc 1 106 25 discriminator 12 view .LVU75
+	.loc 1 106 25 discriminator 12 view .LVU72
+	.loc 1 106 25 discriminator 12 view .LVU73
 	cmp	r8, #0
 	ite	eq
 	moveq	r7, #0
 .LVL24:
-	.loc 1 106 25 is_stmt 0 discriminator 12 view .LVU76
+	.loc 1 106 25 is_stmt 0 discriminator 12 view .LVU74
 	movne	r7, #192
 .LVL25:
-	.loc 1 106 25 is_stmt 1 discriminator 12 view .LVU77
+	.loc 1 106 25 is_stmt 1 discriminator 12 view .LVU75
 	cbz	r1, .L13
-	.loc 1 106 25 discriminator 4 view .LVU78
+	.loc 1 106 25 discriminator 4 view .LVU76
 	orr	r7, r7, #48
 .LVL26:
 .L13:
-	.loc 1 106 25 discriminator 6 view .LVU79
+	.loc 1 106 25 discriminator 6 view .LVU77
 	cmp	ip, #0
 	beq	.L14
-	.loc 1 106 25 discriminator 7 view .LVU80
+	.loc 1 106 25 discriminator 7 view .LVU78
 	orr	r7, r7, #12
 .LVL27:
 .L14:
-	.loc 1 106 25 discriminator 9 view .LVU81
+	.loc 1 106 25 discriminator 9 view .LVU79
 	cmp	lr, #0
 	beq	.L15
-	.loc 1 106 25 discriminator 10 view .LVU82
+	.loc 1 106 25 discriminator 10 view .LVU80
 	orr	r7, r7, #3
 .LVL28:
 .L15:
-	.loc 1 106 25 discriminator 12 view .LVU83
+	.loc 1 106 25 discriminator 12 view .LVU81
 	ldrb	r1, [r0, r1]	@ zero_extendqisi2
 .LVL29:
-	.loc 1 106 25 is_stmt 0 discriminator 12 view .LVU84
+	.loc 1 106 25 is_stmt 0 discriminator 12 view .LVU82
 	adds	r2, r2, #32
 .LVL30:
-	.loc 1 106 25 discriminator 12 view .LVU85
+	.loc 1 106 25 discriminator 12 view .LVU83
 	ldrb	r8, [r0, r8]	@ zero_extendqisi2
 	ldrb	lr, [r0, lr]	@ zero_extendqisi2
 .LVL31:
-	.loc 1 106 25 discriminator 12 view .LVU86
+	.loc 1 106 25 discriminator 12 view .LVU84
 	ldrb	ip, [r0, ip]	@ zero_extendqisi2
 	lsls	r1, r1, #4
 	orr	r1, r1, r8, lsl #6
@@ -293,16 +289,16 @@ soft_make_line_part:
 	orr	r1, r1, ip, lsl #2
 	ands	r1, r1, r7
 .LBE53:
-	.loc 1 106 23 discriminator 12 view .LVU87
+	.loc 1 106 23 discriminator 12 view .LVU85
 	strb	r1, [r4, r5, lsl #3]
 .LVL32:
-	.loc 1 107 3 is_stmt 1 discriminator 12 view .LVU88
-	.loc 1 109 3 discriminator 12 view .LVU89
-	.loc 1 100 21 discriminator 12 view .LVU90
-	.loc 1 100 22 is_stmt 0 discriminator 12 view .LVU91
+	.loc 1 107 3 is_stmt 1 discriminator 12 view .LVU86
+	.loc 1 110 3 discriminator 12 view .LVU87
+	.loc 1 102 21 discriminator 12 view .LVU88
+	.loc 1 102 22 is_stmt 0 discriminator 12 view .LVU89
 	adds	r5, r5, #1
 .LVL33:
-	.loc 1 100 22 discriminator 12 view .LVU92
+	.loc 1 102 22 discriminator 12 view .LVU90
 	b	.L7
 .L38:
 	.align	2
@@ -323,67 +319,66 @@ soft_make_line_mono:
 	.fnstart
 .LVL34:
 .LFB4451:
-	.loc 1 114 1 is_stmt 1 view -0
+	.loc 1 118 1 is_stmt 1 view -0
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	.loc 1 115 2 view .LVU94
-	.loc 1 116 2 view .LVU95
-	.loc 1 114 1 is_stmt 0 view .LVU96
+	.loc 1 119 2 view .LVU92
+	.loc 1 120 2 view .LVU93
+	.loc 1 118 1 is_stmt 0 view .LVU94
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, lr}
 .LCFI2:
-	.loc 1 114 1 view .LVU97
+	.loc 1 118 1 view .LVU95
 	mov	lr, r3
-	.loc 1 120 12 view .LVU98
+	.loc 1 124 12 view .LVU96
 	ldr	r3, .L60
 .LVL35:
-	.loc 1 117 6 view .LVU99
+	.loc 1 121 6 view .LVU97
 	ldrd	r4, r0, [r0, #16]
 .LVL36:
-	.loc 1 119 2 is_stmt 1 view .LVU100
-	.loc 1 119 2 is_stmt 0 view .LVU101
+	.loc 1 123 2 is_stmt 1 view .LVU98
+	.loc 1 123 2 is_stmt 0 view .LVU99
 	adds	r2, r2, #32
 .LVL37:
-	.loc 1 119 8 view .LVU102
+	.loc 1 123 8 view .LVU100
 	mov	ip, #0
 .LBB54:
-	.loc 1 120 25 view .LVU103
+	.loc 1 124 25 view .LVU101
 	mov	r5, #-1
 .LBE54:
-	.loc 1 120 12 view .LVU104
+	.loc 1 124 12 view .LVU102
 	ldrb	r8, [r3]	@ zero_extendqisi2
-	.loc 1 125 12 view .LVU105
+	.loc 1 127 12 view .LVU103
 	ldr	r3, .L60+4
-	.loc 1 120 23 view .LVU106
+	.loc 1 124 23 view .LVU104
 	add	r8, r8, r1
-	.loc 1 125 12 view .LVU107
+	.loc 1 127 12 view .LVU105
 	ldrb	r6, [r3]	@ zero_extendqisi2
-	.loc 1 125 23 view .LVU108
-	adds	r6, r6, #4
+	.loc 1 127 23 view .LVU106
 	add	r6, r6, r1
 .LVL38:
 .L40:
-	.loc 1 119 12 is_stmt 1 discriminator 2 view .LVU109
-	.loc 1 119 2 is_stmt 0 discriminator 2 view .LVU110
+	.loc 1 123 12 is_stmt 1 discriminator 2 view .LVU107
+	.loc 1 123 2 is_stmt 0 discriminator 2 view .LVU108
 	cmp	ip, lr
 	blt	.L57
-	.loc 1 130 1 view .LVU111
+	.loc 1 136 1 view .LVU109
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
 .L57:
-	.loc 1 120 3 is_stmt 1 view .LVU112
+	.loc 1 124 3 is_stmt 1 view .LVU110
 .LBB55:
-	.loc 1 120 25 view .LVU113
+	.loc 1 124 25 view .LVU111
 	ldrd	r10, r9, [r2, #-32]
 .LVL39:
-	.loc 1 120 25 view .LVU114
+	.loc 1 124 25 view .LVU112
 	ldrd	r7, r3, [r2, #-24]
 .LVL40:
-	.loc 1 120 25 view .LVU115
-	.loc 1 120 25 view .LVU116
+	.loc 1 124 25 view .LVU113
+	.loc 1 124 25 view .LVU114
 	add	r1, r10, #-1
 	adds	r1, r1, #3
 	bhi	.L58
-	.loc 1 120 25 discriminator 1 view .LVU117
+	.loc 1 124 25 discriminator 1 view .LVU115
 	ldrb	r1, [r4, r10]	@ zero_extendqisi2
 	cmp	r0, r10, lsr #10
 	itet	hi
@@ -393,39 +388,39 @@ soft_make_line_mono:
 	lsls	r1, r1, #6
 	uxtb	r1, r1
 .LVL41:
-	.loc 1 120 25 discriminator 1 view .LVU118
-	.loc 1 120 25 discriminator 1 view .LVU119
-	.loc 1 120 25 discriminator 1 view .LVU120
+	.loc 1 124 25 discriminator 1 view .LVU116
+	.loc 1 124 25 discriminator 1 view .LVU117
+	.loc 1 124 25 discriminator 1 view .LVU118
 .L41:
-	.loc 1 120 25 discriminator 6 view .LVU121
+	.loc 1 124 25 discriminator 6 view .LVU119
 	add	r10, r9, #-1
 	cmn	r10, #3
 	bhi	.L43
-	.loc 1 120 25 discriminator 7 view .LVU122
+	.loc 1 124 25 discriminator 7 view .LVU120
 	ldrb	r10, [r4, r9]	@ zero_extendqisi2
 	cmp	r0, r9, lsr #10
 	itet	hi
 	addhi	r9, r9, #1024
 .LVL42:
-	.loc 1 120 25 is_stmt 0 discriminator 7 view .LVU123
+	.loc 1 124 25 is_stmt 0 discriminator 7 view .LVU121
 	strls	r5, [r2, #-28]
 .LVL43:
-	.loc 1 120 25 discriminator 7 view .LVU124
+	.loc 1 124 25 discriminator 7 view .LVU122
 	strhi	r9, [r2, #-28]
 	orr	r1, r1, r10, lsl #4
 .LVL44:
-	.loc 1 120 25 discriminator 7 view .LVU125
+	.loc 1 124 25 discriminator 7 view .LVU123
 	uxtb	r1, r1
 .LVL45:
-	.loc 1 120 25 is_stmt 1 discriminator 7 view .LVU126
-	.loc 1 120 25 discriminator 7 view .LVU127
-	.loc 1 120 25 discriminator 7 view .LVU128
+	.loc 1 124 25 is_stmt 1 discriminator 7 view .LVU124
+	.loc 1 124 25 discriminator 7 view .LVU125
+	.loc 1 124 25 discriminator 7 view .LVU126
 .L43:
-	.loc 1 120 25 discriminator 12 view .LVU129
+	.loc 1 124 25 discriminator 12 view .LVU127
 	add	r9, r7, #-1
 	cmn	r9, #3
 	bhi	.L45
-	.loc 1 120 25 discriminator 13 view .LVU130
+	.loc 1 124 25 discriminator 13 view .LVU128
 	ldrb	r9, [r4, r7]	@ zero_extendqisi2
 	cmp	r0, r7, lsr #10
 	itet	hi
@@ -434,102 +429,101 @@ soft_make_line_mono:
 	strhi	r7, [r2, #-24]
 	orr	r1, r1, r9, lsl #2
 .LVL46:
-	.loc 1 120 25 is_stmt 0 discriminator 13 view .LVU131
+	.loc 1 124 25 is_stmt 0 discriminator 13 view .LVU129
 	uxtb	r1, r1
 .LVL47:
-	.loc 1 120 25 is_stmt 1 discriminator 13 view .LVU132
-	.loc 1 120 25 discriminator 13 view .LVU133
-	.loc 1 120 25 discriminator 13 view .LVU134
+	.loc 1 124 25 is_stmt 1 discriminator 13 view .LVU130
+	.loc 1 124 25 discriminator 13 view .LVU131
+	.loc 1 124 25 discriminator 13 view .LVU132
 .L45:
-	.loc 1 120 25 discriminator 18 view .LVU135
+	.loc 1 124 25 discriminator 18 view .LVU133
 	subs	r7, r3, #1
 	adds	r7, r7, #3
 	bhi	.L47
-	.loc 1 120 25 discriminator 19 view .LVU136
+	.loc 1 124 25 discriminator 19 view .LVU134
 	ldrb	r7, [r4, r3]	@ zero_extendqisi2
 	cmp	r0, r3, lsr #10
 	ite	hi
 	addhi	r3, r3, #1024
 .LVL48:
-	.loc 1 120 25 is_stmt 0 discriminator 19 view .LVU137
+	.loc 1 124 25 is_stmt 0 discriminator 19 view .LVU135
 	strls	r5, [r2, #-20]
 .LVL49:
-	.loc 1 120 25 discriminator 19 view .LVU138
+	.loc 1 124 25 discriminator 19 view .LVU136
 	orr	r1, r1, r7
 .LVL50:
-	.loc 1 120 25 is_stmt 1 discriminator 19 view .LVU139
-	.loc 1 120 25 discriminator 19 view .LVU140
+	.loc 1 124 25 is_stmt 1 discriminator 19 view .LVU137
+	.loc 1 124 25 discriminator 19 view .LVU138
 	it	hi
 	strhi	r3, [r2, #-20]
-	.loc 1 120 25 discriminator 19 view .LVU141
+	.loc 1 124 25 discriminator 19 view .LVU139
 .L47:
-	.loc 1 120 25 discriminator 24 view .LVU142
+	.loc 1 124 25 discriminator 24 view .LVU140
 .LBE55:
-	.loc 1 120 23 is_stmt 0 discriminator 24 view .LVU143
+	.loc 1 124 23 is_stmt 0 discriminator 24 view .LVU141
 	strb	r1, [r8, ip, lsl #3]
-	.loc 1 121 3 is_stmt 1 discriminator 24 view .LVU144
+	.loc 1 125 3 is_stmt 1 discriminator 24 view .LVU142
 .LVL51:
-	.loc 1 123 3 discriminator 24 view .LVU145
-	.loc 1 125 3 discriminator 24 view .LVU146
+	.loc 1 127 3 discriminator 24 view .LVU143
 .LBB56:
-	.loc 1 125 25 discriminator 24 view .LVU147
+	.loc 1 127 25 discriminator 24 view .LVU144
 	ldrd	r10, r9, [r2, #-16]
 .LVL52:
-	.loc 1 125 25 discriminator 24 view .LVU148
+	.loc 1 127 25 discriminator 24 view .LVU145
 	ldrd	r3, r7, [r2, #-8]
 .LVL53:
-	.loc 1 125 25 discriminator 24 view .LVU149
-	.loc 1 125 25 discriminator 24 view .LVU150
+	.loc 1 127 25 discriminator 24 view .LVU146
+	.loc 1 127 25 discriminator 24 view .LVU147
 	add	r1, r10, #-1
 .LVL54:
-	.loc 1 125 25 is_stmt 0 discriminator 24 view .LVU151
+	.loc 1 127 25 is_stmt 0 discriminator 24 view .LVU148
 	adds	r1, r1, #3
 	bhi	.L59
-	.loc 1 125 25 is_stmt 1 discriminator 1 view .LVU152
+	.loc 1 127 25 is_stmt 1 discriminator 1 view .LVU149
 	ldrb	r1, [r4, r10]	@ zero_extendqisi2
 	cmp	r0, r10, lsr #10
 	itet	hi
 	addhi	r10, r10, #1024
 	strls	r5, [r2, #-16]
 .LVL55:
-	.loc 1 125 25 is_stmt 0 discriminator 1 view .LVU153
+	.loc 1 127 25 is_stmt 0 discriminator 1 view .LVU150
 	strhi	r10, [r2, #-16]
 	lsls	r1, r1, #6
 	uxtb	r1, r1
 .LVL56:
-	.loc 1 125 25 is_stmt 1 discriminator 1 view .LVU154
-	.loc 1 125 25 discriminator 1 view .LVU155
-	.loc 1 125 25 discriminator 1 view .LVU156
+	.loc 1 127 25 is_stmt 1 discriminator 1 view .LVU151
+	.loc 1 127 25 discriminator 1 view .LVU152
+	.loc 1 127 25 discriminator 1 view .LVU153
 .L49:
-	.loc 1 125 25 discriminator 6 view .LVU157
+	.loc 1 127 25 discriminator 6 view .LVU154
 	add	r10, r9, #-1
 	cmn	r10, #3
 	bhi	.L51
-	.loc 1 125 25 discriminator 7 view .LVU158
+	.loc 1 127 25 discriminator 7 view .LVU155
 	ldrb	r10, [r4, r9]	@ zero_extendqisi2
 	cmp	r0, r9, lsr #10
 	itet	hi
 	addhi	r9, r9, #1024
 .LVL57:
-	.loc 1 125 25 is_stmt 0 discriminator 7 view .LVU159
+	.loc 1 127 25 is_stmt 0 discriminator 7 view .LVU156
 	strls	r5, [r2, #-12]
 .LVL58:
-	.loc 1 125 25 discriminator 7 view .LVU160
+	.loc 1 127 25 discriminator 7 view .LVU157
 	strhi	r9, [r2, #-12]
 	orr	r1, r1, r10, lsl #4
 .LVL59:
-	.loc 1 125 25 discriminator 7 view .LVU161
+	.loc 1 127 25 discriminator 7 view .LVU158
 	uxtb	r1, r1
 .LVL60:
-	.loc 1 125 25 is_stmt 1 discriminator 7 view .LVU162
-	.loc 1 125 25 discriminator 7 view .LVU163
-	.loc 1 125 25 discriminator 7 view .LVU164
+	.loc 1 127 25 is_stmt 1 discriminator 7 view .LVU159
+	.loc 1 127 25 discriminator 7 view .LVU160
+	.loc 1 127 25 discriminator 7 view .LVU161
 .L51:
-	.loc 1 125 25 discriminator 12 view .LVU165
+	.loc 1 127 25 discriminator 12 view .LVU162
 	add	r9, r3, #-1
 	cmn	r9, #3
 	bhi	.L53
-	.loc 1 125 25 discriminator 13 view .LVU166
+	.loc 1 127 25 discriminator 13 view .LVU163
 	ldrb	r9, [r4, r3]	@ zero_extendqisi2
 	cmp	r0, r3, lsr #10
 	itet	hi
@@ -538,62 +532,62 @@ soft_make_line_mono:
 	strhi	r3, [r2, #-8]
 	orr	r1, r1, r9, lsl #2
 .LVL61:
-	.loc 1 125 25 is_stmt 0 discriminator 13 view .LVU167
+	.loc 1 127 25 is_stmt 0 discriminator 13 view .LVU164
 	uxtb	r1, r1
 .LVL62:
-	.loc 1 125 25 is_stmt 1 discriminator 13 view .LVU168
-	.loc 1 125 25 discriminator 13 view .LVU169
-	.loc 1 125 25 discriminator 13 view .LVU170
+	.loc 1 127 25 is_stmt 1 discriminator 13 view .LVU165
+	.loc 1 127 25 discriminator 13 view .LVU166
+	.loc 1 127 25 discriminator 13 view .LVU167
 .L53:
-	.loc 1 125 25 discriminator 18 view .LVU171
+	.loc 1 127 25 discriminator 18 view .LVU168
 	subs	r3, r7, #1
 	adds	r3, r3, #3
 	bhi	.L55
-	.loc 1 125 25 discriminator 19 view .LVU172
+	.loc 1 127 25 discriminator 19 view .LVU169
 	ldrb	r3, [r4, r7]	@ zero_extendqisi2
 	cmp	r0, r7, lsr #10
 	ite	hi
 	addhi	r7, r7, #1024
 .LVL63:
-	.loc 1 125 25 is_stmt 0 discriminator 19 view .LVU173
+	.loc 1 127 25 is_stmt 0 discriminator 19 view .LVU170
 	strls	r5, [r2, #-4]
 .LVL64:
-	.loc 1 125 25 discriminator 19 view .LVU174
+	.loc 1 127 25 discriminator 19 view .LVU171
 	orr	r1, r1, r3
 .LVL65:
-	.loc 1 125 25 is_stmt 1 discriminator 19 view .LVU175
-	.loc 1 125 25 discriminator 19 view .LVU176
+	.loc 1 127 25 is_stmt 1 discriminator 19 view .LVU172
+	.loc 1 127 25 discriminator 19 view .LVU173
 	it	hi
 	strhi	r7, [r2, #-4]
-	.loc 1 125 25 discriminator 19 view .LVU177
+	.loc 1 127 25 discriminator 19 view .LVU174
 .L55:
-	.loc 1 125 25 discriminator 24 view .LVU178
+	.loc 1 127 25 discriminator 24 view .LVU175
 .LBE56:
-	.loc 1 125 23 is_stmt 0 discriminator 24 view .LVU179
+	.loc 1 127 23 is_stmt 0 discriminator 24 view .LVU176
 	strb	r1, [r6, ip, lsl #3]
-	.loc 1 126 3 is_stmt 1 discriminator 24 view .LVU180
+	.loc 1 128 3 is_stmt 1 discriminator 24 view .LVU177
 .LVL66:
-	.loc 1 128 3 discriminator 24 view .LVU181
-	.loc 1 119 21 discriminator 24 view .LVU182
+	.loc 1 131 3 discriminator 24 view .LVU178
+	.loc 1 123 21 discriminator 24 view .LVU179
 	adds	r2, r2, #32
 .LVL67:
-	.loc 1 119 22 is_stmt 0 discriminator 24 view .LVU183
+	.loc 1 123 22 is_stmt 0 discriminator 24 view .LVU180
 	add	ip, ip, #1
 .LVL68:
-	.loc 1 119 22 discriminator 24 view .LVU184
+	.loc 1 123 22 discriminator 24 view .LVU181
 	b	.L40
 .LVL69:
 .L58:
 .LBB57:
-	.loc 1 120 25 view .LVU185
+	.loc 1 124 25 view .LVU182
 	movs	r1, #0
 	b	.L41
 .LVL70:
 .L59:
-	.loc 1 120 25 view .LVU186
+	.loc 1 124 25 view .LVU183
 .LBE57:
 .LBB58:
-	.loc 1 125 25 view .LVU187
+	.loc 1 127 25 view .LVU184
 	movs	r1, #0
 	b	.L49
 .L61:
@@ -620,58 +614,61 @@ ktime_divns.constprop.0:
 	.loc 2 130 19 is_stmt 1 view -0
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
+	.loc 2 136 2 view .LVU186
+	.loc 2 136 2 view .LVU187
+	.loc 2 136 2 view .LVU188
 	.loc 2 136 2 view .LVU189
 	.loc 2 136 2 view .LVU190
-	.loc 2 136 2 view .LVU191
-	.loc 2 136 2 view .LVU192
-	.loc 2 136 2 view .LVU193
-	.loc 2 137 2 view .LVU194
+	.loc 2 137 2 view .LVU191
 .LBB72:
-	.loc 2 138 3 view .LVU195
-	.loc 2 139 3 view .LVU196
+	.loc 2 138 3 view .LVU192
+	.loc 2 139 3 view .LVU193
 .LBE72:
-	.loc 2 130 19 is_stmt 0 view .LVU197
+	.loc 2 130 19 is_stmt 0 view .LVU194
 	push	{r4, r5, r6, lr}
 	.save {r4, r5, r6, lr}
 .LCFI3:
 .LBB79:
-	.loc 2 139 26 view .LVU198
+	.loc 2 139 26 view .LVU195
 	mov	r3, r1
 .LBE79:
-	.loc 2 130 19 view .LVU199
+	.loc 2 130 19 view .LVU196
 	mov	r6, r1
 .LBB80:
-	.loc 2 139 26 view .LVU200
+	.loc 2 139 26 view .LVU197
 	cmp	r1, #0
 	bge	.L63
 	negs	r0, r0
 .LVL72:
-	.loc 2 139 26 view .LVU201
+	.loc 2 139 26 view .LVU198
 	sbc	r3, r1, r1, lsl #1
 .LVL73:
 .L63:
-	.loc 2 139 26 view .LVU202
+	.loc 2 139 26 view .LVU199
 	mov	r4, r0
 	mov	r5, r3
 .LVL74:
-	.loc 2 141 3 is_stmt 1 view .LVU203
+	.loc 2 141 3 is_stmt 1 view .LVU200
 .LBB73:
+	.loc 2 141 3 view .LVU201
+	.loc 2 141 3 view .LVU202
+	.loc 2 141 3 view .LVU203
 	.loc 2 141 3 view .LVU204
-	.loc 2 141 3 view .LVU205
-	.loc 2 141 3 view .LVU206
-	.loc 2 141 3 view .LVU207
-	.loc 2 141 3 is_stmt 0 view .LVU208
+	.loc 2 141 3 is_stmt 0 view .LVU205
 .LBE73:
 .LBE80:
 	.file 3 "./include/linux/log2.h"
-	.loc 3 47 2 is_stmt 1 view .LVU209
+	.loc 3 47 2 is_stmt 1 view .LVU206
 .LBB81:
 .LBB78:
-	.loc 2 141 3 view .LVU210
+	.loc 2 141 3 view .LVU207
 .LBB74:
+	.loc 2 141 3 view .LVU208
+	.loc 2 141 3 view .LVU209
+.LBB75:
+	.loc 2 141 3 view .LVU210
 	.loc 2 141 3 view .LVU211
 	.loc 2 141 3 view .LVU212
-.LBB75:
 	.loc 2 141 3 view .LVU213
 	.loc 2 141 3 view .LVU214
 	.loc 2 141 3 view .LVU215
@@ -688,25 +685,22 @@ ktime_divns.constprop.0:
 	.loc 2 141 3 view .LVU226
 	.loc 2 141 3 view .LVU227
 	.loc 2 141 3 view .LVU228
-	.loc 2 141 3 view .LVU229
-	.loc 2 141 3 view .LVU230
-	.loc 2 141 3 view .LVU231
 .LBB76:
 .LBI76:
 	.file 4 "./arch/arm/include/asm/div64.h"
-	.loc 4 55 24 view .LVU232
+	.loc 4 55 24 view .LVU229
 .LBB77:
-	.loc 4 57 2 view .LVU233
-	.loc 4 58 2 view .LVU234
-	.loc 4 74 3 is_stmt 0 view .LVU235
+	.loc 4 57 2 view .LVU230
+	.loc 4 58 2 view .LVU231
+	.loc 4 74 3 is_stmt 0 view .LVU232
 	adr	r1, .L65
 	ldrd	r0, [r1]
 .LVL75:
-	.loc 4 58 24 view .LVU236
+	.loc 4 58 24 view .LVU233
 	mov	ip, #0
-	.loc 4 60 2 is_stmt 1 view .LVU237
-	.loc 4 66 9 view .LVU238
-	.loc 4 74 3 view .LVU239
+	.loc 4 60 2 is_stmt 1 view .LVU234
+	.loc 4 66 9 view .LVU235
+	.loc 4 74 3 view .LVU236
 	.syntax unified
 @ 74 "./arch/arm/include/asm/div64.h" 1
 	umull	r2, r3, r0, r4
@@ -715,8 +709,8 @@ ktime_divns.constprop.0:
 	adc	r2, ip, #0
 @ 0 "" 2
 .LVL76:
-	.loc 4 83 2 view .LVU240
-	.loc 4 92 3 view .LVU241
+	.loc 4 83 2 view .LVU237
+	.loc 4 92 3 view .LVU238
 @ 92 "./arch/arm/include/asm/div64.h" 1
 	umlal	r3, r2, r1, r4
 	umlal	r3, ip, r0, r5
@@ -726,42 +720,42 @@ ktime_divns.constprop.0:
 	umlal	r2, r3, r1, r5
 @ 0 "" 2
 .LVL77:
-	.loc 4 103 2 view .LVU242
-	.loc 4 103 2 is_stmt 0 view .LVU243
+	.loc 4 103 2 view .LVU239
+	.loc 4 103 2 is_stmt 0 view .LVU240
 	.thumb
 	.syntax unified
 .LBE77:
 .LBE76:
-	.loc 2 141 3 is_stmt 1 view .LVU244
+	.loc 2 141 3 is_stmt 1 view .LVU241
 	lsrs	r0, r2, #9
 	lsrs	r1, r3, #9
 	orr	r0, r0, r3, lsl #23
 .LVL78:
-	.loc 2 141 3 is_stmt 0 view .LVU245
+	.loc 2 141 3 is_stmt 0 view .LVU242
 .LBE75:
-	.loc 2 141 3 is_stmt 1 view .LVU246
-	.loc 2 141 3 view .LVU247
-	.loc 2 141 3 is_stmt 0 view .LVU248
+	.loc 2 141 3 is_stmt 1 view .LVU243
+	.loc 2 141 3 view .LVU244
+	.loc 2 141 3 is_stmt 0 view .LVU245
 .LBE74:
-	.loc 2 141 3 is_stmt 1 view .LVU249
+	.loc 2 141 3 is_stmt 1 view .LVU246
 .LBE78:
-	.loc 2 142 3 view .LVU250
-	.loc 2 142 24 is_stmt 0 view .LVU251
+	.loc 2 142 3 view .LVU247
+	.loc 2 142 24 is_stmt 0 view .LVU248
 	cmp	r6, #0
 	bge	.L64
 	negs	r0, r0
 .LVL79:
-	.loc 2 142 24 view .LVU252
+	.loc 2 142 24 view .LVU249
 	sbc	r1, r1, r1, lsl #1
 .LVL80:
 .L64:
-	.loc 2 142 24 view .LVU253
+	.loc 2 142 24 view .LVU250
 .LBE81:
-	.loc 2 146 1 view .LVU254
+	.loc 2 146 1 view .LVU251
 	pop	{r4, r5, r6, pc}
 .LVL81:
 .L66:
-	.loc 2 146 1 view .LVU255
+	.loc 2 146 1 view .LVU252
 	.align	3
 .L65:
 	.word	-1924145349
@@ -790,59 +784,59 @@ soft_wffpu_make_frame:
 	.fnstart
 .LVL82:
 .LFB4452:
-	.loc 1 133 1 is_stmt 1 view -0
+	.loc 1 139 1 is_stmt 1 view -0
 	@ args = 0, pretend = 0, frame = 16
 	@ frame_needed = 0, uses_anonymous_args = 0
-	.loc 1 134 2 view .LVU257
-	.loc 1 133 1 is_stmt 0 view .LVU258
+	.loc 1 140 2 view .LVU254
+	.loc 1 139 1 is_stmt 0 view .LVU255
 	push	{r4, r5, r6, r7, r8, r9, r10, fp, lr}
 	.save {r4, r5, r6, r7, r8, r9, r10, fp, lr}
 .LCFI4:
 	mov	r4, r0
-	.loc 1 136 6 view .LVU259
+	.loc 1 142 6 view .LVU256
 	ldr	r3, [r0, #40]
-	.loc 1 133 1 view .LVU260
+	.loc 1 139 1 view .LVU257
 	.pad #20
 	sub	sp, sp, #20
 .LCFI5:
-	.loc 1 134 22 view .LVU261
+	.loc 1 140 22 view .LVU258
 	ldr	r9, [r0, #48]
 .LVL83:
-	.loc 1 135 2 is_stmt 1 view .LVU262
-	.loc 1 136 6 is_stmt 0 view .LVU263
+	.loc 1 141 2 is_stmt 1 view .LVU259
+	.loc 1 142 6 is_stmt 0 view .LVU260
 	asr	r10, r3, #3
-	.loc 1 135 22 view .LVU264
+	.loc 1 141 22 view .LVU261
 	ldr	fp, [r9, #100]
 .LVL84:
-	.loc 1 136 2 is_stmt 1 view .LVU265
-	.loc 1 137 2 view .LVU266
-	.loc 1 138 2 view .LVU267
-	.loc 1 139 2 view .LVU268
-	.loc 1 140 2 view .LVU269
-	.loc 1 141 2 view .LVU270
-	.loc 1 142 2 view .LVU271
-	.loc 1 142 18 is_stmt 0 view .LVU272
+	.loc 1 142 2 is_stmt 1 view .LVU262
+	.loc 1 143 2 view .LVU263
+	.loc 1 144 2 view .LVU264
+	.loc 1 145 2 view .LVU265
+	.loc 1 146 2 view .LVU266
+	.loc 1 147 2 view .LVU267
+	.loc 1 148 2 view .LVU268
+	.loc 1 148 18 is_stmt 0 view .LVU269
 	bl	ktime_get
 .LVL85:
-	.loc 1 144 10 view .LVU273
+	.loc 1 150 10 view .LVU270
 	ldr	r3, [r4, #28]
-	.loc 1 142 18 view .LVU274
+	.loc 1 148 18 view .LVU271
 	mov	r8, r1
 .LVL86:
-	.loc 1 144 2 is_stmt 1 view .LVU275
-	.loc 1 142 18 is_stmt 0 view .LVU276
+	.loc 1 150 2 is_stmt 1 view .LVU272
+	.loc 1 148 18 is_stmt 0 view .LVU273
 	str	r0, [sp, #4]
 .LVL87:
-	.loc 1 144 10 view .LVU277
+	.loc 1 150 10 view .LVU274
 	ubfx	r2, r3, #8, #8
-	.loc 1 144 2 view .LVU278
+	.loc 1 150 2 view .LVU275
 	subs	r2, r2, #2
 	cmp	r2, #1
 	bls	.L74
-	.loc 1 152 3 is_stmt 1 view .LVU279
-	.loc 1 152 7 is_stmt 0 view .LVU280
+	.loc 1 158 3 is_stmt 1 view .LVU276
+	.loc 1 158 7 is_stmt 0 view .LVU277
 	uxtb	r3, r3
-	.loc 1 157 9 view .LVU281
+	.loc 1 163 9 view .LVU278
 	ldr	r7, .L79
 	cmp	r3, #1
 	ldr	r3, .L79+4
@@ -854,111 +848,111 @@ soft_wffpu_make_frame:
 	movne	r6, r3
 .L68:
 .LVL88:
-	.loc 1 167 2 is_stmt 1 view .LVU282
-	.loc 1 167 76 is_stmt 0 view .LVU283
+	.loc 1 170 2 is_stmt 1 view .LVU279
+	.loc 1 170 76 is_stmt 0 view .LVU280
 	ldrd	ip, r3, [r4, #32]
-	.loc 1 167 42 view .LVU284
+	.loc 1 170 42 view .LVU281
 	ldr	r1, [fp, #68]
-	.loc 1 169 5 view .LVU285
+	.loc 1 176 5 view .LVU282
 	ldr	r0, [r9, #76]
-	.loc 1 167 10 view .LVU286
+	.loc 1 170 10 view .LVU283
 	ldr	r2, [r4, #8]
 .LBB86:
-	.loc 1 171 48 view .LVU287
+	.loc 1 178 48 view .LVU284
 	ldr	r5, [r9]
 .LBE86:
-	.loc 1 167 65 view .LVU288
+	.loc 1 170 65 view .LVU285
 	mla	r1, r1, r3, ip
-	.loc 1 167 10 view .LVU289
+	.loc 1 170 10 view .LVU286
 	add	r1, r1, r2
 .LVL89:
-	.loc 1 169 2 is_stmt 1 view .LVU290
+	.loc 1 176 2 is_stmt 1 view .LVU287
 .LBB87:
-	.loc 1 171 18 is_stmt 0 view .LVU291
+	.loc 1 178 18 is_stmt 0 view .LVU288
 	ldr	r2, [r4, #24]
 .LBE87:
-	.loc 1 169 5 view .LVU292
+	.loc 1 176 5 view .LVU289
 	cbz	r0, .L69
 .LBB88:
-	.loc 1 170 3 is_stmt 1 view .LVU293
+	.loc 1 177 3 is_stmt 1 view .LVU290
 .LVL90:
-	.loc 1 171 3 view .LVU294
-	.loc 1 170 36 is_stmt 0 view .LVU295
+	.loc 1 178 3 view .LVU291
+	.loc 1 177 36 is_stmt 0 view .LVU292
 	ldr	r0, [r9, #4]
 	subs	r0, r0, #1
 	subs	r3, r0, r3
 .LVL91:
-	.loc 1 171 56 view .LVU296
+	.loc 1 178 56 view .LVU293
 	mla	r3, r5, r3, ip
-	.loc 1 172 14 view .LVU297
+	.loc 1 179 14 view .LVU294
 	rsbs	r5, r5, #0
-	.loc 1 171 13 view .LVU298
+	.loc 1 178 13 view .LVU295
 	add	r2, r2, r3, lsl #2
 .LVL92:
-	.loc 1 172 3 is_stmt 1 view .LVU299
+	.loc 1 179 3 is_stmt 1 view .LVU296
 .L70:
-	.loc 1 172 3 is_stmt 0 view .LVU300
+	.loc 1 179 3 is_stmt 0 view .LVU297
 .LBE88:
-	.loc 1 178 2 is_stmt 1 view .LVU301
-	.loc 1 182 13 is_stmt 0 view .LVU302
+	.loc 1 185 2 is_stmt 1 view .LVU298
+	.loc 1 189 13 is_stmt 0 view .LVU299
 	lsls	r5, r5, #2
 .LVL93:
-	.loc 1 178 8 view .LVU303
+	.loc 1 185 8 view .LVU300
 	mov	r9, #0
 .LVL94:
 .L71:
-	.loc 1 178 12 is_stmt 1 discriminator 1 view .LVU304
-	.loc 1 178 2 is_stmt 0 discriminator 1 view .LVU305
+	.loc 1 185 12 is_stmt 1 discriminator 1 view .LVU301
+	.loc 1 185 2 is_stmt 0 discriminator 1 view .LVU302
 	ldr	r3, [r4, #44]
 	cmp	r3, r9
 	bgt	.L72
-	.loc 1 185 2 is_stmt 1 view .LVU306
-	.loc 1 185 2 view .LVU307
+	.loc 1 192 2 is_stmt 1 view .LVU303
+	.loc 1 192 2 view .LVU304
 	ldr	r3, .L79+16
 	ldrh	r3, [r3]
 	lsls	r3, r3, #26
 	bpl	.L73
-	.loc 1 185 2 discriminator 1 view .LVU308
+	.loc 1 192 2 discriminator 1 view .LVU305
 .LBB89:
-	.loc 1 185 2 discriminator 1 view .LVU309
-	.loc 1 185 2 discriminator 1 view .LVU310
-	.loc 1 185 2 discriminator 1 view .LVU311
-	.loc 1 185 2 discriminator 1 view .LVU312
+	.loc 1 192 2 discriminator 1 view .LVU306
+	.loc 1 192 2 discriminator 1 view .LVU307
+	.loc 1 192 2 discriminator 1 view .LVU308
+	.loc 1 192 2 discriminator 1 view .LVU309
 	bl	ktime_get
 .LVL95:
 .LBB90:
 .LBI90:
-	.loc 2 159 19 discriminator 1 view .LVU313
+	.loc 2 159 19 discriminator 1 view .LVU310
 .LBB91:
-	.loc 2 161 2 discriminator 1 view .LVU314
+	.loc 2 161 2 discriminator 1 view .LVU311
 .LBE91:
 .LBE90:
-	.loc 1 185 2 is_stmt 0 discriminator 1 view .LVU315
+	.loc 1 192 2 is_stmt 0 discriminator 1 view .LVU312
 	ldr	r3, [sp, #4]
 	subs	r0, r0, r3
 .LVL96:
 .LBB93:
 .LBB92:
-	.loc 2 161 9 discriminator 1 view .LVU316
+	.loc 2 161 9 discriminator 1 view .LVU313
 	sbc	r1, r1, r8
 	bl	ktime_divns.constprop.0
 .LVL97:
-	.loc 2 161 9 discriminator 1 view .LVU317
+	.loc 2 161 9 discriminator 1 view .LVU314
 	mov	r2, r0
 	mov	r3, r1
 .LBE92:
 .LBE93:
-	.loc 1 185 2 discriminator 1 view .LVU318
+	.loc 1 192 2 discriminator 1 view .LVU315
 	ldr	r0, .L79+20
 	mov	r1, r6
 	bl	_printk
 .LVL98:
 .L73:
-	.loc 1 185 2 discriminator 1 view .LVU319
+	.loc 1 192 2 discriminator 1 view .LVU316
 .LBE89:
-	.loc 1 185 2 is_stmt 1 discriminator 3 view .LVU320
-	.loc 1 188 2 discriminator 3 view .LVU321
-	.loc 1 189 1 is_stmt 0 discriminator 3 view .LVU322
+	.loc 1 192 2 is_stmt 1 discriminator 3 view .LVU317
+	.loc 1 195 2 discriminator 3 view .LVU318
+	.loc 1 196 1 is_stmt 0 discriminator 3 view .LVU319
 	movs	r0, #0
 	add	sp, sp, #20
 .LCFI6:
@@ -967,49 +961,49 @@ soft_wffpu_make_frame:
 .LVL99:
 .L74:
 .LCFI7:
-	.loc 1 148 8 view .LVU323
+	.loc 1 154 8 view .LVU320
 	ldr	r7, .L79+24
-	.loc 1 147 13 view .LVU324
+	.loc 1 153 13 view .LVU321
 	ldr	r6, .L79+28
 	b	.L68
 .LVL100:
 .L69:
-	.loc 1 174 3 is_stmt 1 view .LVU325
-	.loc 1 174 59 is_stmt 0 view .LVU326
+	.loc 1 181 3 is_stmt 1 view .LVU322
+	.loc 1 181 59 is_stmt 0 view .LVU323
 	mla	r3, r5, r3, ip
-	.loc 1 174 13 view .LVU327
+	.loc 1 181 13 view .LVU324
 	add	r2, r2, r3, lsl #2
 .LVL101:
-	.loc 1 175 3 is_stmt 1 view .LVU328
-	.loc 1 175 3 is_stmt 0 view .LVU329
+	.loc 1 182 3 is_stmt 1 view .LVU325
+	.loc 1 182 3 is_stmt 0 view .LVU326
 	b	.L70
 .LVL102:
 .L72:
-	.loc 1 179 3 is_stmt 1 discriminator 3 view .LVU330
+	.loc 1 186 3 is_stmt 1 discriminator 3 view .LVU327
 	strd	r1, r2, [sp, #8]
 	mov	r3, r10
 	mov	r0, r4
-	.loc 1 178 28 is_stmt 0 discriminator 3 view .LVU331
+	.loc 1 185 28 is_stmt 0 discriminator 3 view .LVU328
 	add	r9, r9, #1
 .LVL103:
-	.loc 1 179 3 discriminator 3 view .LVU332
+	.loc 1 186 3 discriminator 3 view .LVU329
 	blx	r7
 .LVL104:
-	.loc 1 181 3 is_stmt 1 discriminator 3 view .LVU333
-	.loc 1 181 11 is_stmt 0 discriminator 3 view .LVU334
+	.loc 1 188 3 is_stmt 1 discriminator 3 view .LVU330
+	.loc 1 188 11 is_stmt 0 discriminator 3 view .LVU331
 	ldr	r3, [fp, #68]
 	ldr	r1, [sp, #8]
-	.loc 1 182 13 discriminator 3 view .LVU335
+	.loc 1 189 13 discriminator 3 view .LVU332
 	ldr	r2, [sp, #12]
-	.loc 1 181 11 discriminator 3 view .LVU336
+	.loc 1 188 11 discriminator 3 view .LVU333
 	add	r1, r1, r3
 .LVL105:
-	.loc 1 182 3 is_stmt 1 discriminator 3 view .LVU337
-	.loc 1 182 13 is_stmt 0 discriminator 3 view .LVU338
+	.loc 1 189 3 is_stmt 1 discriminator 3 view .LVU334
+	.loc 1 189 13 is_stmt 0 discriminator 3 view .LVU335
 	add	r2, r2, r5
 .LVL106:
-	.loc 1 178 27 is_stmt 1 discriminator 3 view .LVU339
-	.loc 1 178 27 is_stmt 0 discriminator 3 view .LVU340
+	.loc 1 185 27 is_stmt 1 discriminator 3 view .LVU336
+	.loc 1 185 27 is_stmt 0 discriminator 3 view .LVU337
 	b	.L71
 .L80:
 	.align	2
@@ -1039,165 +1033,161 @@ soft_wffpu_clean_fb:
 	.fnstart
 .LVL107:
 .LFB4453:
-	.loc 1 192 1 is_stmt 1 view -0
+	.loc 1 199 1 is_stmt 1 view -0
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
-	.loc 1 193 2 view .LVU342
-	.loc 1 194 2 view .LVU343
-	.loc 1 192 1 is_stmt 0 view .LVU344
+	.loc 1 200 2 view .LVU339
+	.loc 1 201 2 view .LVU340
+	.loc 1 199 1 is_stmt 0 view .LVU341
 	push	{r3, r4, r5, r6, r7, r8, r9, lr}
 	.save {r3, r4, r5, r6, r7, r8, r9, lr}
 .LCFI8:
-	.loc 1 192 1 view .LVU345
-	mov	r4, r1
+	.loc 1 206 6 view .LVU342
+	cmp	r1, #0
+	.loc 1 199 1 view .LVU343
 	mov	r6, r0
-	.loc 1 194 22 view .LVU346
+	.loc 1 201 22 view .LVU344
 	ldr	r3, [r0, #48]
-	.loc 1 192 1 view .LVU347
-	mov	r8, r2
-	.loc 1 194 22 view .LVU348
-	ldr	r9, [r3, #100]
-.LVL108:
-	.loc 1 195 2 is_stmt 1 view .LVU349
-	.loc 1 196 2 view .LVU350
-	.loc 1 197 2 view .LVU351
-	.loc 1 199 2 view .LVU352
-	.loc 1 200 2 view .LVU353
-	.loc 1 200 18 is_stmt 0 view .LVU354
-	bl	ktime_get
-.LVL109:
-	.loc 1 204 8 view .LVU355
-	subs	r3, r4, #0
-	.loc 1 206 10 view .LVU356
-	ldr	r2, [r6, #8]
-	.loc 1 204 8 view .LVU357
+	.loc 1 206 6 view .LVU345
 	it	lt
-	addlt	r3, r3, #3
-	.loc 1 200 18 view .LVU358
-	mov	r5, r0
-	mov	r7, r1
+	addlt	r1, r1, #3
+.LVL108:
+	.loc 1 199 1 view .LVU346
+	mov	r8, r2
+	.loc 1 206 6 view .LVU347
+	asrs	r4, r1, #2
+	.loc 1 201 22 view .LVU348
+	ldr	r9, [r3, #100]
+.LVL109:
+	.loc 1 202 2 is_stmt 1 view .LVU349
+	.loc 1 203 2 view .LVU350
+	.loc 1 205 2 view .LVU351
+	.loc 1 206 2 view .LVU352
+	.loc 1 211 2 view .LVU353
+	.loc 1 211 18 is_stmt 0 view .LVU354
+	bl	ktime_get
 .LVL110:
-	.loc 1 201 2 is_stmt 1 view .LVU359
-	.file 5 "./arch/arm/include/asm/current.h"
-	.loc 5 19 2 view .LVU360
-	.loc 5 34 2 view .LVU361
-	.loc 5 64 2 view .LVU362
-	.file 6 "drivers/gpu/drm/rockchip/ebc-linux/wffpu/../ebc_trace.h"
-	.loc 6 9 1 view .LVU363
-	.loc 1 204 2 view .LVU364
-	.loc 1 208 8 is_stmt 0 view .LVU365
-	movs	r4, #0
+	.loc 1 214 10 view .LVU355
+	ldr	r2, [r6, #8]
+	.loc 1 211 18 view .LVU356
+	mov	r7, r1
+	mov	r5, r0
 .LVL111:
-	.loc 1 204 8 view .LVU366
-	asrs	r3, r3, #2
+	.loc 1 212 2 is_stmt 1 view .LVU357
+	.file 5 "./arch/arm/include/asm/current.h"
+	.loc 5 19 2 view .LVU358
+	.loc 5 34 2 view .LVU359
+	.loc 5 64 2 view .LVU360
+	.file 6 "drivers/gpu/drm/rockchip/ebc-linux/wffpu/../ebc_trace.h"
+	.loc 6 9 1 view .LVU361
+	.loc 1 214 2 view .LVU362
+	.loc 1 216 2 view .LVU363
+	.loc 1 216 8 is_stmt 0 view .LVU364
+	movs	r0, #0
 .LVL112:
-	.loc 1 206 2 is_stmt 1 view .LVU367
-	.loc 1 208 2 view .LVU368
 .L83:
-	.loc 1 208 12 discriminator 1 view .LVU369
-	.loc 1 208 2 is_stmt 0 discriminator 1 view .LVU370
-	cmp	r4, r8
+	.loc 1 216 12 is_stmt 1 discriminator 1 view .LVU365
+	.loc 1 216 2 is_stmt 0 discriminator 1 view .LVU366
+	cmp	r0, r8
 	bge	.L85
-	.loc 1 208 2 discriminator 1 view .LVU371
-	subs	r0, r2, #4
+	.loc 1 216 2 discriminator 1 view .LVU367
+	subs	r1, r2, #4
 .LBB98:
-	.loc 1 211 9 view .LVU372
-	movs	r1, #0
+	.loc 1 219 9 view .LVU368
+	movs	r3, #0
 	b	.L86
 .LVL113:
 .L84:
-	.loc 1 212 4 is_stmt 1 discriminator 3 view .LVU373
-	.loc 1 212 17 is_stmt 0 discriminator 3 view .LVU374
-	ldr	r6, [r0, #4]!
-	.loc 1 211 23 discriminator 3 view .LVU375
-	adds	r1, r1, #1
+	.loc 1 220 4 is_stmt 1 discriminator 3 view .LVU369
+	.loc 1 220 17 is_stmt 0 discriminator 3 view .LVU370
+	ldr	r6, [r1, #4]!
+	.loc 1 219 23 discriminator 3 view .LVU371
+	adds	r3, r3, #1
 .LVL114:
-	.loc 1 212 17 discriminator 3 view .LVU376
+	.loc 1 220 17 discriminator 3 view .LVU372
 	bic	r6, r6, #255
-	str	r6, [r0]
-	.loc 1 211 22 is_stmt 1 discriminator 3 view .LVU377
+	str	r6, [r1]
+	.loc 1 219 22 is_stmt 1 discriminator 3 view .LVU373
 .LVL115:
 .L86:
-	.loc 1 211 13 discriminator 1 view .LVU378
-	.loc 1 211 3 is_stmt 0 discriminator 1 view .LVU379
-	cmp	r1, r3
+	.loc 1 219 13 discriminator 1 view .LVU374
+	.loc 1 219 3 is_stmt 0 discriminator 1 view .LVU375
+	cmp	r3, r4
 	blt	.L84
-	.loc 1 214 3 is_stmt 1 discriminator 2 view .LVU380
-	.loc 1 214 11 is_stmt 0 discriminator 2 view .LVU381
-	ldr	r1, [r9, #68]
+	.loc 1 222 3 is_stmt 1 discriminator 2 view .LVU376
+	.loc 1 222 11 is_stmt 0 discriminator 2 view .LVU377
+	ldr	r3, [r9, #68]
 .LVL116:
-	.loc 1 214 11 discriminator 2 view .LVU382
+	.loc 1 222 11 discriminator 2 view .LVU378
 .LBE98:
-	.loc 1 208 18 discriminator 2 view .LVU383
-	adds	r4, r4, #1
+	.loc 1 216 18 discriminator 2 view .LVU379
+	adds	r0, r0, #1
 .LVL117:
 .LBB99:
-	.loc 1 214 11 discriminator 2 view .LVU384
-	add	r2, r2, r1
+	.loc 1 222 11 discriminator 2 view .LVU380
+	add	r2, r2, r3
 .LVL118:
-	.loc 1 214 11 discriminator 2 view .LVU385
+	.loc 1 222 11 discriminator 2 view .LVU381
 .LBE99:
-	.loc 1 208 17 is_stmt 1 discriminator 2 view .LVU386
-	.loc 1 208 17 is_stmt 0 discriminator 2 view .LVU387
+	.loc 1 216 17 is_stmt 1 discriminator 2 view .LVU382
+	.loc 1 216 17 is_stmt 0 discriminator 2 view .LVU383
 	b	.L83
 .L85:
-	.loc 1 216 2 is_stmt 1 view .LVU388
-	.loc 1 216 2 view .LVU389
+	.loc 1 224 2 is_stmt 1 view .LVU384
+	.loc 1 224 2 view .LVU385
 	ldr	r3, .L91
-.LVL119:
-	.loc 1 216 2 is_stmt 0 view .LVU390
 	ldrh	r3, [r3]
 	lsls	r3, r3, #26
 	bpl	.L87
-	.loc 1 216 2 is_stmt 1 discriminator 1 view .LVU391
+	.loc 1 224 2 discriminator 1 view .LVU386
 .LBB100:
-	.loc 1 216 2 discriminator 1 view .LVU392
-	.loc 1 216 2 discriminator 1 view .LVU393
-	.loc 1 216 2 discriminator 1 view .LVU394
-	.loc 1 216 2 discriminator 1 view .LVU395
+	.loc 1 224 2 discriminator 1 view .LVU387
+	.loc 1 224 2 discriminator 1 view .LVU388
+	.loc 1 224 2 discriminator 1 view .LVU389
+	.loc 1 224 2 discriminator 1 view .LVU390
 	bl	ktime_get
-.LVL120:
+.LVL119:
 .LBB101:
 .LBI101:
-	.loc 2 159 19 discriminator 1 view .LVU396
+	.loc 2 159 19 discriminator 1 view .LVU391
 .LBB102:
-	.loc 2 161 2 discriminator 1 view .LVU397
+	.loc 2 161 2 discriminator 1 view .LVU392
 .LBE102:
 .LBE101:
-	.loc 1 216 2 is_stmt 0 discriminator 1 view .LVU398
+	.loc 1 224 2 is_stmt 0 discriminator 1 view .LVU393
 	subs	r0, r0, r5
-.LVL121:
+.LVL120:
 .LBB104:
 .LBB103:
-	.loc 2 161 9 discriminator 1 view .LVU399
+	.loc 2 161 9 discriminator 1 view .LVU394
 	sbc	r1, r1, r7
 	bl	ktime_divns.constprop.0
-.LVL122:
-	.loc 2 161 9 discriminator 1 view .LVU400
+.LVL121:
+	.loc 2 161 9 discriminator 1 view .LVU395
 	mov	r2, r0
 	mov	r3, r1
 .LBE103:
 .LBE104:
-	.loc 1 216 2 discriminator 1 view .LVU401
+	.loc 1 224 2 discriminator 1 view .LVU396
 	ldr	r0, .L91+4
 	bl	_printk
-.LVL123:
+.LVL122:
 .L87:
-	.loc 1 216 2 discriminator 1 view .LVU402
+	.loc 1 224 2 discriminator 1 view .LVU397
 .LBE100:
-	.loc 1 216 2 is_stmt 1 discriminator 3 view .LVU403
-	.loc 1 218 2 discriminator 3 view .LVU404
-	.loc 5 19 2 discriminator 3 view .LVU405
-	.loc 5 34 2 discriminator 3 view .LVU406
-	.loc 5 64 2 discriminator 3 view .LVU407
-	.loc 6 9 1 discriminator 3 view .LVU408
-	.loc 1 219 2 discriminator 3 view .LVU409
-	.loc 1 220 1 is_stmt 0 discriminator 3 view .LVU410
+	.loc 1 224 2 is_stmt 1 discriminator 3 view .LVU398
+	.loc 1 226 2 discriminator 3 view .LVU399
+	.loc 5 19 2 discriminator 3 view .LVU400
+	.loc 5 34 2 discriminator 3 view .LVU401
+	.loc 5 64 2 discriminator 3 view .LVU402
+	.loc 6 9 1 discriminator 3 view .LVU403
+	.loc 1 227 2 discriminator 3 view .LVU404
+	.loc 1 228 1 is_stmt 0 discriminator 3 view .LVU405
 	movs	r0, #0
 	pop	{r3, r4, r5, r6, r7, r8, r9, pc}
-.LVL124:
+.LVL123:
 .L92:
-	.loc 1 220 1 discriminator 3 view .LVU411
+	.loc 1 228 1 discriminator 3 view .LVU406
 	.align	2
 .L91:
 	.word	ebc_log_level
@@ -1215,31 +1205,31 @@ soft_wffpu_clean_fb:
 	.type	soft_wffpu_setup, %function
 soft_wffpu_setup:
 	.fnstart
-.LVL125:
+.LVL124:
 .LFB4454:
-	.loc 1 228 1 is_stmt 1 view -0
+	.loc 1 236 1 is_stmt 1 view -0
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 0, uses_anonymous_args = 0
 	@ link register save eliminated.
-	.loc 1 229 2 view .LVU413
-	.loc 1 229 11 is_stmt 0 view .LVU414
+	.loc 1 237 2 view .LVU408
+	.loc 1 237 11 is_stmt 0 view .LVU409
 	ldr	r3, .L94
 	ldrb	r2, [r1, #80]	@ zero_extendqisi2
 	strb	r2, [r3]
-	.loc 1 230 2 is_stmt 1 view .LVU415
-	.loc 1 230 11 is_stmt 0 view .LVU416
+	.loc 1 238 2 is_stmt 1 view .LVU410
+	.loc 1 238 11 is_stmt 0 view .LVU411
 	ldr	r3, .L94+4
 	ldrb	r2, [r1, #81]	@ zero_extendqisi2
 	strb	r2, [r3]
-	.loc 1 232 2 is_stmt 1 view .LVU417
-	.loc 1 232 13 is_stmt 0 view .LVU418
+	.loc 1 240 2 is_stmt 1 view .LVU412
+	.loc 1 240 13 is_stmt 0 view .LVU413
 	ldr	r3, .L94+8
 	str	r3, [r0, #52]
-	.loc 1 234 2 is_stmt 1 view .LVU419
-	.loc 1 235 1 is_stmt 0 view .LVU420
+	.loc 1 242 2 is_stmt 1 view .LVU414
+	.loc 1 243 1 is_stmt 0 view .LVU415
 	movs	r0, #0
-.LVL126:
-	.loc 1 235 1 view .LVU421
+.LVL125:
+	.loc 1 243 1 view .LVU416
 	bx	lr
 .L95:
 	.align	2
@@ -26297,7 +26287,7 @@ soft_wffpu_ops:
 	.byte	0x4
 	.4byte	0x48
 	.byte	0x95
-	.byte	0x19
+	.byte	0x1e
 	.byte	0x6
 	.4byte	0xbdce
 	.uleb128 0x5
@@ -26346,7 +26336,7 @@ soft_wffpu_ops:
 	.byte	0x4
 	.4byte	0x48
 	.byte	0x95
-	.byte	0x2a
+	.byte	0x2f
 	.byte	0x6
 	.4byte	0xbdf3
 	.uleb128 0x5
@@ -26365,7 +26355,7 @@ soft_wffpu_ops:
 	.byte	0x4
 	.4byte	0x48
 	.byte	0x95
-	.byte	0x30
+	.byte	0x35
 	.byte	0x6
 	.4byte	0xbe12
 	.uleb128 0x5
@@ -26379,34 +26369,34 @@ soft_wffpu_ops:
 	.4byte	.LASF2365
 	.byte	0x10
 	.byte	0x95
-	.byte	0x49
+	.byte	0x62
 	.byte	0x8
 	.4byte	0xbe4c
 	.uleb128 0x9
 	.ascii	"x\000"
 	.byte	0x95
-	.byte	0x4a
+	.byte	0x63
 	.byte	0x6
 	.4byte	0xb7
 	.byte	0
 	.uleb128 0x9
 	.ascii	"y\000"
 	.byte	0x95
-	.byte	0x4b
+	.byte	0x64
 	.byte	0x6
 	.4byte	0xb7
 	.byte	0x4
 	.uleb128 0x9
 	.ascii	"w\000"
 	.byte	0x95
-	.byte	0x4c
+	.byte	0x65
 	.byte	0x6
 	.4byte	0xb7
 	.byte	0x8
 	.uleb128 0x9
 	.ascii	"h\000"
 	.byte	0x95
-	.byte	0x4d
+	.byte	0x66
 	.byte	0x6
 	.4byte	0xb7
 	.byte	0xc
@@ -28321,7 +28311,7 @@ soft_wffpu_ops:
 	.uleb128 0x75
 	.4byte	.LASF2565
 	.byte	0x1
-	.byte	0xde
+	.byte	0xe6
 	.byte	0x14
 	.4byte	0xbfc4
 	.uleb128 0x5
@@ -28330,7 +28320,7 @@ soft_wffpu_ops:
 	.uleb128 0x76
 	.4byte	.LASF2615
 	.byte	0x1
-	.byte	0xe3
+	.byte	0xeb
 	.byte	0x5
 	.4byte	0xb7
 	.4byte	.LFB4454
@@ -28341,7 +28331,7 @@ soft_wffpu_ops:
 	.uleb128 0x2b
 	.4byte	.LASF2566
 	.byte	0x1
-	.byte	0xe3
+	.byte	0xeb
 	.byte	0x26
 	.4byte	0xc089
 	.4byte	.LLST71
@@ -28349,7 +28339,7 @@ soft_wffpu_ops:
 	.uleb128 0x4f
 	.4byte	.LASF2567
 	.byte	0x1
-	.byte	0xe3
+	.byte	0xeb
 	.byte	0x41
 	.4byte	0xcce8
 	.uleb128 0x1
@@ -28361,7 +28351,7 @@ soft_wffpu_ops:
 	.uleb128 0x55
 	.4byte	.LASF2570
 	.byte	0x1
-	.byte	0xbf
+	.byte	0xc6
 	.byte	0xc
 	.4byte	0xb7
 	.4byte	.LFB4453
@@ -28372,7 +28362,7 @@ soft_wffpu_ops:
 	.uleb128 0x34
 	.ascii	"wff\000"
 	.byte	0x1
-	.byte	0xbf
+	.byte	0xc6
 	.byte	0x2e
 	.4byte	0xbffb
 	.4byte	.LLST61
@@ -28380,7 +28370,7 @@ soft_wffpu_ops:
 	.uleb128 0x34
 	.ascii	"w\000"
 	.byte	0x1
-	.byte	0xbf
+	.byte	0xc6
 	.byte	0x37
 	.4byte	0xb7
 	.4byte	.LLST62
@@ -28388,7 +28378,7 @@ soft_wffpu_ops:
 	.uleb128 0x34
 	.ascii	"h\000"
 	.byte	0x1
-	.byte	0xbf
+	.byte	0xc6
 	.byte	0x3e
 	.4byte	0xb7
 	.4byte	.LLST63
@@ -28396,7 +28386,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2272
 	.byte	0x1
-	.byte	0xc1
+	.byte	0xc8
 	.byte	0x16
 	.4byte	0xc3c4
 	.4byte	.LLST64
@@ -28404,7 +28394,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2567
 	.byte	0x1
-	.byte	0xc2
+	.byte	0xc9
 	.byte	0x16
 	.4byte	0xcce8
 	.4byte	.LLST65
@@ -28412,7 +28402,7 @@ soft_wffpu_ops:
 	.uleb128 0x29
 	.ascii	"x\000"
 	.byte	0x1
-	.byte	0xc3
+	.byte	0xca
 	.byte	0x6
 	.4byte	0xb7
 	.4byte	.LLST66
@@ -28420,38 +28410,38 @@ soft_wffpu_ops:
 	.uleb128 0x29
 	.ascii	"y\000"
 	.byte	0x1
-	.byte	0xc3
+	.byte	0xca
 	.byte	0x9
 	.4byte	0xb7
 	.4byte	.LLST67
 	.4byte	.LVUS67
 	.uleb128 0x15
-	.4byte	.LASF2396
-	.byte	0x1
-	.byte	0xc4
-	.byte	0x6
-	.4byte	0xb7
-	.4byte	.LLST68
-	.4byte	.LVUS68
-	.uleb128 0x15
 	.4byte	.LASF2568
 	.byte	0x1
-	.byte	0xc5
+	.byte	0xcb
 	.byte	0x6
 	.4byte	0xbfbe
-	.4byte	.LLST69
-	.4byte	.LVUS69
+	.4byte	.LLST68
+	.4byte	.LVUS68
 	.uleb128 0x77
 	.4byte	.LASF2569
 	.byte	0x1
-	.byte	0xc7
+	.byte	0xcd
 	.byte	0x6
 	.4byte	0x121
 	.sleb128 -256
 	.uleb128 0x15
+	.4byte	.LASF2396
+	.byte	0x1
+	.byte	0xce
+	.byte	0x6
+	.4byte	0xb7
+	.4byte	.LLST69
+	.4byte	.LVUS69
+	.uleb128 0x15
 	.4byte	.LASF846
 	.byte	0x1
-	.byte	0xc8
+	.byte	0xd3
 	.byte	0xa
 	.4byte	0x270c
 	.4byte	.LLST70
@@ -28466,23 +28456,23 @@ soft_wffpu_ops:
 	.uleb128 0x1f
 	.4byte	.LASF2575
 	.byte	0x1
-	.byte	0xd1
+	.byte	0xd9
 	.byte	0x8
 	.4byte	0x1208
 	.byte	0
 	.uleb128 0x56
 	.4byte	0xd411
 	.4byte	.LBI101
-	.byte	.LVU396
+	.byte	.LVU391
 	.4byte	.Ldebug_ranges0+0xc8
 	.byte	0x1
-	.byte	0xd8
+	.byte	0xe0
 	.byte	0x2
 	.4byte	0xce29
 	.uleb128 0x57
 	.4byte	0xd422
 	.uleb128 0x51
-	.4byte	.LVL122
+	.4byte	.LVL121
 	.4byte	0xd621
 	.uleb128 0x58
 	.4byte	0xd44a
@@ -28494,13 +28484,13 @@ soft_wffpu_ops:
 	.byte	0
 	.byte	0
 	.uleb128 0x4a
-	.4byte	.LVL109
+	.4byte	.LVL110
 	.4byte	0xd759
 	.uleb128 0x4a
-	.4byte	.LVL120
+	.4byte	.LVL119
 	.4byte	0xd759
 	.uleb128 0x51
-	.4byte	.LVL123
+	.4byte	.LVL122
 	.4byte	0xd765
 	.uleb128 0x35
 	.uleb128 0x1
@@ -28522,7 +28512,7 @@ soft_wffpu_ops:
 	.uleb128 0x55
 	.4byte	.LASF2571
 	.byte	0x1
-	.byte	0x84
+	.byte	0x8a
 	.byte	0xc
 	.4byte	0xb7
 	.4byte	.LFB4452
@@ -28533,7 +28523,7 @@ soft_wffpu_ops:
 	.uleb128 0x34
 	.ascii	"wff\000"
 	.byte	0x1
-	.byte	0x84
+	.byte	0x8a
 	.byte	0x30
 	.4byte	0xbffb
 	.4byte	.LLST49
@@ -28541,7 +28531,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2272
 	.byte	0x1
-	.byte	0x86
+	.byte	0x8c
 	.byte	0x16
 	.4byte	0xc3c4
 	.4byte	.LLST50
@@ -28549,7 +28539,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2567
 	.byte	0x1
-	.byte	0x87
+	.byte	0x8d
 	.byte	0x16
 	.4byte	0xcce8
 	.4byte	.LLST51
@@ -28557,7 +28547,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2396
 	.byte	0x1
-	.byte	0x88
+	.byte	0x8e
 	.byte	0x6
 	.4byte	0xb7
 	.4byte	.LLST52
@@ -28565,7 +28555,7 @@ soft_wffpu_ops:
 	.uleb128 0x29
 	.ascii	"y\000"
 	.byte	0x1
-	.byte	0x89
+	.byte	0x8f
 	.byte	0x6
 	.4byte	0xb7
 	.4byte	.LLST53
@@ -28573,7 +28563,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2572
 	.byte	0x1
-	.byte	0x89
+	.byte	0x8f
 	.byte	0x9
 	.4byte	0xb7
 	.4byte	.LLST54
@@ -28581,7 +28571,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2379
 	.byte	0x1
-	.byte	0x8a
+	.byte	0x90
 	.byte	0x7
 	.4byte	0x1208
 	.4byte	.LLST55
@@ -28589,7 +28579,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2568
 	.byte	0x1
-	.byte	0x8b
+	.byte	0x91
 	.byte	0x6
 	.4byte	0xbfbe
 	.4byte	.LLST56
@@ -28597,7 +28587,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2573
 	.byte	0x1
-	.byte	0x8c
+	.byte	0x92
 	.byte	0xe
 	.4byte	0x54
 	.4byte	.LLST57
@@ -28605,7 +28595,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF62
 	.byte	0x1
-	.byte	0x8d
+	.byte	0x93
 	.byte	0x11
 	.4byte	0xc13b
 	.4byte	.LLST58
@@ -28613,7 +28603,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF846
 	.byte	0x1
-	.byte	0x8e
+	.byte	0x94
 	.byte	0xa
 	.4byte	0x270c
 	.4byte	.LLST59
@@ -28624,7 +28614,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2574
 	.byte	0x1
-	.byte	0xaa
+	.byte	0xb1
 	.byte	0x7
 	.4byte	0xb7
 	.4byte	.LLST60
@@ -28633,10 +28623,10 @@ soft_wffpu_ops:
 	.uleb128 0x56
 	.4byte	0xd411
 	.4byte	.LBI90
-	.byte	.LVU313
+	.byte	.LVU310
 	.4byte	.Ldebug_ranges0+0x98
 	.byte	0x1
-	.byte	0xb9
+	.byte	0xc0
 	.byte	0x2
 	.4byte	0xcfa6
 	.uleb128 0x57
@@ -28709,7 +28699,7 @@ soft_wffpu_ops:
 	.uleb128 0x52
 	.4byte	.LASF2582
 	.byte	0x1
-	.byte	0x71
+	.byte	0x75
 	.byte	0xd
 	.4byte	.LFB4451
 	.4byte	.LFE4451-.LFB4451
@@ -28719,7 +28709,7 @@ soft_wffpu_ops:
 	.uleb128 0x34
 	.ascii	"wff\000"
 	.byte	0x1
-	.byte	0x71
+	.byte	0x75
 	.byte	0x2f
 	.4byte	0xbffb
 	.4byte	.LLST24
@@ -28727,7 +28717,7 @@ soft_wffpu_ops:
 	.uleb128 0x2b
 	.4byte	.LASF2575
 	.byte	0x1
-	.byte	0x71
+	.byte	0x75
 	.byte	0x38
 	.4byte	0xbfbe
 	.4byte	.LLST25
@@ -28735,7 +28725,7 @@ soft_wffpu_ops:
 	.uleb128 0x2b
 	.4byte	.LASF2576
 	.byte	0x1
-	.byte	0x71
+	.byte	0x75
 	.byte	0x48
 	.4byte	0x1208
 	.4byte	.LLST26
@@ -28743,7 +28733,7 @@ soft_wffpu_ops:
 	.uleb128 0x2b
 	.4byte	.LASF2396
 	.byte	0x1
-	.byte	0x71
+	.byte	0x75
 	.byte	0x5c
 	.4byte	0xb7
 	.4byte	.LLST27
@@ -28751,7 +28741,7 @@ soft_wffpu_ops:
 	.uleb128 0x29
 	.ascii	"x\000"
 	.byte	0x1
-	.byte	0x73
+	.byte	0x77
 	.byte	0x6
 	.4byte	0xb7
 	.4byte	.LLST28
@@ -28759,7 +28749,7 @@ soft_wffpu_ops:
 	.uleb128 0x7b
 	.ascii	"lut\000"
 	.byte	0x1
-	.byte	0x74
+	.byte	0x78
 	.byte	0x6
 	.4byte	0xbfbe
 	.uleb128 0x1
@@ -28767,7 +28757,7 @@ soft_wffpu_ops:
 	.uleb128 0x29
 	.ascii	"mfi\000"
 	.byte	0x1
-	.byte	0x75
+	.byte	0x79
 	.byte	0x6
 	.4byte	0xb7
 	.4byte	.LLST29
@@ -28778,7 +28768,7 @@ soft_wffpu_ops:
 	.uleb128 0x25
 	.4byte	.LASF2577
 	.byte	0x1
-	.byte	0x78
+	.byte	0x7c
 	.byte	0x19
 	.4byte	0x121
 	.uleb128 0x1
@@ -28786,7 +28776,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2578
 	.byte	0x1
-	.byte	0x78
+	.byte	0x7c
 	.byte	0x19
 	.4byte	0x121
 	.4byte	.LLST30
@@ -28794,7 +28784,7 @@ soft_wffpu_ops:
 	.uleb128 0x25
 	.4byte	.LASF2579
 	.byte	0x1
-	.byte	0x78
+	.byte	0x7c
 	.byte	0x19
 	.4byte	0x121
 	.uleb128 0x1
@@ -28802,7 +28792,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2580
 	.byte	0x1
-	.byte	0x78
+	.byte	0x7c
 	.byte	0x19
 	.4byte	0x121
 	.4byte	.LLST31
@@ -28810,7 +28800,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2581
 	.byte	0x1
-	.byte	0x78
+	.byte	0x7c
 	.byte	0x19
 	.4byte	0xf4
 	.4byte	.LLST32
@@ -28821,7 +28811,7 @@ soft_wffpu_ops:
 	.uleb128 0x25
 	.4byte	.LASF2577
 	.byte	0x1
-	.byte	0x7d
+	.byte	0x7f
 	.byte	0x19
 	.4byte	0x121
 	.uleb128 0x1
@@ -28829,7 +28819,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2578
 	.byte	0x1
-	.byte	0x7d
+	.byte	0x7f
 	.byte	0x19
 	.4byte	0x121
 	.4byte	.LLST33
@@ -28837,7 +28827,7 @@ soft_wffpu_ops:
 	.uleb128 0x25
 	.4byte	.LASF2579
 	.byte	0x1
-	.byte	0x7d
+	.byte	0x7f
 	.byte	0x19
 	.4byte	0x121
 	.uleb128 0x1
@@ -28845,7 +28835,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2580
 	.byte	0x1
-	.byte	0x7d
+	.byte	0x7f
 	.byte	0x19
 	.4byte	0x121
 	.4byte	.LLST34
@@ -28853,7 +28843,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2581
 	.byte	0x1
-	.byte	0x7d
+	.byte	0x7f
 	.byte	0x19
 	.4byte	0xf4
 	.4byte	.LLST35
@@ -28863,7 +28853,7 @@ soft_wffpu_ops:
 	.uleb128 0x52
 	.4byte	.LASF2583
 	.byte	0x1
-	.byte	0x5f
+	.byte	0x61
 	.byte	0xd
 	.4byte	.LFB4450
 	.4byte	.LFE4450-.LFB4450
@@ -28873,7 +28863,7 @@ soft_wffpu_ops:
 	.uleb128 0x34
 	.ascii	"wff\000"
 	.byte	0x1
-	.byte	0x5f
+	.byte	0x61
 	.byte	0x2f
 	.4byte	0xbffb
 	.4byte	.LLST13
@@ -28881,7 +28871,7 @@ soft_wffpu_ops:
 	.uleb128 0x2b
 	.4byte	.LASF2575
 	.byte	0x1
-	.byte	0x5f
+	.byte	0x61
 	.byte	0x38
 	.4byte	0xbfbe
 	.4byte	.LLST14
@@ -28889,7 +28879,7 @@ soft_wffpu_ops:
 	.uleb128 0x2b
 	.4byte	.LASF2576
 	.byte	0x1
-	.byte	0x5f
+	.byte	0x61
 	.byte	0x48
 	.4byte	0x1208
 	.4byte	.LLST15
@@ -28897,7 +28887,7 @@ soft_wffpu_ops:
 	.uleb128 0x4f
 	.4byte	.LASF2396
 	.byte	0x1
-	.byte	0x5f
+	.byte	0x61
 	.byte	0x5c
 	.4byte	0xb7
 	.uleb128 0x1
@@ -28905,7 +28895,7 @@ soft_wffpu_ops:
 	.uleb128 0x29
 	.ascii	"x\000"
 	.byte	0x1
-	.byte	0x61
+	.byte	0x63
 	.byte	0x6
 	.4byte	0xb7
 	.4byte	.LLST16
@@ -28913,7 +28903,7 @@ soft_wffpu_ops:
 	.uleb128 0x29
 	.ascii	"lut\000"
 	.byte	0x1
-	.byte	0x62
+	.byte	0x64
 	.byte	0x6
 	.4byte	0xbfbe
 	.4byte	.LLST17
@@ -28925,7 +28915,7 @@ soft_wffpu_ops:
 	.uleb128 0x25
 	.4byte	.LASF2577
 	.byte	0x1
-	.byte	0x65
+	.byte	0x67
 	.byte	0x19
 	.4byte	0x121
 	.uleb128 0x1
@@ -28933,7 +28923,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2578
 	.byte	0x1
-	.byte	0x65
+	.byte	0x67
 	.byte	0x19
 	.4byte	0x121
 	.4byte	.LLST18
@@ -28941,7 +28931,7 @@ soft_wffpu_ops:
 	.uleb128 0x25
 	.4byte	.LASF2579
 	.byte	0x1
-	.byte	0x65
+	.byte	0x67
 	.byte	0x19
 	.4byte	0x121
 	.uleb128 0x1
@@ -28949,7 +28939,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2580
 	.byte	0x1
-	.byte	0x65
+	.byte	0x67
 	.byte	0x19
 	.4byte	0x121
 	.4byte	.LLST19
@@ -28957,7 +28947,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2584
 	.byte	0x1
-	.byte	0x65
+	.byte	0x67
 	.byte	0x19
 	.4byte	0xf4
 	.4byte	.LLST20
@@ -29109,7 +29099,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2577
 	.byte	0x1
-	.byte	0x58
+	.byte	0x56
 	.byte	0x19
 	.4byte	0x121
 	.4byte	.LLST9
@@ -29117,7 +29107,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2578
 	.byte	0x1
-	.byte	0x58
+	.byte	0x56
 	.byte	0x19
 	.4byte	0x121
 	.4byte	.LLST10
@@ -29125,7 +29115,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2579
 	.byte	0x1
-	.byte	0x58
+	.byte	0x56
 	.byte	0x19
 	.4byte	0x121
 	.4byte	.LLST11
@@ -29133,7 +29123,7 @@ soft_wffpu_ops:
 	.uleb128 0x15
 	.4byte	.LASF2580
 	.byte	0x1
-	.byte	0x58
+	.byte	0x56
 	.byte	0x19
 	.4byte	0x121
 	.4byte	.LLST12
@@ -29519,7 +29509,7 @@ soft_wffpu_ops:
 	.uleb128 0x85
 	.4byte	0xd526
 	.4byte	.LBI76
-	.byte	.LVU232
+	.byte	.LVU229
 	.4byte	.LBB76
 	.4byte	.LBE76-.LBB76
 	.byte	0x2
@@ -31527,15 +31517,15 @@ soft_wffpu_ops:
 .Ldebug_loc0:
 .LVUS71:
 	.uleb128 0
-	.uleb128 .LVU421
-	.uleb128 .LVU421
+	.uleb128 .LVU416
+	.uleb128 .LVU416
 	.uleb128 0
 .LLST71:
+	.4byte	.LVL124
 	.4byte	.LVL125
-	.4byte	.LVL126
 	.2byte	0x1
 	.byte	0x50
-	.4byte	.LVL126
+	.4byte	.LVL125
 	.4byte	.LFE4454
 	.2byte	0x4
 	.byte	0xf3
@@ -31548,15 +31538,15 @@ soft_wffpu_ops:
 	.uleb128 0
 	.uleb128 .LVU355
 	.uleb128 .LVU355
-	.uleb128 .LVU369
-	.uleb128 .LVU369
+	.uleb128 .LVU365
+	.uleb128 .LVU365
 	.uleb128 0
 .LLST61:
 	.4byte	.LVL107
-	.4byte	.LVL109-1
+	.4byte	.LVL110-1
 	.2byte	0x1
 	.byte	0x50
-	.4byte	.LVL109-1
+	.4byte	.LVL110-1
 	.4byte	.LVL112
 	.2byte	0x1
 	.byte	0x56
@@ -31571,21 +31561,15 @@ soft_wffpu_ops:
 	.4byte	0
 .LVUS62:
 	.uleb128 0
-	.uleb128 .LVU355
-	.uleb128 .LVU355
-	.uleb128 .LVU366
-	.uleb128 .LVU366
+	.uleb128 .LVU346
+	.uleb128 .LVU346
 	.uleb128 0
 .LLST62:
 	.4byte	.LVL107
-	.4byte	.LVL109-1
+	.4byte	.LVL108
 	.2byte	0x1
 	.byte	0x51
-	.4byte	.LVL109-1
-	.4byte	.LVL111
-	.2byte	0x1
-	.byte	0x54
-	.4byte	.LVL111
+	.4byte	.LVL108
 	.4byte	.LFE4453
 	.2byte	0x4
 	.byte	0xf3
@@ -31598,19 +31582,19 @@ soft_wffpu_ops:
 	.uleb128 0
 	.uleb128 .LVU355
 	.uleb128 .LVU355
-	.uleb128 .LVU411
-	.uleb128 .LVU411
+	.uleb128 .LVU406
+	.uleb128 .LVU406
 	.uleb128 0
 .LLST63:
 	.4byte	.LVL107
-	.4byte	.LVL109-1
+	.4byte	.LVL110-1
 	.2byte	0x1
 	.byte	0x52
-	.4byte	.LVL109-1
-	.4byte	.LVL124
+	.4byte	.LVL110-1
+	.4byte	.LVL123
 	.2byte	0x1
 	.byte	0x58
-	.4byte	.LVL124
+	.4byte	.LVL123
 	.4byte	.LFE4453
 	.2byte	0x4
 	.byte	0xf3
@@ -31620,11 +31604,11 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS64:
-	.uleb128 .LVU343
+	.uleb128 .LVU340
 	.uleb128 .LVU355
 .LLST64:
 	.4byte	.LVL107
-	.4byte	.LVL109-1
+	.4byte	.LVL110-1
 	.2byte	0x2
 	.byte	0x70
 	.sleb128 48
@@ -31632,73 +31616,90 @@ soft_wffpu_ops:
 	.4byte	0
 .LVUS65:
 	.uleb128 .LVU349
-	.uleb128 .LVU411
+	.uleb128 .LVU406
 .LLST65:
-	.4byte	.LVL108
-	.4byte	.LVL124
+	.4byte	.LVL109
+	.4byte	.LVL123
 	.2byte	0x1
 	.byte	0x59
 	.4byte	0
 	.4byte	0
 .LVUS66:
-	.uleb128 .LVU373
-	.uleb128 .LVU376
-	.uleb128 .LVU376
+	.uleb128 .LVU369
+	.uleb128 .LVU372
+	.uleb128 .LVU372
+	.uleb128 .LVU374
+	.uleb128 .LVU374
 	.uleb128 .LVU378
-	.uleb128 .LVU378
-	.uleb128 .LVU382
 .LLST66:
 	.4byte	.LVL113
 	.4byte	.LVL114
 	.2byte	0x1
-	.byte	0x51
+	.byte	0x53
 	.4byte	.LVL114
 	.4byte	.LVL115
 	.2byte	0x3
-	.byte	0x71
+	.byte	0x73
 	.sleb128 -1
 	.byte	0x9f
 	.4byte	.LVL115
 	.4byte	.LVL116
 	.2byte	0x1
-	.byte	0x51
+	.byte	0x53
 	.4byte	0
 	.4byte	0
 .LVUS67:
-	.uleb128 .LVU369
-	.uleb128 .LVU384
-	.uleb128 .LVU384
-	.uleb128 .LVU387
-	.uleb128 .LVU387
-	.uleb128 .LVU411
+	.uleb128 .LVU364
+	.uleb128 .LVU365
+	.uleb128 .LVU365
+	.uleb128 .LVU380
+	.uleb128 .LVU380
+	.uleb128 .LVU383
+	.uleb128 .LVU383
+	.uleb128 .LVU391
 .LLST67:
+	.4byte	.LVL111
+	.4byte	.LVL112
+	.2byte	0x2
+	.byte	0x30
+	.byte	0x9f
 	.4byte	.LVL112
 	.4byte	.LVL117
 	.2byte	0x1
-	.byte	0x54
+	.byte	0x50
 	.4byte	.LVL117
 	.4byte	.LVL118
 	.2byte	0x3
-	.byte	0x74
+	.byte	0x70
 	.sleb128 -1
 	.byte	0x9f
 	.4byte	.LVL118
-	.4byte	.LVL124
+	.4byte	.LVL119-1
 	.2byte	0x1
-	.byte	0x54
+	.byte	0x50
 	.4byte	0
 	.4byte	0
 .LVUS68:
-	.uleb128 .LVU367
-	.uleb128 .LVU390
-	.uleb128 .LVU390
-	.uleb128 0
+	.uleb128 .LVU363
+	.uleb128 .LVU391
 .LLST68:
-	.4byte	.LVL112
-	.4byte	.LVL119
+	.4byte	.LVL111
+	.4byte	.LVL119-1
 	.2byte	0x1
-	.byte	0x53
-	.4byte	.LVL119
+	.byte	0x52
+	.4byte	0
+	.4byte	0
+.LVUS69:
+	.uleb128 .LVU353
+	.uleb128 .LVU406
+	.uleb128 .LVU406
+	.uleb128 0
+.LLST69:
+	.4byte	.LVL109
+	.4byte	.LVL123
+	.2byte	0x1
+	.byte	0x54
+	.4byte	.LVL123
 	.4byte	.LFE4453
 	.2byte	0x15
 	.byte	0xf3
@@ -31723,23 +31724,13 @@ soft_wffpu_ops:
 	.byte	0x9f
 	.4byte	0
 	.4byte	0
-.LVUS69:
-	.uleb128 .LVU368
-	.uleb128 .LVU396
-.LLST69:
-	.4byte	.LVL112
-	.4byte	.LVL120-1
-	.2byte	0x1
-	.byte	0x52
-	.4byte	0
-	.4byte	0
 .LVUS70:
-	.uleb128 .LVU359
-	.uleb128 .LVU369
-	.uleb128 .LVU369
-	.uleb128 .LVU411
+	.uleb128 .LVU357
+	.uleb128 .LVU365
+	.uleb128 .LVU365
+	.uleb128 .LVU406
 .LLST70:
-	.4byte	.LVL110
+	.4byte	.LVL111
 	.4byte	.LVL112
 	.2byte	0x6
 	.byte	0x50
@@ -31749,7 +31740,7 @@ soft_wffpu_ops:
 	.byte	0x93
 	.uleb128 0x4
 	.4byte	.LVL112
-	.4byte	.LVL124
+	.4byte	.LVL123
 	.2byte	0x6
 	.byte	0x55
 	.byte	0x93
@@ -31761,8 +31752,8 @@ soft_wffpu_ops:
 	.4byte	0
 .LVUS49:
 	.uleb128 0
-	.uleb128 .LVU273
-	.uleb128 .LVU273
+	.uleb128 .LVU270
+	.uleb128 .LVU270
 	.uleb128 0
 .LLST49:
 	.4byte	.LVL82
@@ -31776,10 +31767,10 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS50:
-	.uleb128 .LVU262
-	.uleb128 .LVU304
-	.uleb128 .LVU323
-	.uleb128 .LVU330
+	.uleb128 .LVU259
+	.uleb128 .LVU301
+	.uleb128 .LVU320
+	.uleb128 .LVU327
 .LLST50:
 	.4byte	.LVL83
 	.4byte	.LVL94
@@ -31792,7 +31783,7 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS51:
-	.uleb128 .LVU265
+	.uleb128 .LVU262
 	.uleb128 0
 .LLST51:
 	.4byte	.LVL84
@@ -31802,7 +31793,7 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS52:
-	.uleb128 .LVU266
+	.uleb128 .LVU263
 	.uleb128 0
 .LLST52:
 	.4byte	.LVL84
@@ -31812,15 +31803,15 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS53:
-	.uleb128 .LVU302
-	.uleb128 .LVU304
-	.uleb128 .LVU304
-	.uleb128 .LVU323
-	.uleb128 .LVU330
-	.uleb128 .LVU332
-	.uleb128 .LVU332
-	.uleb128 .LVU340
-	.uleb128 .LVU340
+	.uleb128 .LVU299
+	.uleb128 .LVU301
+	.uleb128 .LVU301
+	.uleb128 .LVU320
+	.uleb128 .LVU327
+	.uleb128 .LVU329
+	.uleb128 .LVU329
+	.uleb128 .LVU337
+	.uleb128 .LVU337
 	.uleb128 0
 .LLST53:
 	.4byte	.LVL92
@@ -31849,10 +31840,10 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS54:
+	.uleb128 .LVU297
 	.uleb128 .LVU300
-	.uleb128 .LVU303
-	.uleb128 .LVU329
-	.uleb128 .LVU330
+	.uleb128 .LVU326
+	.uleb128 .LVU327
 .LLST54:
 	.4byte	.LVL92
 	.4byte	.LVL93
@@ -31865,13 +31856,13 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS55:
-	.uleb128 .LVU299
-	.uleb128 .LVU313
-	.uleb128 .LVU328
-	.uleb128 .LVU333
-	.uleb128 .LVU333
-	.uleb128 .LVU339
-	.uleb128 .LVU339
+	.uleb128 .LVU296
+	.uleb128 .LVU310
+	.uleb128 .LVU325
+	.uleb128 .LVU330
+	.uleb128 .LVU330
+	.uleb128 .LVU336
+	.uleb128 .LVU336
 	.uleb128 0
 .LLST55:
 	.4byte	.LVL92
@@ -31894,13 +31885,13 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS56:
-	.uleb128 .LVU290
-	.uleb128 .LVU313
-	.uleb128 .LVU325
-	.uleb128 .LVU333
-	.uleb128 .LVU333
-	.uleb128 .LVU337
-	.uleb128 .LVU337
+	.uleb128 .LVU287
+	.uleb128 .LVU310
+	.uleb128 .LVU322
+	.uleb128 .LVU330
+	.uleb128 .LVU330
+	.uleb128 .LVU334
+	.uleb128 .LVU334
 	.uleb128 0
 .LLST56:
 	.4byte	.LVL89
@@ -31923,9 +31914,9 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS57:
-	.uleb128 .LVU282
-	.uleb128 .LVU323
-	.uleb128 .LVU325
+	.uleb128 .LVU279
+	.uleb128 .LVU320
+	.uleb128 .LVU322
 	.uleb128 0
 .LLST57:
 	.4byte	.LVL88
@@ -31939,9 +31930,9 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS58:
-	.uleb128 .LVU282
-	.uleb128 .LVU323
-	.uleb128 .LVU325
+	.uleb128 .LVU279
+	.uleb128 .LVU320
+	.uleb128 .LVU322
 	.uleb128 0
 .LLST58:
 	.4byte	.LVL88
@@ -31955,8 +31946,8 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS59:
-	.uleb128 .LVU275
-	.uleb128 .LVU277
+	.uleb128 .LVU272
+	.uleb128 .LVU274
 .LLST59:
 	.4byte	.LVL86
 	.4byte	.LVL87
@@ -31971,10 +31962,10 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS60:
-	.uleb128 .LVU294
-	.uleb128 .LVU296
-	.uleb128 .LVU296
-	.uleb128 .LVU300
+	.uleb128 .LVU291
+	.uleb128 .LVU293
+	.uleb128 .LVU293
+	.uleb128 .LVU297
 .LLST60:
 	.4byte	.LVL90
 	.4byte	.LVL91
@@ -32003,8 +31994,8 @@ soft_wffpu_ops:
 	.4byte	0
 .LVUS24:
 	.uleb128 0
-	.uleb128 .LVU100
-	.uleb128 .LVU100
+	.uleb128 .LVU98
+	.uleb128 .LVU98
 	.uleb128 0
 .LLST24:
 	.4byte	.LVL34
@@ -32022,7 +32013,7 @@ soft_wffpu_ops:
 	.4byte	0
 .LVUS25:
 	.uleb128 0
-	.uleb128 .LVU109
+	.uleb128 .LVU107
 .LLST25:
 	.4byte	.LVL34
 	.4byte	.LVL38
@@ -32032,16 +32023,16 @@ soft_wffpu_ops:
 	.4byte	0
 .LVUS26:
 	.uleb128 0
-	.uleb128 .LVU102
-	.uleb128 .LVU102
-	.uleb128 .LVU145
-	.uleb128 .LVU145
-	.uleb128 .LVU181
-	.uleb128 .LVU181
+	.uleb128 .LVU100
+	.uleb128 .LVU100
+	.uleb128 .LVU143
+	.uleb128 .LVU143
+	.uleb128 .LVU178
+	.uleb128 .LVU178
+	.uleb128 .LVU180
+	.uleb128 .LVU180
 	.uleb128 .LVU183
 	.uleb128 .LVU183
-	.uleb128 .LVU186
-	.uleb128 .LVU186
 	.uleb128 0
 .LLST26:
 	.4byte	.LVL34
@@ -32080,8 +32071,8 @@ soft_wffpu_ops:
 	.4byte	0
 .LVUS27:
 	.uleb128 0
-	.uleb128 .LVU99
-	.uleb128 .LVU99
+	.uleb128 .LVU97
+	.uleb128 .LVU97
 	.uleb128 0
 .LLST27:
 	.4byte	.LVL34
@@ -32095,9 +32086,9 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS28:
-	.uleb128 .LVU101
-	.uleb128 .LVU109
-	.uleb128 .LVU109
+	.uleb128 .LVU99
+	.uleb128 .LVU107
+	.uleb128 .LVU107
 	.uleb128 0
 .LLST28:
 	.4byte	.LVL36
@@ -32112,7 +32103,7 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS29:
-	.uleb128 .LVU100
+	.uleb128 .LVU98
 	.uleb128 0
 .LLST29:
 	.4byte	.LVL36
@@ -32122,12 +32113,12 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS30:
-	.uleb128 .LVU114
-	.uleb128 .LVU123
-	.uleb128 .LVU123
-	.uleb128 .LVU124
-	.uleb128 .LVU185
-	.uleb128 .LVU186
+	.uleb128 .LVU112
+	.uleb128 .LVU121
+	.uleb128 .LVU121
+	.uleb128 .LVU122
+	.uleb128 .LVU182
+	.uleb128 .LVU183
 .LLST30:
 	.4byte	.LVL39
 	.4byte	.LVL42
@@ -32145,12 +32136,12 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS31:
-	.uleb128 .LVU115
-	.uleb128 .LVU137
-	.uleb128 .LVU137
-	.uleb128 .LVU138
-	.uleb128 .LVU185
-	.uleb128 .LVU186
+	.uleb128 .LVU113
+	.uleb128 .LVU135
+	.uleb128 .LVU135
+	.uleb128 .LVU136
+	.uleb128 .LVU182
+	.uleb128 .LVU183
 .LLST31:
 	.4byte	.LVL40
 	.4byte	.LVL48
@@ -32168,19 +32159,19 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS32:
+	.uleb128 .LVU114
 	.uleb128 .LVU116
-	.uleb128 .LVU118
-	.uleb128 .LVU118
-	.uleb128 .LVU125
-	.uleb128 .LVU126
-	.uleb128 .LVU131
-	.uleb128 .LVU132
-	.uleb128 .LVU151
-	.uleb128 .LVU151
-	.uleb128 .LVU153
-	.uleb128 .LVU185
-	.uleb128 .LVU186
-	.uleb128 .LVU186
+	.uleb128 .LVU116
+	.uleb128 .LVU123
+	.uleb128 .LVU124
+	.uleb128 .LVU129
+	.uleb128 .LVU130
+	.uleb128 .LVU148
+	.uleb128 .LVU148
+	.uleb128 .LVU150
+	.uleb128 .LVU182
+	.uleb128 .LVU183
+	.uleb128 .LVU183
 	.uleb128 0
 .LLST32:
 	.4byte	.LVL40
@@ -32228,11 +32219,11 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS33:
-	.uleb128 .LVU148
-	.uleb128 .LVU159
-	.uleb128 .LVU159
-	.uleb128 .LVU160
-	.uleb128 .LVU186
+	.uleb128 .LVU145
+	.uleb128 .LVU156
+	.uleb128 .LVU156
+	.uleb128 .LVU157
+	.uleb128 .LVU183
 	.uleb128 0
 .LLST33:
 	.4byte	.LVL52
@@ -32251,11 +32242,11 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS34:
-	.uleb128 .LVU149
-	.uleb128 .LVU173
-	.uleb128 .LVU173
-	.uleb128 .LVU174
-	.uleb128 .LVU186
+	.uleb128 .LVU146
+	.uleb128 .LVU170
+	.uleb128 .LVU170
+	.uleb128 .LVU171
+	.uleb128 .LVU183
 	.uleb128 0
 .LLST34:
 	.4byte	.LVL53
@@ -32274,15 +32265,15 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS35:
-	.uleb128 .LVU150
-	.uleb128 .LVU154
-	.uleb128 .LVU154
-	.uleb128 .LVU161
-	.uleb128 .LVU162
-	.uleb128 .LVU167
-	.uleb128 .LVU168
-	.uleb128 .LVU185
-	.uleb128 .LVU186
+	.uleb128 .LVU147
+	.uleb128 .LVU151
+	.uleb128 .LVU151
+	.uleb128 .LVU158
+	.uleb128 .LVU159
+	.uleb128 .LVU164
+	.uleb128 .LVU165
+	.uleb128 .LVU182
+	.uleb128 .LVU183
 	.uleb128 0
 .LLST35:
 	.4byte	.LVL53
@@ -32311,8 +32302,8 @@ soft_wffpu_ops:
 	.4byte	0
 .LVUS13:
 	.uleb128 0
-	.uleb128 .LVU44
-	.uleb128 .LVU44
+	.uleb128 .LVU43
+	.uleb128 .LVU43
 	.uleb128 0
 .LLST13:
 	.4byte	.LVL8
@@ -32330,7 +32321,7 @@ soft_wffpu_ops:
 	.4byte	0
 .LVUS14:
 	.uleb128 0
-	.uleb128 .LVU51
+	.uleb128 .LVU50
 .LLST14:
 	.4byte	.LVL8
 	.4byte	.LVL11
@@ -32340,13 +32331,13 @@ soft_wffpu_ops:
 	.4byte	0
 .LVUS15:
 	.uleb128 0
-	.uleb128 .LVU42
-	.uleb128 .LVU42
-	.uleb128 .LVU70
-	.uleb128 .LVU70
-	.uleb128 .LVU85
-	.uleb128 .LVU85
-	.uleb128 .LVU89
+	.uleb128 .LVU41
+	.uleb128 .LVU41
+	.uleb128 .LVU69
+	.uleb128 .LVU69
+	.uleb128 .LVU83
+	.uleb128 .LVU83
+	.uleb128 .LVU87
 .LLST15:
 	.4byte	.LVL8
 	.4byte	.LVL9
@@ -32373,9 +32364,9 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS16:
-	.uleb128 .LVU45
-	.uleb128 .LVU51
-	.uleb128 .LVU51
+	.uleb128 .LVU44
+	.uleb128 .LVU50
+	.uleb128 .LVU50
 	.uleb128 0
 .LLST16:
 	.4byte	.LVL10
@@ -32390,7 +32381,7 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS17:
-	.uleb128 .LVU44
+	.uleb128 .LVU43
 	.uleb128 0
 .LLST17:
 	.4byte	.LVL10
@@ -32400,10 +32391,10 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS18:
-	.uleb128 .LVU56
-	.uleb128 .LVU66
-	.uleb128 .LVU66
-	.uleb128 .LVU69
+	.uleb128 .LVU55
+	.uleb128 .LVU65
+	.uleb128 .LVU65
+	.uleb128 .LVU68
 .LLST18:
 	.4byte	.LVL13
 	.4byte	.LVL19
@@ -32417,10 +32408,10 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS19:
-	.uleb128 .LVU57
-	.uleb128 .LVU67
-	.uleb128 .LVU67
-	.uleb128 .LVU69
+	.uleb128 .LVU56
+	.uleb128 .LVU66
+	.uleb128 .LVU66
+	.uleb128 .LVU68
 .LLST19:
 	.4byte	.LVL14
 	.4byte	.LVL20
@@ -32434,10 +32425,10 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS20:
+	.uleb128 .LVU57
 	.uleb128 .LVU58
-	.uleb128 .LVU59
-	.uleb128 .LVU59
-	.uleb128 .LVU76
+	.uleb128 .LVU58
+	.uleb128 .LVU74
 .LLST20:
 	.4byte	.LVL14
 	.4byte	.LVL15
@@ -32451,12 +32442,12 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS21:
-	.uleb128 .LVU73
-	.uleb128 .LVU84
-	.uleb128 .LVU84
-	.uleb128 .LVU85
-	.uleb128 .LVU85
-	.uleb128 .LVU88
+	.uleb128 .LVU71
+	.uleb128 .LVU82
+	.uleb128 .LVU82
+	.uleb128 .LVU83
+	.uleb128 .LVU83
+	.uleb128 .LVU86
 .LLST21:
 	.4byte	.LVL22
 	.4byte	.LVL29
@@ -32475,10 +32466,10 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS22:
-	.uleb128 .LVU74
+	.uleb128 .LVU72
+	.uleb128 .LVU84
+	.uleb128 .LVU84
 	.uleb128 .LVU86
-	.uleb128 .LVU86
-	.uleb128 .LVU88
 .LLST22:
 	.4byte	.LVL23
 	.4byte	.LVL31
@@ -32492,9 +32483,9 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS23:
+	.uleb128 .LVU73
 	.uleb128 .LVU75
-	.uleb128 .LVU77
-	.uleb128 .LVU77
+	.uleb128 .LVU75
 	.uleb128 0
 .LLST23:
 	.4byte	.LVL23
@@ -32543,8 +32534,8 @@ soft_wffpu_ops:
 	.uleb128 .LVU15
 	.uleb128 .LVU25
 	.uleb128 .LVU25
-	.uleb128 .LVU34
-	.uleb128 .LVU34
+	.uleb128 .LVU33
+	.uleb128 .LVU33
 	.uleb128 0
 .LLST2:
 	.4byte	.LVL0
@@ -32641,8 +32632,8 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS9:
-	.uleb128 .LVU28
-	.uleb128 .LVU33
+	.uleb128 .LVU27
+	.uleb128 .LVU32
 .LLST9:
 	.4byte	.LVL5
 	.4byte	.LVL6
@@ -32652,8 +32643,8 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS10:
-	.uleb128 .LVU29
-	.uleb128 .LVU33
+	.uleb128 .LVU28
+	.uleb128 .LVU32
 .LLST10:
 	.4byte	.LVL5
 	.4byte	.LVL6
@@ -32663,8 +32654,8 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS11:
-	.uleb128 .LVU30
-	.uleb128 .LVU33
+	.uleb128 .LVU29
+	.uleb128 .LVU32
 .LLST11:
 	.4byte	.LVL5
 	.4byte	.LVL6
@@ -32674,8 +32665,8 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS12:
-	.uleb128 .LVU31
-	.uleb128 .LVU33
+	.uleb128 .LVU30
+	.uleb128 .LVU32
 .LLST12:
 	.4byte	.LVL5
 	.4byte	.LVL6
@@ -32686,8 +32677,8 @@ soft_wffpu_ops:
 	.4byte	0
 .LVUS36:
 	.uleb128 0
-	.uleb128 .LVU201
-	.uleb128 .LVU201
+	.uleb128 .LVU198
+	.uleb128 .LVU198
 	.uleb128 0
 .LLST36:
 	.4byte	.LVL71
@@ -32711,8 +32702,8 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS37:
-	.uleb128 .LVU196
-	.uleb128 .LVU201
+	.uleb128 .LVU193
+	.uleb128 .LVU198
 .LLST37:
 	.4byte	.LVL71
 	.4byte	.LVL72
@@ -32726,10 +32717,10 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS38:
-	.uleb128 .LVU203
-	.uleb128 .LVU245
-	.uleb128 .LVU245
-	.uleb128 .LVU252
+	.uleb128 .LVU200
+	.uleb128 .LVU242
+	.uleb128 .LVU242
+	.uleb128 .LVU249
 .LLST38:
 	.4byte	.LVL74
 	.4byte	.LVL78
@@ -32752,11 +32743,11 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS39:
-	.uleb128 .LVU247
-	.uleb128 .LVU252
-	.uleb128 .LVU252
-	.uleb128 .LVU253
-	.uleb128 .LVU253
+	.uleb128 .LVU244
+	.uleb128 .LVU249
+	.uleb128 .LVU249
+	.uleb128 .LVU250
+	.uleb128 .LVU250
 	.uleb128 0
 .LLST39:
 	.4byte	.LVL78
@@ -32786,10 +32777,10 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS40:
-	.uleb128 .LVU212
-	.uleb128 .LVU236
-	.uleb128 .LVU236
-	.uleb128 .LVU255
+	.uleb128 .LVU209
+	.uleb128 .LVU233
+	.uleb128 .LVU233
+	.uleb128 .LVU252
 .LLST40:
 	.4byte	.LVL74
 	.4byte	.LVL75
@@ -32802,22 +32793,22 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS41:
-	.uleb128 .LVU220
+	.uleb128 .LVU217
+	.uleb128 .LVU218
+	.uleb128 .LVU218
+	.uleb128 .LVU219
+	.uleb128 .LVU219
 	.uleb128 .LVU221
 	.uleb128 .LVU221
 	.uleb128 .LVU222
 	.uleb128 .LVU222
-	.uleb128 .LVU224
-	.uleb128 .LVU224
-	.uleb128 .LVU225
-	.uleb128 .LVU225
-	.uleb128 .LVU226
-	.uleb128 .LVU226
-	.uleb128 .LVU243
-	.uleb128 .LVU243
-	.uleb128 .LVU245
-	.uleb128 .LVU245
-	.uleb128 .LVU252
+	.uleb128 .LVU223
+	.uleb128 .LVU223
+	.uleb128 .LVU240
+	.uleb128 .LVU240
+	.uleb128 .LVU242
+	.uleb128 .LVU242
+	.uleb128 .LVU249
 .LLST41:
 	.4byte	.LVL74
 	.4byte	.LVL74
@@ -32876,9 +32867,9 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS42:
-	.uleb128 .LVU221
-	.uleb128 .LVU223
-	.uleb128 .LVU223
+	.uleb128 .LVU218
+	.uleb128 .LVU220
+	.uleb128 .LVU220
 	.uleb128 0
 .LLST42:
 	.4byte	.LVL74
@@ -32896,13 +32887,13 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS43:
-	.uleb128 .LVU217
-	.uleb128 .LVU218
-	.uleb128 .LVU218
-	.uleb128 .LVU230
-	.uleb128 .LVU230
-	.uleb128 .LVU231
-	.uleb128 .LVU231
+	.uleb128 .LVU214
+	.uleb128 .LVU215
+	.uleb128 .LVU215
+	.uleb128 .LVU227
+	.uleb128 .LVU227
+	.uleb128 .LVU228
+	.uleb128 .LVU228
 	.uleb128 0
 .LLST43:
 	.4byte	.LVL74
@@ -32932,8 +32923,8 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS44:
-	.uleb128 .LVU214
-	.uleb128 .LVU255
+	.uleb128 .LVU211
+	.uleb128 .LVU252
 .LLST44:
 	.4byte	.LVL74
 	.4byte	.LVL81
@@ -32947,8 +32938,8 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS45:
-	.uleb128 .LVU232
-	.uleb128 .LVU243
+	.uleb128 .LVU229
+	.uleb128 .LVU240
 .LLST45:
 	.4byte	.LVL74
 	.4byte	.LVL77
@@ -32958,8 +32949,8 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS46:
-	.uleb128 .LVU232
-	.uleb128 .LVU243
+	.uleb128 .LVU229
+	.uleb128 .LVU240
 .LLST46:
 	.4byte	.LVL74
 	.4byte	.LVL77
@@ -32973,8 +32964,8 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS47:
-	.uleb128 .LVU232
-	.uleb128 .LVU243
+	.uleb128 .LVU229
+	.uleb128 .LVU240
 .LLST47:
 	.4byte	.LVL74
 	.4byte	.LVL77
@@ -32985,8 +32976,8 @@ soft_wffpu_ops:
 	.4byte	0
 	.4byte	0
 .LVUS48:
+	.uleb128 .LVU237
 	.uleb128 .LVU240
-	.uleb128 .LVU243
 .LLST48:
 	.4byte	.LVL76
 	.4byte	.LVL77

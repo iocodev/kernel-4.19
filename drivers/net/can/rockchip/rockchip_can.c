@@ -13,7 +13,8 @@
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/pm_runtime.h>
 
@@ -777,15 +778,13 @@ err_pmdisable:
 	return err;
 }
 
-static int rockchip_can_remove(struct platform_device *pdev)
+static void rockchip_can_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 
 	unregister_netdev(ndev);
 	pm_runtime_disable(&pdev->dev);
 	free_candev(ndev);
-
-	return 0;
 }
 
 static struct platform_driver rockchip_can_driver = {

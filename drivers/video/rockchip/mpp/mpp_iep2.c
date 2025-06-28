@@ -860,7 +860,7 @@ static void iep2_iommu_handle_work(struct work_struct *work_s)
 	page_iova = round_down(iep->fault_iova, AUX_PAGE_SIZE);
 	ret = iommu_map(mpp->iommu_info->domain, page_iova,
 			page_to_phys(iep->aux_page), AUX_PAGE_SIZE,
-			IOMMU_READ);
+			IOMMU_READ, GFP_KERNEL);
 	if (ret)
 		mpp_err("iommu_map iova %lx error.\n", page_iova);
 	else
@@ -1137,7 +1137,7 @@ static int iep2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int iep2_remove(struct platform_device *pdev)
+static void iep2_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mpp_dev *mpp = dev_get_drvdata(dev);
@@ -1148,8 +1148,6 @@ static int iep2_remove(struct platform_device *pdev)
 	dev_info(dev, "remove device\n");
 	mpp_dev_remove(mpp);
 	iep2_procfs_remove(mpp);
-
-	return 0;
 }
 
 struct platform_driver rockchip_iep2_driver = {

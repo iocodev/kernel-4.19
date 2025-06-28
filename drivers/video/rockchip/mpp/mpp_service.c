@@ -402,7 +402,7 @@ static int mpp_service_probe(struct platform_device *pdev)
 	atomic_set(&srv->shutdown_request, 0);
 	platform_set_drvdata(pdev, srv);
 
-	srv->cls = class_create(THIS_MODULE, MPP_CLASS_NAME);
+	srv->cls = class_create(MPP_CLASS_NAME);
 	if (PTR_ERR_OR_ZERO(srv->cls))
 		return PTR_ERR(srv->cls);
 
@@ -485,7 +485,7 @@ fail_register:
 	return ret;
 }
 
-static int mpp_service_remove(struct platform_device *pdev)
+static void mpp_service_remove(struct platform_device *pdev)
 {
 	struct mpp_taskqueue *queue;
 	struct device *dev = &pdev->dev;
@@ -510,8 +510,6 @@ static int mpp_service_remove(struct platform_device *pdev)
 	mpp_remove_service(srv);
 	class_destroy(srv->cls);
 	mpp_procfs_remove(srv);
-
-	return 0;
 }
 
 static const struct of_device_id mpp_dt_ids[] = {

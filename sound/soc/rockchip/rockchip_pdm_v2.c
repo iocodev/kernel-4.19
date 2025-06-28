@@ -341,7 +341,7 @@ static int rockchip_pdm_v2_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_pdm_v2_dev *pdm = to_info(dai);
 
-	dai->capture_dma_data = &pdm->capture_dma_data;
+	snd_soc_dai_dma_data_set_capture(dai, &pdm->capture_dma_data);
 
 	if (pdm->version == RK3506_PDM)
 		snd_soc_add_component_controls(dai->component, rk3506_controls, 1);
@@ -352,6 +352,7 @@ static int rockchip_pdm_v2_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops rockchip_pdm_v2_dai_ops = {
+	.probe = rockchip_pdm_v2_dai_probe,
 	.set_fmt = rockchip_pdm_v2_set_fmt,
 	.trigger = rockchip_pdm_v2_trigger,
 	.prepare = rockchip_pdm_v2_prepare,
@@ -364,7 +365,6 @@ static const struct snd_soc_dai_ops rockchip_pdm_v2_dai_ops = {
 				 SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_driver rockchip_pdm_v2_dai = {
-	.probe = rockchip_pdm_v2_dai_probe,
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 2,
@@ -891,13 +891,11 @@ err_hclk:
 	return ret;
 }
 
-static int rockchip_pdm_v2_remove(struct platform_device *pdev)
+static void rockchip_pdm_v2_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		rockchip_pdm_v2_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_pdm_v2_pm_ops = {

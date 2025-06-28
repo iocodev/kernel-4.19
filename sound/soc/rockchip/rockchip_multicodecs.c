@@ -368,8 +368,8 @@ static const struct snd_kcontrol_new mc_controls[] = {
 static int rk_multicodecs_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_dai *codec_dai;
 	struct multicodecs_data *mc_data = snd_soc_card_get_drvdata(rtd->card);
 	unsigned int mclk;
@@ -409,7 +409,7 @@ static int rk_dailink_init(struct snd_soc_pcm_runtime *rtd)
 	struct multicodecs_data *mc_data = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_jack *jack_headset;
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_dai *codec_dai;
 	int ret, irq, i;
 	struct snd_soc_jack_pin *pins;
@@ -965,13 +965,11 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int rk_multicodec_remove(struct platform_device *pdev)
+static void rk_multicodec_remove(struct platform_device *pdev)
 {
 	struct multicodecs_data *mc_data = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&mc_data->handler);
-
-	return 0;
 }
 
 static void rk_multicodec_shutdown(struct platform_device *pdev)

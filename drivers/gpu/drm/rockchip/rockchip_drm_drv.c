@@ -474,44 +474,6 @@ void rockchip_drm_te_handle(struct drm_crtc *crtc)
 }
 EXPORT_SYMBOL(rockchip_drm_te_handle);
 
-struct drm_crtc *
-drm_atomic_get_old_crtc_for_encoder(struct drm_atomic_state *state,
-				    struct drm_encoder *encoder)
-{
-	struct drm_connector *connector;
-	struct drm_connector_state *conn_state;
-
-	connector = drm_atomic_get_old_connector_for_encoder(state, encoder);
-	if (!connector)
-		return NULL;
-
-	conn_state = drm_atomic_get_old_connector_state(state, connector);
-	if (!conn_state)
-		return NULL;
-
-	return conn_state->crtc;
-}
-EXPORT_SYMBOL(drm_atomic_get_old_crtc_for_encoder);
-
-struct drm_crtc *
-drm_atomic_get_new_crtc_for_encoder(struct drm_atomic_state *state,
-				    struct drm_encoder *encoder)
-{
-	struct drm_connector *connector;
-	struct drm_connector_state *conn_state;
-
-	connector = drm_atomic_get_new_connector_for_encoder(state, encoder);
-	if (!connector)
-		return NULL;
-
-	conn_state = drm_atomic_get_new_connector_state(state, connector);
-	if (!conn_state)
-		return NULL;
-
-	return conn_state->crtc;
-}
-EXPORT_SYMBOL(drm_atomic_get_new_crtc_for_encoder);
-
 static const struct drm_display_mode rockchip_drm_default_modes[] = {
 	/* 4 - 1280x720@60Hz 16:9 */
 	{ DRM_MODE("1280x720", DRM_MODE_TYPE_DRIVER, 74250, 1280, 1390,
@@ -1419,14 +1381,14 @@ static int rockchip_drm_init_iommu(struct drm_device *drm_dev)
 		 * cliped to 0, so we split into two mapping
 		 */
 		ret = iommu_map(private->domain, 0, 0, (size_t)SZ_2G,
-				IOMMU_WRITE | IOMMU_READ | IOMMU_PRIV);
+				IOMMU_WRITE | IOMMU_READ | IOMMU_PRIV, GFP_KERNEL);
 		if (ret) {
 			dev_err(drm_dev->dev, "failed to create 0-2G pre mapping\n");
 			return 0;
 		}
 
 		ret = iommu_map(private->domain, SZ_2G, SZ_2G, (size_t)SZ_2G,
-				IOMMU_WRITE | IOMMU_READ | IOMMU_PRIV);
+				IOMMU_WRITE | IOMMU_READ | IOMMU_PRIV, GFP_KERNEL);
 		if (ret) {
 			dev_err(drm_dev->dev, "failed to create 2G-4G pre mapping\n");
 			return 0;
@@ -2204,7 +2166,7 @@ static struct drm_gem_object *rockchip_drm_gem_prime_import_dev(struct drm_devic
 
 	get_dma_buf(dma_buf);
 
-	sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+	sgt = dma_buf_map_attachment_unlocked(attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		goto fail_detach;
@@ -2222,7 +2184,7 @@ static struct drm_gem_object *rockchip_drm_gem_prime_import_dev(struct drm_devic
 	return obj;
 
 fail_unmap:
-	dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+	dma_buf_unmap_attachment_unlocked(attach, sgt, DMA_BIDIRECTIONAL);
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
 	dma_buf_put(dma_buf);

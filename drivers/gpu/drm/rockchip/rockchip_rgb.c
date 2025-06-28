@@ -5,6 +5,7 @@
  *      Sandy Huang <hjc@rock-chips.com>
  */
 
+#include <linux/backlight.h>
 #include <linux/component.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
@@ -12,6 +13,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/phy/phy.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
 
 #include <video/of_display_timing.h>
@@ -1047,11 +1049,9 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 	return component_add(dev, &rockchip_rgb_component_ops);
 }
 
-static int rockchip_rgb_remove(struct platform_device *pdev)
+static void rockchip_rgb_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &rockchip_rgb_component_ops);
-
-	return 0;
 }
 
 static void px30_rgb_enable(struct rockchip_rgb *rgb)

@@ -117,12 +117,13 @@ static int rockchip_audio_pwm_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_audio_pwm_dev *apwm = to_info(dai);
 
-	dai->playback_dma_data = &apwm->playback_dma_data;
+	snd_soc_dai_dma_data_set_playback(dai, &apwm->playback_dma_data);
 
 	return 0;
 }
 
 static const struct snd_soc_dai_ops rockchip_audio_pwm_dai_ops = {
+	.probe = rockchip_audio_pwm_dai_probe,
 	.trigger = rockchip_audio_pwm_trigger,
 	.hw_params = rockchip_audio_pwm_hw_params,
 };
@@ -133,7 +134,6 @@ static const struct snd_soc_dai_ops rockchip_audio_pwm_dai_ops = {
 				    SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_driver rockchip_audio_pwm_dai = {
-	.probe = rockchip_audio_pwm_dai_probe,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
@@ -341,13 +341,11 @@ err_pm_disable:
 	return ret;
 }
 
-static int rockchip_audio_pwm_remove(struct platform_device *pdev)
+static void rockchip_audio_pwm_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		rockchip_audio_pwm_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_audio_pwm_pm_ops = {

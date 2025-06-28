@@ -2697,7 +2697,7 @@ static int rkvenc2_alloc_rcbbuf(struct platform_device *pdev, struct rkvenc_dev 
 	sram_size = sram_used < sram_size ? sram_used : sram_size;
 	/* iova map to sram */
 	domain = enc->mpp.iommu_info->domain;
-	ret = iommu_map(domain, iova, sram_start, sram_size, IOMMU_READ | IOMMU_WRITE);
+	ret = iommu_map(domain, iova, sram_start, sram_size, IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 	if (ret) {
 		dev_err(dev, "sram iommu_map error.\n");
 		return ret;
@@ -2715,7 +2715,7 @@ static int rkvenc2_alloc_rcbbuf(struct platform_device *pdev, struct rkvenc_dev 
 		}
 		/* iova map to dma */
 		ret = iommu_map(domain, iova + sram_size, page_to_phys(page),
-				page_size, IOMMU_READ | IOMMU_WRITE);
+				page_size, IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 		if (ret) {
 			dev_err(dev, "page iommu_map error.\n");
 			__free_pages(page, get_order(page_size));
@@ -2912,7 +2912,7 @@ static int rkvenc2_free_rcbbuf(struct platform_device *pdev, struct rkvenc_dev *
 
 	if (enc->rcb_page) {
 		size_t page_size = PAGE_ALIGN(enc->sram_used - enc->sram_size);
-		int order = min(get_order(page_size), MAX_ORDER);
+		int order = min(get_order(page_size), MAX_PAGE_ORDER);
 
 		__free_pages(enc->rcb_page, order);
 	}
@@ -2924,7 +2924,7 @@ static int rkvenc2_free_rcbbuf(struct platform_device *pdev, struct rkvenc_dev *
 	return 0;
 }
 
-static int rkvenc_remove(struct platform_device *pdev)
+static void rkvenc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -2954,8 +2954,6 @@ static int rkvenc_remove(struct platform_device *pdev)
 		mpp_dev_remove(mpp);
 		rkvenc_procfs_remove(mpp);
 	}
-
-	return 0;
 }
 
 static void rkvenc_shutdown(struct platform_device *pdev)

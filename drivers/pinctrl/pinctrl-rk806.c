@@ -231,18 +231,12 @@ static void rk806_gpio_set(struct gpio_chip *chip,
 			offset, value);
 }
 
-static int rk806_gpio_direction_input(struct gpio_chip *chip,
-				      unsigned int offset)
-{
-	return pinctrl_gpio_direction_input(chip->base + offset);
-}
-
 static int rk806_gpio_direction_output(struct gpio_chip *chip,
 				       unsigned int offset,
 				       int value)
 {
 	rk806_gpio_set(chip, offset, value);
-	return pinctrl_gpio_direction_output(chip->base + offset);
+	return pinctrl_gpio_direction_output(chip, offset);
 }
 
 static int rk806_gpio_get_direction(struct gpio_chip *chip,
@@ -274,7 +268,7 @@ static struct gpio_chip rk806_gpio_chip = {
 	.get_direction		= rk806_gpio_get_direction,
 	.get			= rk806_gpio_get,
 	.set			= rk806_gpio_set,
-	.direction_input	= rk806_gpio_direction_input,
+	.direction_input	= pinctrl_gpio_direction_input,
 	.direction_output	= rk806_gpio_direction_output,
 	.can_sleep		= true,
 	.base			= -1,
@@ -521,11 +515,6 @@ static int rk806_pinctrl_probe(struct platform_device *pdev)
 	pci->gpio_chip.ngpio = ARRAY_SIZE(rk806_gpio_cfgs);
 
 	pci->gpio_chip.parent = &pdev->dev;
-
-	if (np)
-		pci->gpio_chip.of_node = np;
-	else
-		pci->gpio_chip.of_node = pdev->dev.parent->of_node;
 
 	/* Add gpiochip */
 	ret = devm_gpiochip_add_data(&pdev->dev, &pci->gpio_chip, pci);

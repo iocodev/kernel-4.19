@@ -6,6 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/component.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_atomic_helper.h>
@@ -638,11 +639,9 @@ static int rockchip_vkms_probe(struct platform_device *pdev)
 	return component_add(dev, &rockchip_vkms_component_ops);
 }
 
-static int rockchip_vkms_remove(struct platform_device *pdev)
+static void rockchip_vkms_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &rockchip_vkms_component_ops);
-
-	return 0;
 }
 
 

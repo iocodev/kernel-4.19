@@ -11,7 +11,8 @@
 #include <linux/mfd/rk618.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 
 #include <drm/drm_of.h>
@@ -231,13 +232,11 @@ static int rk618_vif_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rk618_vif_remove(struct platform_device *pdev)
+static void rk618_vif_remove(struct platform_device *pdev)
 {
 	struct rk618_vif *vif = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&vif->base);
-
-	return 0;
 }
 
 static const struct of_device_id rk618_vif_of_match[] = {

@@ -1768,7 +1768,7 @@ static int rkvdec2_alloc_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev
 	sram_size = rcb_size < sram_size ? rcb_size : sram_size;
 	/* iova map to sram */
 	domain = dec->mpp.iommu_info->domain;
-	ret = iommu_map(domain, iova, sram_start, sram_size, IOMMU_READ | IOMMU_WRITE);
+	ret = iommu_map(domain, iova, sram_start, sram_size, IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 	if (ret) {
 		dev_err(dev, "sram iommu_map error.\n");
 		return ret;
@@ -1786,7 +1786,7 @@ static int rkvdec2_alloc_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev
 		}
 		/* iova map to dma */
 		ret = iommu_map(domain, iova + sram_size, page_to_phys(page),
-				page_size, IOMMU_READ | IOMMU_WRITE);
+				page_size, IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 		if (ret) {
 			dev_err(dev, "page iommu_map error.\n");
 			__free_pages(page, get_order(page_size));
@@ -2008,7 +2008,7 @@ static int rkvdec2_free_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev 
 
 	if (dec->rcb_page) {
 		size_t page_size = PAGE_ALIGN(dec->rcb_size - dec->sram_size);
-		int order = min(get_order(page_size), MAX_ORDER);
+		int order = min(get_order(page_size), MAX_PAGE_ORDER);
 
 		__free_pages(dec->rcb_page, order);
 	}
@@ -2020,7 +2020,7 @@ static int rkvdec2_free_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev 
 	return 0;
 }
 
-static int rkvdec2_remove(struct platform_device *pdev)
+static void rkvdec2_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
@@ -2041,8 +2041,6 @@ static int rkvdec2_remove(struct platform_device *pdev)
 		rkvdec2_procfs_remove(mpp);
 		rkvdec2_link_remove(mpp, dec->link_dec);
 	}
-
-	return 0;
 }
 
 static void rkvdec2_shutdown(struct platform_device *pdev)

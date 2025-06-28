@@ -467,15 +467,6 @@ static int rockchip_asrc_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops rockchip_asrc_dai_ops = {
-	.startup = rockchip_asrc_startup,
-	.shutdown = rockchip_asrc_shutdown,
-	.hw_params = rockchip_asrc_hw_params,
-	.trigger = rockchip_asrc_trigger,
-	.set_fmt = rockchip_asrc_set_fmt,
-	.set_sysclk = rockchip_asrc_set_sysclk,
-};
-
 static int rockchip_asrc_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rockchip_asrc *asrc = snd_soc_dai_get_drvdata(dai);
@@ -485,6 +476,16 @@ static int rockchip_asrc_dai_probe(struct snd_soc_dai *dai)
 
 	return 0;
 }
+
+static const struct snd_soc_dai_ops rockchip_asrc_dai_ops = {
+	.probe = rockchip_asrc_dai_probe,
+	.startup = rockchip_asrc_startup,
+	.shutdown = rockchip_asrc_shutdown,
+	.hw_params = rockchip_asrc_hw_params,
+	.trigger = rockchip_asrc_trigger,
+	.set_fmt = rockchip_asrc_set_fmt,
+	.set_sysclk = rockchip_asrc_set_sysclk,
+};
 
 static struct snd_soc_dai_driver rockchip_asrc_dai = {
 	.playback = {
@@ -505,7 +506,6 @@ static struct snd_soc_dai_driver rockchip_asrc_dai = {
 			   SNDRV_PCM_FMTBIT_S24_LE |
 			   SNDRV_PCM_FMTBIT_S32_LE,
 	},
-	.probe = rockchip_asrc_dai_probe,
 	.ops = &rockchip_asrc_dai_ops,
 	.symmetric_rate = 1,
 };
@@ -715,7 +715,7 @@ static int rockchip_asrc_dma_hw_params(struct snd_soc_component *component,
 				       struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	struct snd_dmaengine_dai_dma_data *dma_params_fe = NULL;
 	struct snd_dmaengine_dai_dma_data *dma_params_be = NULL;
@@ -737,7 +737,7 @@ static int rockchip_asrc_dma_hw_params(struct snd_soc_component *component,
 	for_each_dpcm_be(rtd, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
 		struct snd_pcm_substream *substream_be;
-		struct snd_soc_dai *dai = asoc_rtd_to_cpu(be, 0);
+		struct snd_soc_dai *dai = snd_soc_rtd_to_cpu(be, 0);
 
 		if (dpcm->fe != rtd)
 			continue;
@@ -754,7 +754,7 @@ static int rockchip_asrc_dma_hw_params(struct snd_soc_component *component,
 	}
 
 	/* Override dma_data of the Front-End and config its dmaengine */
-	dma_params_fe = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
+	dma_params_fe = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), substream);
 	if (tx)
 		dma_params_fe->addr = asrc->paddr + ASRC_RXDR;
 	else
@@ -878,7 +878,7 @@ static int rockchip_asrc_dma_startup(struct snd_soc_component *component,
 				     struct snd_pcm_substream *substream)
 {
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	struct device *dev = component->dev;
@@ -909,7 +909,7 @@ static int rockchip_asrc_dma_startup(struct snd_soc_component *component,
 	 * dummy pair, we just request "1" channel temporarily.
 	 */
 	/* Request a dummy dma channel, which will be released later. */
-	dma_data = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
+	dma_data = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), substream);
 
 	tmp_chan = rockchip_asrc_get_dma_channel(asrc, dir);
 	if (IS_ERR(tmp_chan)) {
@@ -1796,7 +1796,7 @@ err_runtime_disable:
 	return ret;
 }
 
-static int rockchip_asrc_remove(struct platform_device *pdev)
+static void rockchip_asrc_remove(struct platform_device *pdev)
 {
 	struct rockchip_asrc *asrc = dev_get_drvdata(&pdev->dev);
 
@@ -1805,8 +1805,6 @@ static int rockchip_asrc_remove(struct platform_device *pdev)
 		rockchip_asrc_runtime_suspend(&pdev->dev);
 
 	clk_disable_unprepare(asrc->hclk);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_asrc_pm_ops = {

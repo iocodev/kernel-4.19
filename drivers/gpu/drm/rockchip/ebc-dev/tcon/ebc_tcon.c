@@ -815,11 +815,9 @@ static int ebc_tcon_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ebc_tcon_remove(struct platform_device *pdev)
+static void ebc_tcon_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static struct rockchip_ebc_tcon_data rk3568_ebc_data = {

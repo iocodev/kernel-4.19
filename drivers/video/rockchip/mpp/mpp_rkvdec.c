@@ -1214,7 +1214,7 @@ static int rkvdec_3328_iommu_hdl(struct iommu_domain *iommu,
 		page_iova = round_down(iova, IOMMU_PAGE_SIZE);
 		ret = iommu_map(mpp->iommu_info->domain, page_iova,
 				page_to_phys(dec->aux_page), IOMMU_PAGE_SIZE,
-				IOMMU_READ | IOMMU_WRITE);
+				IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 		if (!ret)
 			dec->aux_iova = page_iova;
 	}
@@ -1903,7 +1903,7 @@ static int rkvdec_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rkvdec_remove(struct platform_device *pdev)
+static void rkvdec_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mpp_dev *mpp = platform_get_drvdata(pdev);
@@ -1911,8 +1911,6 @@ static int rkvdec_remove(struct platform_device *pdev)
 	dev_info(dev, "remove device\n");
 	mpp_dev_remove(mpp);
 	rkvdec_procfs_remove(mpp);
-
-	return 0;
 }
 
 struct platform_driver rockchip_rkvdec_driver = {

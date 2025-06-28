@@ -1042,6 +1042,7 @@ static int rockchip_sai_set_tdm_slot(struct snd_soc_dai *dai,
 }
 
 static const struct snd_soc_dai_ops rockchip_sai_dai_ops = {
+	.probe = rockchip_sai_dai_probe,
 	.startup = rockchip_sai_startup,
 	.shutdown = rockchip_sai_shutdown,
 	.hw_params = rockchip_sai_hw_params,
@@ -1054,7 +1055,6 @@ static const struct snd_soc_dai_ops rockchip_sai_dai_ops = {
 };
 
 static struct snd_soc_dai_driver rockchip_sai_dai = {
-	.probe = rockchip_sai_dai_probe,
 	.ops = &rockchip_sai_dai_ops,
 	.symmetric_rate = 1,
 };
@@ -2052,13 +2052,11 @@ err_disable_hclk:
 	return ret;
 }
 
-static int rockchip_sai_remove(struct platform_device *pdev)
+static void rockchip_sai_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		rockchip_sai_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_sai_pm_ops = {

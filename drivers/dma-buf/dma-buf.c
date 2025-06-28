@@ -72,9 +72,9 @@ static size_t db_peak_size;
 
 void dma_buf_reset_peak_size(void)
 {
-	mutex_lock(&db_list.lock);
+	mutex_lock(&debugfs_list_mutex);
 	db_peak_size = 0;
-	mutex_unlock(&db_list.lock);
+	mutex_unlock(&debugfs_list_mutex);
 }
 EXPORT_SYMBOL_GPL(dma_buf_reset_peak_size);
 
@@ -82,9 +82,9 @@ size_t dma_buf_get_peak_size(void)
 {
 	size_t sz;
 
-	mutex_lock(&db_list.lock);
+	mutex_lock(&debugfs_list_mutex);
 	sz = db_peak_size;
-	mutex_unlock(&db_list.lock);
+	mutex_unlock(&debugfs_list_mutex);
 
 	return sz;
 }
@@ -94,9 +94,9 @@ size_t dma_buf_get_total_size(void)
 {
 	size_t sz;
 
-	mutex_lock(&db_list.lock);
+	mutex_lock(&debugfs_list_mutex);
 	sz = db_total_size;
-	mutex_unlock(&db_list.lock);
+	mutex_unlock(&debugfs_list_mutex);
 
 	return sz;
 }

@@ -42,15 +42,20 @@
 #define ROCKCHIP_OUT_MODE_BT1120	0
 #define ROCKCHIP_OUT_MODE_P666		1
 #define ROCKCHIP_OUT_MODE_P565		2
+#define RK3588_EDP_OUTPUT_MODE_YUV422	3
 #define ROCKCHIP_OUT_MODE_BT656		5
 #define ROCKCHIP_OUT_MODE_S888		8
+#define ROCKCHIP_OUT_MODE_S666		9
+#define ROCKCHIP_OUT_MODE_YUV422	9
+#define ROCKCHIP_OUT_MODE_S565		10
 #define ROCKCHIP_OUT_MODE_S888_DUMMY	12
+#define RK3588_DP_OUT_MODE_YUV422	12
+#define RK3576_EDP_OUT_MODE_YUV422	12
+#define RK3588_DP_OUT_MODE_YUV420	13
+#define RK3576_HDMI_OUT_MODE_YUV422	13
 #define ROCKCHIP_OUT_MODE_YUV420	14
 /* for use special outface */
 #define ROCKCHIP_OUT_MODE_AAAA		15
-
-/* output flags */
-#define ROCKCHIP_OUTPUT_DSI_DUAL	BIT(0)
 
 struct drm_device;
 struct drm_connector;
@@ -652,10 +657,6 @@ void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev);
 struct rockchip_drm_sub_dev *rockchip_drm_get_sub_dev(struct device_node *node);
 int rockchip_drm_add_modes_noedid(struct drm_connector *connector);
 void rockchip_drm_te_handle(struct drm_crtc *crtc);
-struct drm_crtc *drm_atomic_get_old_crtc_for_encoder(struct drm_atomic_state *state,
-						     struct drm_encoder *encoder);
-struct drm_crtc *drm_atomic_get_new_crtc_for_encoder(struct drm_atomic_state *state,
-						     struct drm_encoder *encoder);
 void drm_mode_convert_to_split_mode(struct drm_display_mode *mode);
 void drm_mode_convert_to_origin_mode(struct drm_display_mode *mode);
 const char *rockchip_drm_get_color_encoding_name(enum drm_color_encoding encoding);

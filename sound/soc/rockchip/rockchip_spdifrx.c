@@ -133,18 +133,18 @@ static int rk_spdifrx_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_spdifrx_dev *spdifrx = snd_soc_dai_get_drvdata(dai);
 
-	dai->capture_dma_data = &spdifrx->capture_dma_data;
+	snd_soc_dai_dma_data_set_capture(dai, &spdifrx->capture_dma_data);
 
 	return 0;
 }
 
 static const struct snd_soc_dai_ops rk_spdifrx_dai_ops = {
+	.probe = rk_spdifrx_dai_probe,
 	.hw_params = rk_spdifrx_hw_params,
 	.trigger = rk_spdifrx_trigger,
 };
 
 static struct snd_soc_dai_driver rk_spdifrx_dai = {
-	.probe = rk_spdifrx_dai_probe,
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 2,
@@ -353,13 +353,11 @@ err_pm_runtime:
 	return ret;
 }
 
-static int rk_spdifrx_remove(struct platform_device *pdev)
+static void rk_spdifrx_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		rk_spdifrx_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

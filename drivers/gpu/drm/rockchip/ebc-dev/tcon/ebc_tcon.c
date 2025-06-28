@@ -302,6 +302,11 @@ static int rk3576_tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 		height = panel->height / 2;
 		vir_width = panel->vir_width * 2;
 		vir_height = panel->vir_height / 2;
+	} else if (panel->gate_dummy_lenth > 0) {
+		width = panel->width;
+		height = panel->height + panel->gate_dummy_lenth;
+		vir_width = panel->vir_width;
+		vir_height = panel->vir_height + panel->gate_dummy_lenth;
 	} else {
 		width = panel->width;
 		height = panel->height;
@@ -548,6 +553,11 @@ static int tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 		height = panel->height / 2;
 		vir_width = panel->vir_width * 2;
 		vir_height = panel->vir_height / 2;
+	} else if (panel->gate_dummy_lenth > 0) {
+		width = panel->width;
+		height = panel->height + panel->gate_dummy_lenth;
+		vir_width = panel->vir_width;
+		vir_height = panel->vir_height + panel->gate_dummy_lenth;
 	} else {
 		width = panel->width;
 		height = panel->height;

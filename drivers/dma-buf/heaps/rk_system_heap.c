@@ -56,6 +56,13 @@ struct dma_heap_attachment {
 	bool uncached;
 };
 
+struct system_heap_work {
+	struct work_struct work;
+	struct system_heap_buffer *buffer;
+};
+
+static struct workqueue_struct *system_heap_wq;
+
 #define LOW_ORDER_GFP (GFP_HIGHUSER | __GFP_ZERO)
 #define HIGH_ORDER_GFP  (((GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN \
 				| __GFP_NORETRY) & ~__GFP_RECLAIM) \
@@ -434,9 +441,8 @@ static int system_heap_zero_buffer(struct system_heap_buffer *buffer)
 	return ret;
 }
 
-static void system_heap_dma_buf_release(struct dma_buf *dmabuf)
+static void system_heap_dma_buf_release_sync(struct system_heap_buffer *buffer)
 {
-	struct system_heap_buffer *buffer = dmabuf->priv;
 	struct sg_table *table;
 	struct scatterlist *sg;
 	int i, j;
@@ -456,6 +462,29 @@ static void system_heap_dma_buf_release(struct dma_buf *dmabuf)
 	}
 	sg_free_table(table);
 	kfree(buffer);
+}
+
+static void system_heap_worker(struct work_struct *w)
+{
+	struct system_heap_work *heap_work = container_of(w, struct system_heap_work, work);
+	struct system_heap_buffer *buffer = heap_work->buffer;
+
+	system_heap_dma_buf_release_sync(buffer);
+	kfree(heap_work);
+}
+
+static void system_heap_dma_buf_release(struct dma_buf *dmabuf)
+{
+	struct system_heap_buffer *buffer = dmabuf->priv;
+	struct system_heap_work *heap_work = kzalloc(sizeof(*heap_work), GFP_KERNEL);
+
+	if (heap_work) {
+		INIT_WORK(&heap_work->work, system_heap_worker);
+		heap_work->buffer = buffer;
+		queue_work(system_heap_wq, &heap_work->work);
+	} else {
+		system_heap_dma_buf_release_sync(buffer);
+	}
 }
 
 static const struct dma_buf_ops system_heap_buf_ops = {
@@ -545,8 +574,14 @@ static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
 		page = system_heap_alloc_largest_available(heap, buffer->pools,
 							   size_remaining,
 							   max_order);
-		if (!page)
-			goto free_buffer;
+		if (!page) {
+			flush_workqueue(system_heap_wq);
+			page = system_heap_alloc_largest_available(heap, buffer->pools,
+								   size_remaining,
+								   max_order);
+			if (!page)
+				goto free_buffer;
+		}
 
 		size_remaining -= page_size(page);
 		max_order = compound_order(page);
@@ -812,6 +847,12 @@ static int system_heap_create(void)
 	if (ddr_map_info) {
 		bank_bit_first = ddr_map_info->bank_bit_first;
 		bank_bit_mask = ddr_map_info->bank_bit_mask;
+	}
+
+	system_heap_wq = create_singlethread_workqueue("system_heap_wq");
+	if (!system_heap_wq) {
+		pr_err("Failed to create system heap workqueue\n");
+		goto err_dma32_pool;
 	}
 
 	return 0;

@@ -69,6 +69,16 @@ static int uvc_get_frame_size(struct uvcg_format *uformat,
 {
 	unsigned int bpl = uvc_v4l2_get_bytesperline(uformat, uframe);
 
+	if (uformat->type == UVCG_FRAMEBASED && !bpl) {
+		struct uvcg_framebased *u;
+
+		u = to_uvcg_framebased(&uformat->group.cg_item);
+		if (u) {
+			bpl = u->desc.bBitsPerPixel * uframe->frame.w_width / 8;
+			pr_info("%s: set bpl to %d for framebased format\n", __func__, bpl);
+		}
+	}
+
 	return bpl ? bpl * uframe->frame.w_height :
 		uframe->frame.dw_max_video_frame_buffer_size;
 }
@@ -508,6 +518,9 @@ uvc_v4l2_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	ret = uvcg_video_disable(video);
 	if (ret < 0)
 		return ret;
+
+	if (uvc->state != UVC_STATE_STREAMING)
+		return 0;
 
 	uvc->state = UVC_STATE_CONNECTED;
 	uvc_function_setup_continue(uvc, 1);

@@ -65,7 +65,7 @@ static int sy7636a_get_vcom_voltage_op(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	val |= (val_h << VCOM_ADJUST_CTRL_SHIFT);
+	val |= (val_h & 0x80) << 1;
 
 	return (val & VCOM_ADJUST_CTRL_MASK) * VCOM_ADJUST_CTRL_SCAL;
 }

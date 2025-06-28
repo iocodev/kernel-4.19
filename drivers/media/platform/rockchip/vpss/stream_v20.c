@@ -746,9 +746,9 @@ static struct stream_config scl5_config = {
 		.uv_offs_cnt = RKVPSS2X_MI_CHN5_WR_CB_OFFS_CNT,
 		.y_pic_width = RKVPSS2X_MI_CHN5_WR_Y_PIC_WIDTH,
 		.y_pic_size = RKVPSS2X_MI_CHN5_WR_Y_PIC_SIZE,
-		.ctrl_shd = RKVPSS2X_MI_CHN4_WR_CTRL_SHD,
-		.y_shd = RKVPSS2X_MI_CHN4_WR_Y_BASE_SHD,
-		.uv_shd = RKVPSS2X_MI_CHN4_WR_CB_BASE_SHD,
+		.ctrl_shd = RKVPSS2X_MI_CHN5_WR_CTRL_SHD,
+		.y_shd = RKVPSS2X_MI_CHN5_WR_Y_BASE_SHD,
+		.uv_shd = RKVPSS2X_MI_CHN5_WR_CB_BASE_SHD,
 	},
 };
 
@@ -887,7 +887,7 @@ static void scl_force_update(struct rkvpss_stream *stream)
 		val = RKVPSS2X_MI_CHN4_FORCE_UPD;
 		break;
 	case RKVPSS_OUTPUT_CH5:
-		val = RKVPSS2X_MI_CHN4_FORCE_UPD;
+		val = RKVPSS2X_MI_CHN5_FORCE_UPD;
 		break;
 	default:
 		return;
@@ -1129,7 +1129,7 @@ static void scl_disable_mi(struct rkvpss_stream *stream)
 		val = RKVPSS2X_ISP2VPSS_CHN4_SEL(3);
 		break;
 	case RKVPSS_OUTPUT_CH5:
-		val = RKVPSS2X_ISP2VPSS_CHN4_SEL(3);
+		val = RKVPSS2X_ISP2VPSS_CHN5_SEL(3);
 		break;
 	default:
 		return;
@@ -1992,6 +1992,13 @@ static void rkvpss_stop_streaming(struct vb2_queue *queue)
 	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
 	rkvpss_pipeline_close(dev);
 	tasklet_disable(&stream->buf_done_tasklet);
+
+	if (hw->dvbm_refcnt <= 0 && hw->dvbm_flag != DVBM_OFFLINE) {
+		v4l2_dbg(2, rkvpss_debug, &dev->v4l2_dev, "%s: clear vpss2enc_sel\n", __func__);
+		rkvpss_hw_clear_bits(hw, RKVPSS_VPSS_CTRL, RKVPSS_VPSS2ENC_SEL);
+		hw->dvbm_refcnt = 0;
+	}
+
 	v4l2_dbg(1, rkvpss_debug, &dev->v4l2_dev,
 		 "%s %s id:%d exit\n", __func__,
 		 node->vdev.name, stream->id);
@@ -2103,7 +2110,10 @@ static int rkvpss_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto pipe_close;
 	}
 	if (dev->stream_vdev.wrap_line && stream->id == RKVPSS_OUTPUT_CH0)
-		rkvpss_dvbm_init(stream);
+		if (rkvpss_dvbm_init(stream) != 0) {
+			v4l2_err(&dev->v4l2_dev, "dvbm init failed\n");
+			goto stop_stream;
+		}
 	ret = rkvpss_pipeline_stream(dev, true);
 	if (ret < 0)
 		goto stop_stream;

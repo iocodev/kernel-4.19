@@ -12915,7 +12915,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = vp->vop2;
 	struct drm_plane *plane;
-	struct drm_plane_state *pstate, *pstate_max = NULL;
+	struct drm_plane_state *pstate, *max_yuv_pstate = NULL;
 	struct vop2_plane_state *vpstate;
 	struct post_csc_coef csc_coef = {};
 	struct post_csc_convert_mode convert_mode = {};
@@ -12923,6 +12923,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	bool acm_enable;
 	bool post_r2y_en = false;
 	bool post_csc_en = false;
+	bool rgb_limited_plane = false;
 	int range_type;
 	u64 max_yuv_plane = 0, plane_area;
 	enum drm_color_encoding max_yuv_plane_color_encoding = DRM_COLOR_YCBCR_BT601;
@@ -12934,13 +12935,17 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 		vpstate = to_vop2_plane_state(pstate);
 		dest = &vpstate->dest;
 
+		if (!pstate->fb->format->is_yuv &&
+		    pstate->color_range != DRM_COLOR_YCBCR_FULL_RANGE)
+			rgb_limited_plane = true;
+
 		if (pstate->fb->format->is_yuv) {
 			plane_area = drm_rect_width(dest) * drm_rect_height(dest);
 			/* find yuv plane with largest area */
 			if (max_yuv_plane < plane_area) {
 				max_yuv_plane = plane_area;
 				max_yuv_plane_color_encoding = pstate->color_encoding;
-				pstate_max = pstate;
+				max_yuv_pstate = pstate;
 			}
 		}
 	}
@@ -12975,36 +12980,49 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	if (is_yuv_output(vcstate->bus_format))
 		convert_mode.is_output_yuv = true;
 
-	if (!vcstate->yuv_overlay || vp->has_dci_enabled_win)
+	if (vp->has_dci_enabled_win) {
 		convert_mode.is_input_full_range = true;
-	else if (vcstate->yuv_overlay)
+	} else if (!vcstate->yuv_overlay) {
+		/* if there are yuv planes, choose max plane's range */
+		if (max_yuv_pstate) {
+			/* Todo RGB limit range plane */
+			convert_mode.is_input_full_range = true;
+		} else {
+			if (rgb_limited_plane)
+				convert_mode.is_input_full_range = false;
+			else
+				convert_mode.is_input_full_range = true;
+		}
+	} else {
+		/* yuv overlay range is limited */
 		convert_mode.is_input_full_range = false;
-	else if (pstate_max)
-		convert_mode.is_input_full_range =
-			pstate_max->color_range == DRM_COLOR_YCBCR_FULL_RANGE ? 1 : 0;
-	else
-		convert_mode.is_input_full_range =
-			vcstate->color_range == DRM_COLOR_YCBCR_FULL_RANGE ? 1 : 0;
+	}
 
 	convert_mode.is_output_full_range =
 		vcstate->color_range == DRM_COLOR_YCBCR_FULL_RANGE ? 1 : 0;
 
 	vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_encoding, vcstate->color_range, CSC_13BIT_DEPTH);
 
-	if (post_csc_en) {
-		convert_mode.output_color_encoding = vcstate->color_encoding;
-		/*
-		 * When all layers are rgb, the post-csc input color encoding
-		 * is fixed to rgb full, and the value of input_color_encoding
-		 * has no actual utility.
-		 * If there are any yuv planes, value of post-csc input_color_encoding
-		 * selects the value of the yuv plane with the largest area.
-		 */
-		if (!pstate_max && !vcstate->yuv_overlay)
-			convert_mode.intput_color_encoding = vcstate->color_encoding;
-		else
-			convert_mode.intput_color_encoding = max_yuv_plane_color_encoding;
+	convert_mode.output_color_encoding = vcstate->color_encoding;
+	/*
+	 * When all layers are rgb, the value of input_color_encoding
+	 * has no actual utility, however, the plane csc only supports
+	 * limited range under bt709. Therefore, in this scene, the colorspace
+	 * of plane csc is selected as bt601. The intput_color_encoding
+	 * is consistent with colorspace of plane csc, which is DRM_COLOR_YCBCR_BT601.
+	 * If there are any yuv planes, value of post-csc input_color_encoding
+	 * selects the value of the yuv plane with the largest area.
+	 */
+	if (!max_yuv_pstate)
+		convert_mode.intput_color_encoding = DRM_COLOR_YCBCR_BT601;
+	else
+		convert_mode.intput_color_encoding = max_yuv_plane_color_encoding;
 
+	if (convert_mode.intput_color_encoding != convert_mode.output_color_encoding ||
+	    convert_mode.is_input_full_range != convert_mode.is_output_full_range)
+		post_csc_en = true;
+
+	if (post_csc_en) {
 		rockchip_calc_post_csc(csc, &csc_coef, &convert_mode);
 
 		VOP_MODULE_SET(vop2, vp, csc_coe00, csc_coef.csc_coef00);

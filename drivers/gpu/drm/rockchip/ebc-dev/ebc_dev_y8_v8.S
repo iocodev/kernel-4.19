@@ -9,7 +9,7 @@
 	.file	"ebc_dev_y8.c"
 
 	.section	.initcall6s.init,"a",@progbits
-__initcall__kmod_rkebc__465_4792_ebc_init6s:
+__initcall__kmod_rkebc__465_4815_ebc_init6s:
 .Ltmp0:
 	.word	ebc_init-.Ltmp0
 	.text
@@ -1825,7 +1825,7 @@ ebc_lut_table_init:
 	ldr	x0, [x19, #96]
 	add	x1, x1, :lo12:.L.str.66
 	add	x2, x2, :lo12:.L__func__.ebc_lut_table_init
-	mov	w3, #4229
+	mov	w3, #4253
 	bl	_dev_err
 	mov	w0, #-12
 	b	.LBB9_9
@@ -9729,11 +9729,11 @@ ebc_io_ctl:
 	stp	xzr, xzr, [sp, #64]
 	ldr	x21, [x8, :lo12:global_ebc]
 	sub	w8, w1, #7, lsl #12
-	cmp	w8, #29
+	cmp	w8, #30
 	stp	xzr, xzr, [sp, #48]
 	stp	xzr, xzr, [sp, #32]
 	stp	xzr, xzr, [sp, #16]
-	b.hi	.LBB40_71
+	b.hi	.LBB40_74
 	adrp	x9, .LJTI40_0
 	mov	x20, xzr
 	add	x9, x9, :lo12:.LJTI40_0
@@ -9744,8 +9744,8 @@ ebc_io_ctl:
 .LBB40_2:
 	mov	x19, x2
 	cbz	x2, .LBB40_24
-	cmp	w8, #29
-	b.hi	.LBB40_71
+	cmp	w8, #30
+	b.hi	.LBB40_74
 	adrp	x9, .LJTI40_1
 	mov	x20, xzr
 	add	x9, x9, :lo12:.LJTI40_1
@@ -9759,10 +9759,10 @@ ebc_io_ctl:
 	mov	w2, #68
 	add	x20, sp, #16
 	bl	_copy_from_user
-	cbnz	w0, .LBB40_67
+	cbnz	w0, .LBB40_70
 	add	x0, x20, #48
 	bl	ebc_empty_buf_get
-	cbz	x0, .LBB40_68
+	cbz	x0, .LBB40_73
 	ldr	x23, [x0, #8]
 	mov	x20, x0
 	bl	ebc_phy_buf_base_get
@@ -9785,56 +9785,56 @@ ebc_io_ctl:
 	ldr	w8, [x22, w9, sxtw #2]
 	str	w8, [sp, #80]
 	bl	_copy_to_user
-	cbz	w0, .LBB40_72
+	cbz	w0, .LBB40_75
 	mov	x0, x20
 	bl	ebc_buf_release
 	mov	x0, #-14
-	b	.LBB40_74
+	b	.LBB40_77
 .LBB40_9:
 	mov	w8, #1
 	ldr	w9, [x21, #808]
 	str	w8, [x21, #768]
-	tbnz	w9, #31, .LBB40_72
+	tbnz	w9, #31, .LBB40_75
 	adrp	x1, .L.str.129
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.129
 	bl	_dev_info
-	b	.LBB40_72
+	b	.LBB40_75
 .LBB40_11:
 	ldr	w8, [x21, #808]
 	str	wzr, [x21, #768]
-	tbnz	w8, #31, .LBB40_72
+	tbnz	w8, #31, .LBB40_75
 	adrp	x1, .L.str.130
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.130
 	bl	_dev_info
-	b	.LBB40_72
+	b	.LBB40_75
 .LBB40_13:
 	mov	w8, #1
 	ldr	w9, [x21, #808]
 	str	w8, [x21, #776]
-	tbnz	w9, #31, .LBB40_72
+	tbnz	w9, #31, .LBB40_75
 	adrp	x1, .L.str.127
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.127
 	bl	_dev_info
-	b	.LBB40_72
+	b	.LBB40_75
 .LBB40_15:
 	ldr	w8, [x21, #808]
 	str	wzr, [x21, #776]
-	tbnz	w8, #31, .LBB40_72
+	tbnz	w8, #31, .LBB40_75
 	adrp	x1, .L.str.128
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.128
 	bl	_dev_info
-	b	.LBB40_72
+	b	.LBB40_75
 .LBB40_17:
 	bl	ebc_drop_one_dsp_buf
-	cbnz	w0, .LBB40_67
-	b	.LBB40_72
+	cbnz	w0, .LBB40_70
+	b	.LBB40_75
 .LBB40_18:
 	ldr	w8, [x21, #808]
-	tbz	w8, #31, .LBB40_76
+	tbz	w8, #31, .LBB40_79
 .LBB40_19:
 	mov	w0, #2
 	bl	ebc_notify
@@ -9842,10 +9842,10 @@ ebc_io_ctl:
 	mov	x20, xzr
 	str	w8, [x21, #760]
 	str	w8, [x21, #780]
-	b	.LBB40_73
+	b	.LBB40_76
 .LBB40_20:
 	ldr	w8, [x21, #808]
-	tbz	w8, #31, .LBB40_77
+	tbz	w8, #31, .LBB40_80
 	ldr	w8, [x21, #760]
 	cbz	w8, .LBB40_23
 .LBB40_22:
@@ -9855,7 +9855,7 @@ ebc_io_ctl:
 	mov	x20, xzr
 	str	wzr, [x21, #760]
 	str	wzr, [x21, #780]
-	b	.LBB40_73
+	b	.LBB40_76
 .LBB40_24:
 	adrp	x1, .L.str.126
 	adrp	x2, .L__func__.ebc_io_ctl
@@ -9864,18 +9864,18 @@ ebc_io_ctl:
 	add	x2, x2, :lo12:.L__func__.ebc_io_ctl
 	bl	_dev_err
 	mov	x0, #-14
-	b	.LBB40_74
+	b	.LBB40_77
 .LBB40_25:
 	add	x0, sp, #16
 	mov	x1, x19
 	mov	w2, #68
 	bl	_copy_from_user
-	cbnz	x0, .LBB40_67
+	cbnz	x0, .LBB40_70
 	bl	ebc_phy_buf_base_get
 	ldrsw	x8, [sp, #16]
 	add	x0, x0, x8
 	bl	ebc_find_buf_by_phy_addr
-	cbz	x0, .LBB40_72
+	cbz	x0, .LBB40_75
 	ldr	w8, [sp, #20]
 	ldr	w9, [sp, #36]
 	ldr	x10, [sp, #40]
@@ -9899,15 +9899,15 @@ ebc_io_ctl:
 	str	w10, [sp, #32]
 	stp	w11, w8, [sp, #52]
 	bl	_copy_to_user
-	cbz	x0, .LBB40_72
+	cbz	x0, .LBB40_75
 	adrp	x1, .L.str.131
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.131
 	bl	_dev_err
-	b	.LBB40_67
+	b	.LBB40_70
 .LBB40_30:
 	bl	ebc_empty_osd_buf_get
-	cbz	x0, .LBB40_68
+	cbz	x0, .LBB40_73
 	ldr	x20, [x0, #8]
 	bl	ebc_phy_buf_base_get
 	mov	w10, #26215
@@ -9934,9 +9934,9 @@ ebc_io_ctl:
 	mov	x1, x19
 	mov	w2, #68
 	bl	_copy_from_user
-	cbnz	x0, .LBB40_67
+	cbnz	x0, .LBB40_70
 	bl	ebc_osd_buf_clone
-	cbz	x0, .LBB40_72
+	cbz	x0, .LBB40_75
 	ldr	w8, [sp, #20]
 	ldr	w9, [sp, #36]
 	ldr	x10, [sp, #40]
@@ -9952,14 +9952,14 @@ ebc_io_ctl:
 	str	w8, [x21, #324]
 .LBB40_36:
 	ldr	w8, [x21, #320]
-	cbnz	w8, .LBB40_72
+	cbnz	w8, .LBB40_75
 	adrp	x0, ebc_thread_wq
 	mov	w8, #1
 	add	x0, x0, :lo12:ebc_thread_wq
 	mov	w1, #1
 	str	w8, [x21, #320]
 	bl	__wake_up_sync
-	b	.LBB40_72
+	b	.LBB40_75
 .LBB40_38:
 	mov	w8, #-1
 	add	x0, sp, #12
@@ -9968,16 +9968,16 @@ ebc_io_ctl:
 	str	w8, [sp, #12]
 	bl	_copy_from_user
 	mov	x20, x0
-	cbnz	w20, .LBB40_67
+	cbnz	w20, .LBB40_70
 	ldr	w2, [sp, #12]
 	ldr	w8, [x21, #808]
 	str	w2, [x21, #900]
-	tbnz	w8, #31, .LBB40_73
+	tbnz	w8, #31, .LBB40_76
 	adrp	x1, .L.str.132
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.132
 	bl	_dev_info
-	b	.LBB40_73
+	b	.LBB40_76
 .LBB40_41:
 	add	x1, x21, #768
 	b	.LBB40_49
@@ -9993,18 +9993,18 @@ ebc_io_ctl:
 	ldr	w8, [x21, #884]
 	str	wzr, [sp, #12]
 	cmp	w8, #3576
-	b.ne	.LBB40_72
+	b.ne	.LBB40_75
 	add	x0, sp, #12
 	mov	x1, x19
 	mov	w2, #4
 	bl	_copy_from_user
-	cbnz	w0, .LBB40_67
+	cbnz	w0, .LBB40_70
 	ldr	w8, [x21, #808]
-	tbz	w8, #31, .LBB40_78
+	tbz	w8, #31, .LBB40_81
 .LBB40_47:
 	ldr	w8, [sp, #12]
 	str	w8, [x21, #788]
-	b	.LBB40_72
+	b	.LBB40_75
 .LBB40_48:
 	add	x1, x21, #796
 .LBB40_49:
@@ -10013,35 +10013,35 @@ ebc_io_ctl:
 .LBB40_50:
 	bl	_copy_to_user
 	mov	x20, x0
-	b	.LBB40_73
+	b	.LBB40_76
 .LBB40_51:
 	add	x0, x21, #864
 	mov	x1, x19
 	mov	w2, #4
 	bl	_copy_from_user
-	cbnz	w0, .LBB40_67
+	cbnz	w0, .LBB40_70
 	ldr	w8, [x21, #808]
-	tbnz	w8, #31, .LBB40_72
+	tbnz	w8, #31, .LBB40_75
 	adrp	x1, .L.str.136
 	ldr	x0, [x21, #328]
 	ldr	w2, [x21, #864]
 	add	x1, x1, :lo12:.L.str.136
 	bl	_dev_info
-	b	.LBB40_72
+	b	.LBB40_75
 .LBB40_54:
 	add	x0, x21, #876
 	mov	x1, x19
 	mov	w2, #4
 	bl	_copy_from_user
-	cbnz	w0, .LBB40_67
+	cbnz	w0, .LBB40_70
 	ldr	w8, [x21, #808]
-	tbnz	w8, #31, .LBB40_72
+	tbnz	w8, #31, .LBB40_75
 	adrp	x1, .L.str.137
 	ldr	x0, [x21, #328]
 	ldr	w2, [x21, #876]
 	add	x1, x1, :lo12:.L.str.137
 	bl	_dev_info
-	b	.LBB40_72
+	b	.LBB40_75
 .LBB40_57:
 	mov	w8, #-1
 	add	x0, sp, #12
@@ -10050,16 +10050,16 @@ ebc_io_ctl:
 	str	w8, [sp, #12]
 	bl	_copy_from_user
 	mov	x20, x0
-	cbnz	w20, .LBB40_67
+	cbnz	w20, .LBB40_70
 	ldr	w2, [sp, #12]
 	ldr	w8, [x21, #808]
 	str	w2, [x21, #888]
-	tbnz	w8, #31, .LBB40_73
+	tbnz	w8, #31, .LBB40_76
 	adrp	x1, .L.str.138
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.138
 	bl	_dev_info
-	b	.LBB40_73
+	b	.LBB40_76
 .LBB40_60:
 	add	x0, sp, #12
 	mov	x1, x19
@@ -10067,20 +10067,20 @@ ebc_io_ctl:
 	str	wzr, [sp, #12]
 	bl	_copy_from_user
 	mov	x20, x0
-	cbnz	w20, .LBB40_67
+	cbnz	w20, .LBB40_70
 	ldr	w8, [sp, #12]
 	ldr	w10, [x21, #808]
 	cmp	w8, #0
 	cset	w9, ne
 	strb	w9, [x21, #892]
-	tbnz	w10, #31, .LBB40_73
+	tbnz	w10, #31, .LBB40_76
 	cmp	w8, #0
 	adrp	x1, .L.str.139
 	cset	w2, ne
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.139
 	bl	_dev_info
-	b	.LBB40_73
+	b	.LBB40_76
 .LBB40_63:
 	add	x0, sp, #12
 	mov	x1, x19
@@ -10088,16 +10088,16 @@ ebc_io_ctl:
 	str	wzr, [sp, #12]
 	bl	_copy_from_user
 	mov	x20, x0
-	cbnz	w20, .LBB40_67
+	cbnz	w20, .LBB40_70
 	ldr	w2, [sp, #12]
 	ldr	w8, [x21, #808]
 	str	w2, [x21, #896]
-	tbnz	w8, #31, .LBB40_73
+	tbnz	w8, #31, .LBB40_76
 	adrp	x1, .L.str.140
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.140
 	bl	_dev_info
-	b	.LBB40_73
+	b	.LBB40_76
 .LBB40_66:
 	add	x0, sp, #12
 	mov	x1, x19
@@ -10105,44 +10105,75 @@ ebc_io_ctl:
 	str	wzr, [sp, #12]
 	bl	_copy_from_user
 	mov	x20, x0
-	cbz	w20, .LBB40_69
-.LBB40_67:
-	mov	x0, #-14
-	b	.LBB40_74
-.LBB40_68:
-	mov	x0, #-1
-	b	.LBB40_74
-.LBB40_69:
+	cbnz	w20, .LBB40_70
 	ldr	w8, [sp, #12]
 	ldr	w10, [x21, #808]
 	cmp	w8, #0
 	cset	w9, ne
 	strb	w9, [x21, #893]
-	tbnz	w10, #31, .LBB40_73
+	tbnz	w10, #31, .LBB40_76
 	cmp	w8, #0
 	adrp	x1, .L.str.141
 	cset	w2, ne
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.141
 	bl	_dev_info
-	b	.LBB40_73
+	b	.LBB40_76
+.LBB40_69:
+	add	x0, sp, #16
+	mov	x1, x19
+	mov	w2, #68
+	bl	_copy_from_user
+	cbz	w0, .LBB40_71
+.LBB40_70:
+	mov	x0, #-14
+	b	.LBB40_77
 .LBB40_71:
+	ldr	x8, [x21, #448]
+	cbz	x8, .LBB40_73
+	ldr	x20, [x8, #8]
+	bl	ebc_phy_buf_base_get
+	mov	w10, #26215
+	sub	x8, x20, x0
+	ldp	w11, w9, [x21, #116]
+	movk	w10, #26214, lsl #16
+	str	wzr, [sp, #60]
+	str	w8, [sp, #16]
+	add	x1, sp, #16
+	smull	x10, w8, w10
+	ldr	w8, [x21, #192]
+	stp	w9, w11, [sp, #24]
+	mov	x0, x19
+	lsr	x9, x10, #63
+	asr	x10, x10, #53
+	add	w9, w10, w9
+	str	w8, [sp, #32]
+	mov	w2, #68
+	ldr	w8, [x22, w9, sxtw #2]
+	str	w8, [sp, #80]
+	bl	_copy_to_user
+	cbnz	w0, .LBB40_70
+	b	.LBB40_75
+.LBB40_73:
+	mov	x0, #-1
+	b	.LBB40_77
+.LBB40_74:
 	adrp	x1, .L.str.142
 	adrp	x2, .L__func__.ebc_io_ctl
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.142
 	add	x2, x2, :lo12:.L__func__.ebc_io_ctl
 	bl	_dev_err
-.LBB40_72:
+.LBB40_75:
 	mov	x20, xzr
-.LBB40_73:
+.LBB40_76:
 	sxtw	x0, w20
-.LBB40_74:
+.LBB40_77:
 	mrs	x8, SP_EL0
 	ldr	x8, [x8, #1584]
 	ldur	x9, [x29, #-8]
 	cmp	x8, x9
-	b.ne	.LBB40_79
+	b.ne	.LBB40_82
 	ldp	x20, x19, [sp, #144]
 	ldp	x22, x21, [sp, #128]
 	ldp	x29, x30, [sp, #96]
@@ -10150,13 +10181,13 @@ ebc_io_ctl:
 	ldr	x30, [x18, #-8]!
 	add	sp, sp, #160
 	ret
-.LBB40_76:
+.LBB40_79:
 	adrp	x1, .L.str.133
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.133
 	bl	_dev_info
 	b	.LBB40_19
-.LBB40_77:
+.LBB40_80:
 	adrp	x1, .L.str.134
 	ldr	x0, [x21, #328]
 	add	x1, x1, :lo12:.L.str.134
@@ -10164,14 +10195,14 @@ ebc_io_ctl:
 	ldr	w8, [x21, #760]
 	cbnz	w8, .LBB40_22
 	b	.LBB40_23
-.LBB40_78:
+.LBB40_81:
 	adrp	x1, .L.str.135
 	ldr	x0, [x21, #328]
 	ldr	w2, [sp, #12]
 	add	x1, x1, :lo12:.L.str.135
 	bl	_dev_info
 	b	.LBB40_47
-.LBB40_79:
+.LBB40_82:
 	bl	__stack_chk_fail
 .Lfunc_end40:
 	.size	ebc_io_ctl, .Lfunc_end40-ebc_io_ctl
@@ -10186,21 +10217,22 @@ ebc_io_ctl:
 	.hword	(.LBB40_11-.LBB40_2)>>2
 	.hword	(.LBB40_2-.LBB40_2)>>2
 	.hword	(.LBB40_2-.LBB40_2)>>2
-	.hword	(.LBB40_73-.LBB40_2)>>2
+	.hword	(.LBB40_76-.LBB40_2)>>2
 	.hword	(.LBB40_2-.LBB40_2)>>2
 	.hword	(.LBB40_2-.LBB40_2)>>2
 	.hword	(.LBB40_2-.LBB40_2)>>2
 	.hword	(.LBB40_13-.LBB40_2)>>2
 	.hword	(.LBB40_15-.LBB40_2)>>2
-	.hword	(.LBB40_73-.LBB40_2)>>2
-	.hword	(.LBB40_73-.LBB40_2)>>2
+	.hword	(.LBB40_76-.LBB40_2)>>2
+	.hword	(.LBB40_76-.LBB40_2)>>2
 	.hword	(.LBB40_2-.LBB40_2)>>2
 	.hword	(.LBB40_17-.LBB40_2)>>2
 	.hword	(.LBB40_2-.LBB40_2)>>2
 	.hword	(.LBB40_18-.LBB40_2)>>2
 	.hword	(.LBB40_20-.LBB40_2)>>2
 	.hword	(.LBB40_2-.LBB40_2)>>2
-	.hword	(.LBB40_71-.LBB40_2)>>2
+	.hword	(.LBB40_74-.LBB40_2)>>2
+	.hword	(.LBB40_2-.LBB40_2)>>2
 	.hword	(.LBB40_2-.LBB40_2)>>2
 	.hword	(.LBB40_2-.LBB40_2)>>2
 	.hword	(.LBB40_2-.LBB40_2)>>2
@@ -10213,26 +10245,26 @@ ebc_io_ctl:
 	.hword	(.LBB40_5-.LBB40_5)>>2
 	.hword	(.LBB40_25-.LBB40_5)>>2
 	.hword	(.LBB40_28-.LBB40_5)>>2
-	.hword	(.LBB40_73-.LBB40_5)>>2
+	.hword	(.LBB40_76-.LBB40_5)>>2
 	.hword	(.LBB40_9-.LBB40_5)>>2
 	.hword	(.LBB40_11-.LBB40_5)>>2
 	.hword	(.LBB40_30-.LBB40_5)>>2
 	.hword	(.LBB40_32-.LBB40_5)>>2
-	.hword	(.LBB40_73-.LBB40_5)>>2
+	.hword	(.LBB40_76-.LBB40_5)>>2
 	.hword	(.LBB40_38-.LBB40_5)>>2
-	.hword	(.LBB40_73-.LBB40_5)>>2
+	.hword	(.LBB40_76-.LBB40_5)>>2
 	.hword	(.LBB40_41-.LBB40_5)>>2
 	.hword	(.LBB40_13-.LBB40_5)>>2
 	.hword	(.LBB40_15-.LBB40_5)>>2
-	.hword	(.LBB40_73-.LBB40_5)>>2
-	.hword	(.LBB40_73-.LBB40_5)>>2
+	.hword	(.LBB40_76-.LBB40_5)>>2
+	.hword	(.LBB40_76-.LBB40_5)>>2
 	.hword	(.LBB40_42-.LBB40_5)>>2
 	.hword	(.LBB40_17-.LBB40_5)>>2
 	.hword	(.LBB40_43-.LBB40_5)>>2
 	.hword	(.LBB40_18-.LBB40_5)>>2
 	.hword	(.LBB40_20-.LBB40_5)>>2
 	.hword	(.LBB40_44-.LBB40_5)>>2
-	.hword	(.LBB40_71-.LBB40_5)>>2
+	.hword	(.LBB40_74-.LBB40_5)>>2
 	.hword	(.LBB40_48-.LBB40_5)>>2
 	.hword	(.LBB40_51-.LBB40_5)>>2
 	.hword	(.LBB40_54-.LBB40_5)>>2
@@ -10240,6 +10272,7 @@ ebc_io_ctl:
 	.hword	(.LBB40_60-.LBB40_5)>>2
 	.hword	(.LBB40_63-.LBB40_5)>>2
 	.hword	(.LBB40_66-.LBB40_5)>>2
+	.hword	(.LBB40_69-.LBB40_5)>>2
 
 	.text
 	.p2align	2
@@ -13008,7 +13041,7 @@ ebc_pm:
 
 	.type	.L.str.2,@object
 .L.str.2:
-	.asciz	"7.16_y8"
+	.asciz	"7.17_y8"
 	.size	.L.str.2, 8
 
 	.type	.L.str.3,@object

@@ -70,6 +70,7 @@
 #define EBC_ENABLE_WAVEFORM_FIX		(0x701b)
 #define EBC_SET_REGAL_TYPE		(0x701c)
 #define EBC_FORCE_FULL_USE_REGAL	(0x701d)
+#define EBC_GET_PREV_BUFFER			(0x701e)
 
 enum full_refresh_type {
 	NORMAL_FULL_REFRESH,

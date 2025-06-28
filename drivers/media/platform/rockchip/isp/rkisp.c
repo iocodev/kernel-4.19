@@ -4242,7 +4242,7 @@ static int rkisp_vicap_sof(struct rkisp_device *dev, struct rkisp_vicap_sof *sof
 		v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
 			 "vicap sof %d, isp sof %d\n",
 			 sof->sequence, dev->dmarx_dev.cur_frame.id);
-		dev->dmarx_dev.cur_frame.id = sof->sequence;
+		dev->dmarx_dev.cur_frame.id = sof->sequence - 1;
 	}
 	spin_unlock_irqrestore(&dev->rdbk_lock, flag);
 	return 0;

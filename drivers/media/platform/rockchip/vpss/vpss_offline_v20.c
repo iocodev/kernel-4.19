@@ -2438,7 +2438,7 @@ static long rkvpss_ofl_wrap_dvbm_init(struct rkvpss_offline_dev *ofl,
 
 		wrap_line = cfg->output[i].wrap.wrap_line;
 
-		rkvpss_ofl_dvbm_init(dbuf, dma_addr, wrap_line, width, height, cfg->dev_id);
+		rkvpss_ofl_dvbm_init(ofl, dbuf, dma_addr, wrap_line, width, height, cfg->dev_id);
 
 		v4l2_dbg(4, rkvpss_debug, &ofl->v4l2_dev, "%s file_id:%d dev_id:%d wrap_chn:%d\n",
 			 __func__, file_id, cfg->dev_id, i);

@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	ramdisk: ramdisk {
+		compatible = "rockchip,ramdisk";
+		memory-region = <&ramdisk_r>;
+	};
+};
+
+&reserved_memory {
+	/*
+	 * reserved memory layout
+	 *
+	 *  H		 _______________________
+	 *		|			|
+	 *		|	ramdisk_c	|
+	 *		|_______________________|
+	 *		|			|
+	 *		|	ramdisk_r	|
+	 * 0x48c40000	|_______________________|
+	 *		|			|
+	 *		|        mcu_log	|
+	 * 0x48c3c000	|_______________________|
+	 *		|			|
+	 *		|         mcu		|
+	 * 0x48c00000	|_______________________|
+	 *		|			|
+	 *		|     [TEEOS+TA+SHM]	|
+	 * 0x48400000	|_______________________|
+	 *		|			|
+	 *		|    isp[0..1]_tb_rmem	|
+	 *		|_______________________|
+	 *		|			|
+	 *		|         meta		|
+	 * 0x41240000	|_______________________|
+	 *		|			|
+	 *		|	   fdt		|
+	 * 0x41200000	|_______________________|
+	 *		|			|
+	 *		|	kernel_r	|
+	 * 0x40208000	|_______________________|
+	 *		|			|
+	 *		|	   bl31		|
+	 * L		|_______________________|
+	 *
+	 */
+
+	meta: meta@41240000 {
+		/* reg's offset MUST match with RTOS */
+		reg = <0x41240000 0x000c0000>;
+	};
+
+	rkisp_thunderboot: rkisp@41300000 {
+		/* reg's offset MUST match with RTOS */
+		/*
+		 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
+		 * e.g. 1920x1080: 0xa8c000
+		 */
+		reg = <0x41300000 0xa8c000>;
+	};
+
+	rkisp1_thunderboot: rkisp1_thunderboot {
+		/* vicap capture for a second camera */
+	};
+
+	/* Should enable this node if the security feature is enabled, like TA. */
+	tee: tee@48400000 {
+		reg = <0x48400000 0x00800000>;
+		status = "disabled";
+	};
+
+	rtos: rtos@48c00000 {
+		reg = <0x48c00000 0x0003a000>;
+	};
+
+	mcu_log: mcu_log@48c3c000 {
+		reg = <0x48c3c000 0x4000>;
+	};
+
+	ramdisk_r: ramdisk_r {
+		reg = <0x48c40000 (10 * 0x00100000)>;
+	};
+
+	ramdisk_c: ramdisk_c {
+		reg = <0x49640000 (5 * 0x00100000)>;
+	};
+};
+
+&hw_decompress {
+	memory-region = <&ramdisk_c>;
+	status = "okay";
+};

@@ -1621,7 +1621,7 @@ static int lt6911uxe_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct lt6911uxe_mode *def_mode = &lt6911uxe->support_modes[0];
 
 	mutex_lock(&lt6911uxe->confctl_mutex);
@@ -1911,8 +1911,7 @@ static int lt6911uxe_get_multi_dev_info(struct lt6911uxe *lt6911uxe)
 	return 0;
 }
 
-static int lt6911uxe_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int lt6911uxe_probe(struct i2c_client *client)
 {
 	struct v4l2_dv_timings default_timing =
 				V4L2_DV_BT_CEA_640X480P59_94;

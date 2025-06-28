@@ -1149,7 +1149,7 @@ static int sensor_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct sensor *sensor = to_sensor(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct sensor_mode *def_mode = sensor->cur_mode;
 
 	mutex_lock(&sensor->mutex);
@@ -1314,8 +1314,7 @@ err_free_handler:
 	return ret;
 }
 
-static int sensor_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int sensor_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

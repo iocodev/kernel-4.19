@@ -122,7 +122,6 @@ static const struct regmap_config sc89601_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = 0x0E,
-	.cache_type = REGCACHE_RBTREE,
 
 	.wr_table = &sc89601_writeable_regs,
 	.volatile_table = &sc89601_volatile_regs,
@@ -658,6 +657,11 @@ static int sc89601_hw_init(struct sc89601_device *sc89601)
 		dev_err(sc89601->dev, "Config F_AUTO_DPDM_EN failed %d\n", ret);
 		return ret;
 	}
+	ret = sc89601_field_write(sc89601, F_VINDPM, 0x5);
+	if (ret < 0) {
+		dev_err(sc89601->dev, "Config F_VINDPM failed %d\n", ret);
+		return ret;
+	}
 	ret = sc89601_field_write(sc89601, F_VAC_OVP, 3);
 	if (ret < 0)
 		dev_err(sc89601->dev, "Field write failed %d\n", ret);
@@ -945,7 +949,7 @@ static int sc89601_pd_notifier_call(struct notifier_block *nb,
 		return NOTIFY_OK;
 	}
 
-	if (!sc89601->tcpm_psy)
+	if (IS_ERR_OR_NULL(sc89601->tcpm_psy))
 		return NOTIFY_OK;
 
 	ret = power_supply_get_property(sc89601->tcpm_psy,
@@ -1005,7 +1009,7 @@ static void sc89601_charger_phandle_work(struct work_struct *data)
 		sc89601->tcpm_psy =
 			devm_power_supply_get_by_phandle(sc89601->dev, "charger-phandle");
 		if (IS_ERR_OR_NULL(sc89601->tcpm_psy)) {
-			pr_err("chargers-phandle is error\n");
+			pr_warn_once("chargers-phandle is error\n");
 			sc89601->vbus_flag = 0;
 		} else {
 			sc89601->vbus_flag = 1;

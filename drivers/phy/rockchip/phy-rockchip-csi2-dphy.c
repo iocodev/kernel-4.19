@@ -38,7 +38,7 @@ static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
 };
 
 struct sensor_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	struct v4l2_mbus_config mbus;
 	int lanes;
 };
@@ -672,12 +672,13 @@ static int csi2_dphy_s_stream(struct v4l2_subdev *sd, int on)
 }
 
 static int csi2_dphy_g_frame_interval(struct v4l2_subdev *sd,
+					    struct v4l2_subdev_state *sd_state,
 					    struct v4l2_subdev_frame_interval *fi)
 {
 	struct v4l2_subdev *sensor = get_remote_sensor(sd);
 
 	if (sensor)
-		return v4l2_subdev_call(sensor, video, g_frame_interval, fi);
+		return v4l2_subdev_call_state_active(sensor, pad, get_frame_interval, fi);
 
 	return -EINVAL;
 }
@@ -836,7 +837,6 @@ static const struct v4l2_subdev_core_ops csi2_dphy_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops csi2_dphy_video_ops = {
-	.g_frame_interval = csi2_dphy_g_frame_interval,
 	.s_stream = csi2_dphy_s_stream,
 };
 
@@ -845,6 +845,7 @@ static const struct v4l2_subdev_pad_ops csi2_dphy_subdev_pad_ops = {
 	.get_fmt = csi2_dphy_get_set_fmt,
 	.get_selection = csi2_dphy_get_selection,
 	.get_mbus_config = csi2_dphy_g_mbus_config,
+	.get_frame_interval = csi2_dphy_g_frame_interval,
 };
 
 static const struct v4l2_subdev_ops csi2_dphy_subdev_ops = {
@@ -857,7 +858,7 @@ static const struct v4l2_subdev_ops csi2_dphy_subdev_ops = {
 static int
 rockchip_csi2_dphy_notifier_bound(struct v4l2_async_notifier *notifier,
 					   struct v4l2_subdev *sd,
-					   struct v4l2_async_subdev *asd)
+					   struct v4l2_async_connection *asd)
 {
 	struct csi2_dphy *dphy = container_of(notifier,
 					      struct csi2_dphy,
@@ -908,7 +909,7 @@ rockchip_csi2_dphy_notifier_bound(struct v4l2_async_notifier *notifier,
 static void
 rockchip_csi2_dphy_notifier_unbind(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *sd,
-				  struct v4l2_async_subdev *asd)
+				  struct v4l2_async_connection *asd)
 {
 	struct csi2_dphy *dphy = container_of(notifier,
 						  struct csi2_dphy,
@@ -1018,7 +1019,7 @@ static int rockchip_csi2dphy_media_init(struct csi2_dphy *dphy)
 	if (ret < 0)
 		return ret;
 
-	v4l2_async_nf_init(&dphy->notifier);
+	v4l2_async_subdev_nf_init(&dphy->notifier, &dphy->sd);
 
 	ret = rockchip_csi2_dphy_fwnode_parse(dphy);
 	if (ret)
@@ -1026,7 +1027,7 @@ static int rockchip_csi2dphy_media_init(struct csi2_dphy *dphy)
 
 	dphy->sd.subdev_notifier = &dphy->notifier;
 	dphy->notifier.ops = &rockchip_csi2_dphy_async_ops;
-	ret = v4l2_async_subdev_nf_register(&dphy->sd, &dphy->notifier);
+	ret = v4l2_async_nf_register(&dphy->notifier);
 	if (ret) {
 		dev_err(dphy->dev,
 			"failed to register async notifier : %d\n", ret);

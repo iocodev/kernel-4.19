@@ -1198,6 +1198,11 @@ static void analogix_dp_process_phy_request(struct analogix_dp_device *dp)
 	}
 
 	analogix_dp_set_link_bandwidth(dp, dp->link_train.link_rate);
+	ret = analogix_dp_wait_pll_locked(dp);
+	if (ret) {
+		dev_err(dp->dev, "Wait for pll lock failed %d\n", ret);
+		return;
+	}
 	analogix_dp_set_lane_count(dp, dp->link_train.lane_count);
 	analogix_dp_get_adjust_training_lane(dp, adjust_request);
 	analogix_dp_set_lane_link_training(dp);
@@ -2494,6 +2499,13 @@ err_disable:
 }
 EXPORT_SYMBOL_GPL(analogix_dp_loader_protect);
 
+static void analogix_dp_cancel_modeset_retry_work(void *data)
+{
+	struct analogix_dp_device *dp = (struct analogix_dp_device *)data;
+
+	cancel_work_sync(&dp->modeset_retry_work);
+}
+
 struct analogix_dp_device *
 analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 {
@@ -2514,6 +2526,10 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 	dp->dev = &pdev->dev;
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
 	INIT_WORK(&dp->modeset_retry_work, analogix_dp_modeset_retry_work_fn);
+
+	ret = devm_add_action(dev, analogix_dp_cancel_modeset_retry_work, dp);
+	if (ret)
+		return ERR_PTR(ret);
 
 	mutex_init(&dp->panel_lock);
 	dp->panel_is_prepared = false;
@@ -2628,7 +2644,7 @@ int analogix_dp_suspend(struct analogix_dp_device *dp)
 	if (dp->plat_data->power_off)
 		dp->plat_data->power_off(dp->plat_data);
 
-	clk_disable_unprepare(dp->clock);
+	clk_bulk_disable_unprepare(dp->nr_clks, dp->clks);
 
 	return 0;
 }
@@ -2638,7 +2654,7 @@ int analogix_dp_resume(struct analogix_dp_device *dp)
 {
 	int ret;
 
-	ret = clk_prepare_enable(dp->clock);
+	ret = clk_bulk_prepare_enable(dp->nr_clks, dp->clks);
 	if (ret < 0) {
 		DRM_ERROR("Failed to prepare_enable the clock clk [%d]\n", ret);
 		return ret;
@@ -2722,12 +2738,6 @@ void analogix_dp_unbind(struct analogix_dp_device *dp)
 	}
 }
 EXPORT_SYMBOL_GPL(analogix_dp_unbind);
-
-void analogix_dp_remove(struct analogix_dp_device *dp)
-{
-	cancel_work_sync(&dp->modeset_retry_work);
-}
-EXPORT_SYMBOL_GPL(analogix_dp_remove);
 
 int analogix_dp_start_crc(struct drm_connector *connector)
 {

@@ -260,7 +260,12 @@ static int rkcif_tools_enum_frameintervals(struct file *file, void *fh,
 		return -ENODEV;
 	}
 
-	ret = v4l2_subdev_call(sensor->sd, video, g_frame_interval, &fi);
+	fi.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	if (sensor->sd->flags & V4L2_SUBDEV_FL_STREAMS)
+		fi.stream = tools_vdev->stream->id;
+	else
+		fi.stream = 0;
+	ret = v4l2_subdev_call_state_active(sensor->sd, pad, get_frame_interval, &fi);
 	if (ret && ret != -ENOIOCTLCMD) {
 		return ret;
 	} else if (ret == -ENOIOCTLCMD) {
@@ -300,7 +305,7 @@ static int rkcif_tools_enum_framesizes(struct file *file, void *prov,
 	input_rect.height = RKCIF_DEFAULT_HEIGHT;
 
 	if (terminal_sensor && terminal_sensor->sd)
-		rkcif_get_input_fmt(dev,
+		rkcif_get_input_fmt(tools_vdev->stream,
 				    &input_rect, 0, &csi_info);
 
 	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
@@ -572,12 +577,12 @@ static int rkcif_tools_init_vb2_queue(struct vb2_queue *q,
 	struct rkcif_hw *hw_dev = tools_vdev->cifdev->hw_dev;
 
 	q->type = buf_type;
-	q->io_modes = VB2_MMAP | VB2_DMABUF;
+	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_USERPTR;
 	q->drv_priv = tools_vdev;
 	q->ops = &rkcif_tools_vb2_ops;
 	q->mem_ops = hw_dev->mem_ops;
 	q->buf_struct_size = sizeof(struct rkcif_buffer);
-	q->min_buffers_needed = CIF_TOOLS_REQ_BUFS_MIN;
+	q->min_queued_buffers = CIF_TOOLS_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &tools_vdev->vnode.vlock;
 	q->dev = hw_dev->dev;

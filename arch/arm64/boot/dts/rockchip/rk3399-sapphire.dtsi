@@ -522,8 +522,8 @@
 
 				altmode@0 {
 					reg = <0>;
-					svid = <0xff01>;
-					vdo = <0xffffffff>;
+					svid = /bits/ 16 <0xff01>;
+					vdo = <0x00001c46>;
 				};
 			};
 
@@ -661,7 +661,7 @@
 
 &tcphy0 {
 	status = "okay";
-	svid = <0xff01>;
+	mode-switch;
 	orientation-switch;
 
 	port {

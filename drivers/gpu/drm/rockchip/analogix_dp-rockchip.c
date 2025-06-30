@@ -32,6 +32,7 @@
 #include <drm/drm_simple_kms_helper.h>
 
 #include "rockchip_drm_drv.h"
+#include "rockchip_drm_vop.h"
 
 #define PSR_WAIT_LINE_FLAG_TIMEOUT_MS	100
 
@@ -752,10 +753,8 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	     device_property_read_bool(dev, "rockchip,dual-channel"))) {
 		struct rockchip_dp_device *secondary =
 				rockchip_dp_find_by_id(dev->driver, !dp->id);
-		if (!secondary) {
-			ret = -EPROBE_DEFER;
-			goto err_dp_remove;
-		}
+		if (!secondary)
+			return -EPROBE_DEFER;
 
 		dp->plat_data.right = secondary->adp;
 		dp->plat_data.split_mode = true;

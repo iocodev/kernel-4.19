@@ -167,7 +167,7 @@ static const struct lt7911d_mode supported_modes[] = {
 
 static void lt7911d_format_change(struct v4l2_subdev *sd);
 static int lt7911d_s_ctrl_detect_tx_5v(struct v4l2_subdev *sd);
-static int lt7911d_s_dv_timings(struct v4l2_subdev *sd,
+static int lt7911d_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_dv_timings *timings);
 
 static inline struct lt7911d_state *to_state(struct v4l2_subdev *sd)
@@ -555,7 +555,7 @@ static void lt7911d_format_change(struct v4l2_subdev *sd)
 		if (!v4l2_match_dv_timings(&lt7911d->timings, &timings, 0, false)) {
 			enable_stream(sd, false);
 			/* automatically set timing rather than set by user */
-			lt7911d_s_dv_timings(sd, &timings);
+			lt7911d_s_dv_timings(sd, 0, &timings);
 			v4l2_print_dv_timings(sd->name,
 					"Format_change: New format: ",
 					&timings, false);
@@ -637,7 +637,7 @@ static int lt7911d_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return 0;
 }
 
-static int lt7911d_s_dv_timings(struct v4l2_subdev *sd,
+static int lt7911d_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_dv_timings *timings)
 {
 	struct lt7911d_state *lt7911d = to_state(sd);
@@ -661,7 +661,7 @@ static int lt7911d_s_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int lt7911d_g_dv_timings(struct v4l2_subdev *sd,
+static int lt7911d_g_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_dv_timings *timings)
 {
 	struct lt7911d_state *lt7911d = to_state(sd);
@@ -681,7 +681,7 @@ static int lt7911d_enum_dv_timings(struct v4l2_subdev *sd,
 			&lt7911d_timings_cap, NULL, NULL);
 }
 
-static int lt7911d_query_dv_timings(struct v4l2_subdev *sd,
+static int lt7911d_query_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_dv_timings *timings)
 {
 	struct lt7911d_state *lt7911d = to_state(sd);
@@ -867,7 +867,8 @@ static int lt7911d_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int lt7911d_g_frame_interval(struct v4l2_subdev *sd,
-			struct v4l2_subdev_frame_interval *fi)
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct lt7911d_state *lt7911d = to_state(sd);
 	const struct lt7911d_mode *mode = lt7911d->cur_mode;
@@ -969,11 +970,7 @@ static const struct v4l2_subdev_core_ops lt7911d_core_ops = {
 
 static const struct v4l2_subdev_video_ops lt7911d_video_ops = {
 	.g_input_status = lt7911d_g_input_status,
-	.s_dv_timings = lt7911d_s_dv_timings,
-	.g_dv_timings = lt7911d_g_dv_timings,
-	.query_dv_timings = lt7911d_query_dv_timings,
 	.s_stream = lt7911d_s_stream,
-	.g_frame_interval = lt7911d_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops lt7911d_pad_ops = {
@@ -985,6 +982,10 @@ static const struct v4l2_subdev_pad_ops lt7911d_pad_ops = {
 	.enum_dv_timings = lt7911d_enum_dv_timings,
 	.dv_timings_cap = lt7911d_dv_timings_cap,
 	.get_mbus_config = lt7911d_g_mbus_config,
+	.get_frame_interval = lt7911d_g_frame_interval,
+	.s_dv_timings = lt7911d_s_dv_timings,
+	.g_dv_timings = lt7911d_g_dv_timings,
+	.query_dv_timings = lt7911d_query_dv_timings,
 };
 
 static const struct v4l2_subdev_ops lt7911d_ops = {

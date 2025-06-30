@@ -186,9 +186,9 @@
 			try-power-role = "sink";
 			op-sink-microwatt = <1000000>;
 			sink-pdos =
-				<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
+				<PDO_FIXED(5000, 1000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)>;
 			source-pdos =
-				<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
+				<PDO_FIXED(5000, 1000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)>;
 
 			port {
 				usbc0_orien_sw: endpoint {
@@ -270,10 +270,6 @@
 &usbdp_phy {
 	maximum-speed = "high-speed";
 	status = "okay";
-};
-
-&usbdp_phy_u3 {
-	status = "disabled";
 };
 
 &usb_drd0_dwc3 {

@@ -5571,12 +5571,21 @@ static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 	else
 		phy_set_mode_ext(dp->phy, PHY_MODE_DP, 1);
 
+	ret = phy_init(dp->phy);
+	if (ret)
+		goto error_phy_init;
+
 	enable_irq(dp->irq);
 	if (dp->hpd_gpio)
 		enable_irq(dp->hpd_irq);
 
 	return 0;
 
+error_phy_init:
+	if (!dp->dynamic_pd_ctrl)
+		pm_runtime_put(dp->dev);
+	pm_runtime_dont_use_autosuspend(dp->dev);
+	pm_runtime_disable(dp->dev);
 error_unregister_aux:
 	drm_dp_aux_unregister(&dp->aux);
 	return ret;
@@ -5591,6 +5600,8 @@ static void dw_dp_unbind(struct device *dev, struct device *master, void *data)
 	if (dp->hpd_gpio)
 		disable_irq(dp->hpd_irq);
 	disable_irq(dp->irq);
+
+	phy_exit(dp->phy);
 
 	if (!dp->dynamic_pd_ctrl)
 		pm_runtime_put(dp->dev);
@@ -5899,7 +5910,7 @@ static int dw_dp_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (device_property_present(dev, "svid")) {
+	if (device_property_present(dev, "mode-switch")) {
 		ret = dw_dp_setup_typec_mux(dp);
 		if (ret)
 			return ret;

@@ -783,8 +783,8 @@
 		screen_max_y = <2048>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_gpio>;
-		irq_gpio_number = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+		rst-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -878,14 +878,6 @@
 	status = "okay";
 };
 
-&usbdp_phy_dp {
-	status = "okay";
-};
-
-&usbdp_phy_u3 {
-	status = "okay";
-};
-
 &usb_drd0_dwc3 {
 	phys = <&u2phy0_otg>;
 	phy-names = "usb2-phy";
@@ -906,5 +898,5 @@
 };
 
 &wireless_wlan {
-	WIFI,poweren_gpio = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
+	WIFI,poweren-gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
 };

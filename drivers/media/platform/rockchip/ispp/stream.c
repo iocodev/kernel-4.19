@@ -1015,9 +1015,11 @@ static void destroy_buf_queue(struct rkispp_stream *stream,
 	}
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
-	for (i = 0; i < queue->num_buffers; ++i) {
-		if (queue->bufs[i]->state == VB2_BUF_STATE_ACTIVE)
-			vb2_buffer_done(queue->bufs[i], VB2_BUF_STATE_ERROR);
+	for (i = 0; i < queue->max_num_buffers; ++i) {
+		struct vb2_buffer *vb = vb2_get_buffer(queue, i);
+
+		if (vb && vb->state == VB2_BUF_STATE_ACTIVE)
+			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 	}
 }
 
@@ -1181,10 +1183,10 @@ static int rkispp_init_vb2_queue(struct vb2_queue *q,
 	q->mem_ops = stream->isppdev->hw_dev->mem_ops;
 	q->buf_struct_size = sizeof(struct rkispp_buffer);
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		q->min_buffers_needed = STREAM_IN_REQ_BUFS_MIN;
+		q->min_queued_buffers = STREAM_IN_REQ_BUFS_MIN;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	} else {
-		q->min_buffers_needed = STREAM_OUT_REQ_BUFS_MIN;
+		q->min_queued_buffers = STREAM_OUT_REQ_BUFS_MIN;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	}
 	q->lock = &stream->isppdev->apilock;

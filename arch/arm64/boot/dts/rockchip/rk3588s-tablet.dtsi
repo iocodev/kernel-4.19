@@ -295,13 +295,13 @@
 		compatible = "bluetooth-platdata";
 		clocks = <&hym8563>;
 		clock-names = "ext_clock";
-		uart_rts_gpios = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
+		uart_rts-gpios = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart7m1_rtsn>,  <&bt_reset_gpio>, <&bt_wake_gpio>, <&bt_irq_gpio>;
 		pinctrl-1 = <&uart7_gpios>;
-		BT,reset_gpio    = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
+		BT,reset-gpios    = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios     = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -310,8 +310,8 @@
 		wifi_chip_type = "ap6275p";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_irq>, <&wifi_poweren_gpio>;
-		WIFI,host_wake_irq = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
-		WIFI,poweren_gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
@@ -787,11 +787,11 @@
 			try-power-role = "sink";
 			op-sink-microwatt = <1000000>;
 			sink-pdos =
-				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
+				<PDO_FIXED(5000, 3000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)
 				 PDO_FIXED(9000, 3000, PDO_FIXED_USB_COMM)
 				 PDO_FIXED(12000, 3000, PDO_FIXED_USB_COMM)>;
 			source-pdos =
-				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+				<PDO_FIXED(5000, 3000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)>;
 
 			altmodes {
 				#address-cells = <1>;
@@ -799,8 +799,8 @@
 
 				altmode@0 {
 					reg = <0>;
-					svid = <0xff01>;
-					vdo = <0xffffffff>;
+					svid = /bits/ 16 <0xff01>;
+					vdo = <0x00001c46>;
 				};
 			};
 
@@ -1236,7 +1236,7 @@
 
 &usbdp_phy0 {
 	orientation-switch;
-	svid = <0xff01>;
+	mode-switch;
 	sbu1-dc-gpios = <&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
 	sbu2-dc-gpios = <&gpio1 RK_PB7 GPIO_ACTIVE_HIGH>;
 	status = "okay";
@@ -1254,14 +1254,6 @@
 			remote-endpoint = <&dp_altmode_mux>;
 		};
 	};
-};
-
-&usbdp_phy0_dp {
-	status = "okay";
-};
-
-&usbdp_phy0_u3 {
-	status = "okay";
 };
 
 &usbdrd3_0 {

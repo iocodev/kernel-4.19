@@ -560,7 +560,7 @@ struct dphy_drv_data {
 };
 
 struct sensor_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	struct v4l2_mbus_config mbus;
 	int lanes;
 };
@@ -887,12 +887,13 @@ static int mipidphy_s_stream(struct v4l2_subdev *sd, int on)
 }
 
 static int mipidphy_g_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct v4l2_subdev *sensor = get_remote_sensor(sd);
 
 	if (sensor)
-		return v4l2_subdev_call(sensor, video, g_frame_interval, fi);
+		return v4l2_subdev_call_state_active(sensor, pad, get_frame_interval, fi);
 
 	return -EINVAL;
 }
@@ -1001,6 +1002,7 @@ static const struct v4l2_subdev_pad_ops mipidphy_subdev_pad_ops = {
 	.get_fmt = mipidphy_get_set_fmt,
 	.get_selection = mipidphy_get_selection,
 	.get_mbus_config = mipidphy_g_mbus_config,
+	.get_frame_interval = mipidphy_g_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops mipidphy_core_ops = {
@@ -1008,7 +1010,6 @@ static const struct v4l2_subdev_core_ops mipidphy_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops mipidphy_video_ops = {
-	.g_frame_interval = mipidphy_g_frame_interval,
 	.s_stream = mipidphy_s_stream,
 };
 
@@ -1617,7 +1618,7 @@ MODULE_DEVICE_TABLE(of, rockchip_mipidphy_match_id);
 static int
 rockchip_mipidphy_notifier_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *sd,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asd)
 {
 	struct mipidphy_priv *priv = container_of(notifier,
 						  struct mipidphy_priv,
@@ -1666,7 +1667,7 @@ rockchip_mipidphy_notifier_bound(struct v4l2_async_notifier *notifier,
 static void
 rockchip_mipidphy_notifier_unbind(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *sd,
-				  struct v4l2_async_subdev *asd)
+				  struct v4l2_async_connection *asd)
 {
 	struct mipidphy_priv *priv = container_of(notifier,
 						  struct mipidphy_priv,
@@ -1776,7 +1777,7 @@ static int rockchip_mipidphy_media_init(struct mipidphy_priv *priv)
 	if (ret < 0)
 		return ret;
 
-	v4l2_async_nf_init(&priv->notifier);
+	v4l2_async_subdev_nf_init(&priv->notifier, &priv->sd);
 
 	ret = rockchip_mipidphy_fwnode_parse(priv);
 	if (ret < 0)
@@ -1784,7 +1785,7 @@ static int rockchip_mipidphy_media_init(struct mipidphy_priv *priv)
 
 	priv->sd.subdev_notifier = &priv->notifier;
 	priv->notifier.ops = &rockchip_mipidphy_async_ops;
-	ret = v4l2_async_subdev_nf_register(&priv->sd, &priv->notifier);
+	ret = v4l2_async_nf_register(&priv->notifier);
 	if (ret) {
 		dev_err(priv->dev,
 			"failed to register async notifier : %d\n", ret);

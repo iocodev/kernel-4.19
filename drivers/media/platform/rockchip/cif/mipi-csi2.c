@@ -288,7 +288,6 @@ static int csi2_start(struct csi2_dev *csi2)
 	}
 
 	pr_debug("stream sd: %s\n", csi2->src_sd->name);
-	ret = v4l2_subdev_call(csi2->src_sd, video, s_stream, 1);
 	ret = (ret && ret != -ENOIOCTLCMD) ? ret : 0;
 	if (ret)
 		goto err_assert_reset;
@@ -315,9 +314,6 @@ static void csi2_stop(struct csi2_dev *csi2)
 	if (csi2->mbus.type != V4L2_MBUS_CSI2_DPHY &&
 	    csi2->mbus.type != V4L2_MBUS_CSI2_CPHY)
 		return;
-
-	/* stop upstream */
-	v4l2_subdev_call(csi2->src_sd, video, s_stream, 0);
 
 	for (i = 0; i < csi2->csi_info.csi_num; i++) {
 		csi_idx = csi2->csi_info.csi_idx[i];
@@ -459,10 +455,10 @@ static int csi2_get_set_fmt(struct v4l2_subdev *sd,
 
 static struct v4l2_rect *mipi_csi2_get_crop(struct csi2_dev *csi2,
 						 struct v4l2_subdev_state *sd_state,
-						 enum v4l2_subdev_format_whence which)
+						 struct v4l2_subdev_selection *sel)
 {
-	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&csi2->sd, sd_state, RK_CSI2_PAD_SINK);
+	if (sel->which == V4L2_SUBDEV_FORMAT_TRY)
+		return v4l2_subdev_state_get_crop(sd_state, RK_CSI2_PAD_SINK);
 	else
 		return &csi2->crop;
 }
@@ -510,12 +506,12 @@ static int csi2_get_selection(struct v4l2_subdev *sd,
 				csi2->crop = sel->r;
 			}
 		} else {
-			sel->r = *v4l2_subdev_get_try_crop(&csi2->sd, sd_state, sel->pad);
+			sel->r = *v4l2_subdev_state_get_crop(sd_state, sel->pad);
 		}
 		break;
 
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *mipi_csi2_get_crop(csi2, sd_state, sel->which);
+		sel->r = *mipi_csi2_get_crop(csi2, sd_state, sel);
 		break;
 
 	default:
@@ -736,7 +732,7 @@ static const struct v4l2_subdev_ops csi2_subdev_ops = {
 static int
 csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 		    struct v4l2_subdev *sd,
-		    struct v4l2_async_subdev *asd)
+		    struct v4l2_async_connection *asc)
 {
 	struct csi2_dev *csi2 = container_of(notifier,
 			struct csi2_dev,
@@ -792,7 +788,7 @@ csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 /* The .unbind callback */
 static void csi2_notifier_unbind(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *sd,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asc)
 {
 	struct csi2_dev *csi2 = container_of(notifier,
 						  struct csi2_dev,
@@ -997,7 +993,7 @@ static int csi2_fwnode_parse(struct csi2_dev *csi2)
 {
 	struct device *dev = csi2->dev;
 	struct fwnode_handle *ep = NULL;
-	struct v4l2_async_subdev *s_asd = NULL;
+	struct v4l2_async_connection *s_asc = NULL;
 	struct fwnode_handle *remote_ep = NULL;
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
@@ -1020,12 +1016,12 @@ static int csi2_fwnode_parse(struct csi2_dev *csi2)
 			continue;
 		}
 
-		s_asd = v4l2_async_nf_add_fwnode(&csi2->notifier, remote_ep,
+		s_asc = v4l2_async_nf_add_fwnode(&csi2->notifier, remote_ep,
 						 struct
-						 v4l2_async_subdev);
+						 v4l2_async_connection);
 		fwnode_handle_put(remote_ep);
-		if (IS_ERR(s_asd)) {
-			ret = PTR_ERR(s_asd);
+		if (IS_ERR(s_asc)) {
+			ret = PTR_ERR(s_asc);
 			goto err_parse;
 		}
 	}
@@ -1041,7 +1037,7 @@ static int csi2_notifier(struct csi2_dev *csi2)
 	struct v4l2_async_notifier *ntf = &csi2->notifier;
 	int ret;
 
-	v4l2_async_nf_init(ntf);
+	v4l2_async_subdev_nf_init(ntf, &csi2->sd);
 
 	ret = csi2_fwnode_parse(csi2);
 	if (ret < 0)
@@ -1049,7 +1045,7 @@ static int csi2_notifier(struct csi2_dev *csi2)
 
 	csi2->sd.subdev_notifier = &csi2->notifier;
 	csi2->notifier.ops = &csi2_async_ops;
-	ret = v4l2_async_subdev_nf_register(&csi2->sd, &csi2->notifier);
+	ret = v4l2_async_nf_register(&csi2->notifier);
 	if (ret) {
 		v4l2_err(&csi2->sd,
 			 "failed to register async notifier : %d\n",

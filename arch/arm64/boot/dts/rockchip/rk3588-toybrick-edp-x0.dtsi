@@ -66,7 +66,7 @@
 	rk_headset: rk-headset {
 		status = "okay";
 		compatible = "rockchip_headset";
-		headset_gpio = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
+		headset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hp_det>;
 		io-channels = <&saradc 3>;
@@ -149,13 +149,13 @@
 		compatible = "bluetooth-platdata";
 		clocks = <&hym8563>;
 		clock-names = "ext_clock";
-		uart_rts_gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
+		uart_rts-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart8m1_rtsn>, <&bt_reset_gpio>, <&bt_wake_gpio>, <&bt_irq_gpio>;
 		pinctrl-1 = <&uart8_gpios>;
-		BT,reset_gpio    = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
+		BT,reset-gpios    = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios     = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -164,8 +164,8 @@
 		wifi_chip_type = "ap6255";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_irq>, <&wifi_poweren_gpio>;
-		WIFI,host_wake_irq = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
-		WIFI,poweren_gpio = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -433,9 +433,9 @@
 			try-power-role = "sink";
 			op-sink-microwatt = <1000000>;
 			sink-pdos =
-				<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
+				<PDO_FIXED(5000, 1000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)>;
 			source-pdos =
-				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+				<PDO_FIXED(5000, 3000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)>;
 
 			altmodes {
 				#address-cells = <1>;
@@ -443,8 +443,8 @@
 
 				altmode@0 {
 					reg = <0>;
-					svid = <0xff01>;
-					vdo = <0xffffffff>;
+					svid = /bits/ 16 <0xff01>;
+					vdo = <0x00001c46>;
 				};
 			};
 
@@ -515,8 +515,8 @@
 		reg = <0x40>;
 		screen_max_x = <1536>;
 		screen_max_y = <2048>;
-		irq_gpio_number = <&gpio1 RK_PA6 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio1 RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+		rst-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -724,7 +724,7 @@
 
 &usbdp_phy0 {
 	orientation-switch;
-	svid = <0xff01>;
+	mode-switch;
 	sbu1-dc-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
 	sbu2-dc-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
 

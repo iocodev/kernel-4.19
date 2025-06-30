@@ -1444,7 +1444,6 @@
 	rkcif_dvp: rkcif-dvp {
 		compatible = "rockchip,rkcif-dvp";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -1457,7 +1456,6 @@
 	rkcif_mipi_lvds: rkcif-mipi-lvds {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -1488,7 +1486,6 @@
 	rkcif_mipi_lvds1: rkcif-mipi-lvds1 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -1519,7 +1516,6 @@
 	rkcif_mipi_lvds2: rkcif-mipi-lvds2 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -1550,7 +1546,6 @@
 	rkcif_mipi_lvds3: rkcif-mipi-lvds3 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -1581,7 +1576,6 @@
 	rkcif_mipi_lvds4: rkcif-mipi-lvds4 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -1979,7 +1973,7 @@
 		resets = <&cru SRST_A_USB3OTG0>;
 		reset-names = "usb3-otg";
 		dr_mode = "otg";
-		phys = <&u2phy0_otg>, <&usbdp_phy_u3>;
+		phys = <&u2phy0_otg>, <&usbdp_phy PHY_TYPE_USB3>;
 		phy-names = "usb2-phy", "usb3-phy";
 		phy_type = "utmi_wide";
 		snps,dis_enblslpm_quirk;
@@ -3973,7 +3967,7 @@
 		assigned-clocks = <&cru CLK_AUX16MHZ_0>;
 		assigned-clock-rates = <16000000>;
 		resets = <&cru SRST_DP0>;
-		phys = <&usbdp_phy_dp>;
+		phys = <&usbdp_phy PHY_TYPE_DP>;
 		power-domains = <&power RK3576_PD_VO1>;
 		status = "disabled";
 
@@ -4375,7 +4369,7 @@
 	dfi: dfi@2a000000 {
 		compatible = "rockchip,rk3576-dfi";
 		reg = <0x00 0x2a000000 0x00 0x20000>;
-		rockchip,pmu_grf = <&pmu1_grf>;
+		rockchip,pmu = <&pmu1_grf>;
 		clocks = <&cru PCLK_DDR_MON_CH0>, <&cru PCLK_DDR_MON_CH1>;
 		clock-names = "pclk_ddr_mon_ch0", "pclk_ddr_mon_ch1";
 		status = "disabled";
@@ -4463,7 +4457,7 @@
 				<0 0 0 2 &pcie1_intc 1>,
 				<0 0 0 3 &pcie1_intc 2>,
 				<0 0 0 4 &pcie1_intc 3>;
-		linux,pci-domain = <0>;
+		linux,pci-domain = <1>;
 		num-ib-windows = <8>;
 		num-viewport = <8>;
 		num-ob-windows = <2>;
@@ -6351,6 +6345,7 @@
 	usbdp_phy: phy@2b010000 {
 		compatible = "rockchip,rk3576-usbdp-phy";
 		reg = <0x0 0x2b010000 0x0 0x10000>;
+		#phy-cells = <1>;
 		rockchip,u2phy-grf = <&usb2phy_grf>;
 		rockchip,usb-grf = <&usb_grf>;
 		rockchip,usbdpphy-grf = <&usbdpphy_grf>;
@@ -6366,16 +6361,6 @@
 			 <&cru SRST_P_USBDPPHY>;
 		reset-names = "init", "cmn", "lane", "pcs_apb", "pma_apb";
 		status = "disabled";
-
-		usbdp_phy_dp: dp-port {
-			#phy-cells = <0>;
-			status = "disabled";
-		};
-
-		usbdp_phy_u3: u3-port {
-			#phy-cells = <0>;
-			status = "disabled";
-		};
 	};
 
 	mipidcphy0: phy@2b020000 {

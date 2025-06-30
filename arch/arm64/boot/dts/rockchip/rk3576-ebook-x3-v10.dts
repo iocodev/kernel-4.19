@@ -210,13 +210,13 @@
 		compatible = "bluetooth-platdata";
 		clocks = <&hym8563>;
 		clock-names = "ext_clock";
-		uart_rts_gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
+		uart_rts-gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart4m1_rtsn>;
 		pinctrl-1 = <&uart4_gpios>;
-		BT,reset_gpio    = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
+		BT,reset-gpios    = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+		BT,wake-gpios     = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		BT,wake_host-gpios = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -225,8 +225,8 @@
 		wifi_chip_type = "ap6275p";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_irq>;
-		WIFI,host_wake_irq = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-		WIFI,poweren_gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren-gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
@@ -426,11 +426,11 @@
 			try-power-role = "sink";
 			op-sink-microwatt = <1000000>;
 			sink-pdos =
-				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
+				<PDO_FIXED(5000, 3000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)
 				 PDO_FIXED(9000, 3000, PDO_FIXED_USB_COMM)
 				/* PDO_FIXED(12000, 3000, PDO_FIXED_USB_COMM) */>;
 			source-pdos =
-				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+				<PDO_FIXED(5000, 3000, PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM | PDO_FIXED_EXTPOWER | PDO_FIXED_DUAL_ROLE)>;
 
 			altmodes {
 				#address-cells = <1>;
@@ -438,8 +438,8 @@
 
 				altmode@0 {
 					reg = <0>;
-					svid = <0xff01>;
-					vdo = <0xffffffff>;
+					svid = /bits/ 16 <0xff01>;
+					vdo = <0x00001c46>;
 				};
 			};
 
@@ -871,7 +871,7 @@
 &usbdp_phy {
 	status = "okay";
 	orientation-switch;
-	svid = <0xff01>;
+	mode-switch;
 	sbu1-dc-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
 	sbu2-dc-gpios = <&gpio4 RK_PC5 GPIO_ACTIVE_HIGH>;
 
@@ -889,14 +889,6 @@
 			remote-endpoint = <&dp_altmode_mux>;
 		};
 	};
-};
-
-&usbdp_phy_dp {
-	status = "okay";
-};
-
-&usbdp_phy_u3 {
-	status = "okay";
 };
 
 &usb_drd0_dwc3 {

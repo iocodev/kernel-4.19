@@ -1569,11 +1569,10 @@ close_pipe:
 destroy_dummy_buf:
 	rkisp1_destroy_dummy_buf(stream);
 buffer_done:
-	for (i = 0; i < queue->num_buffers; ++i) {
-		struct vb2_buffer *vb;
+	for (i = 0; i < queue->max_num_buffers; ++i) {
+		struct vb2_buffer *vb = vb2_get_buffer(queue, i);
 
-		vb = queue->bufs[i];
-		if (vb->state == VB2_BUF_STATE_ACTIVE)
+		if (vb && vb->state == VB2_BUF_STATE_ACTIVE)
 			vb2_buffer_done(vb, VB2_BUF_STATE_QUEUED);
 	}
 
@@ -1599,7 +1598,7 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	q->ops = &rkisp1_vb2_ops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct rkisp1_buffer);
-	q->min_buffers_needed = CIF_ISP_REQ_BUFS_MIN;
+	q->min_queued_buffers = CIF_ISP_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stream->ispdev->apilock;
 	q->dev = stream->ispdev->dev;
@@ -1899,7 +1898,7 @@ static int rkisp_enum_frameintervals(struct file *file, void *fh,
 		return -ENODEV;
 	}
 
-	ret = v4l2_subdev_call(sensor->sd, video, g_frame_interval, &fi);
+	ret = v4l2_subdev_call_state_active(sensor->sd, pad, get_frame_interval, &fi);
 	if (ret && ret != -ENOIOCTLCMD) {
 		return ret;
 	} else if (ret == -ENOIOCTLCMD) {

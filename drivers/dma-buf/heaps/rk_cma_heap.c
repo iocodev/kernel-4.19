@@ -351,8 +351,8 @@ static const struct dma_buf_ops cma_heap_buf_ops = {
 
 static struct dma_buf *cma_heap_do_allocate(struct dma_heap *heap,
 					 unsigned long len,
-					 unsigned long fd_flags,
-					 unsigned long heap_flags, bool uncached)
+					 u32 fd_flags,
+					 u64 heap_flags, bool uncached)
 {
 	struct cma_heap *cma_heap = dma_heap_get_drvdata(heap);
 	struct cma_heap_buffer *buffer;
@@ -452,8 +452,8 @@ free_buffer:
 
 static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 					 unsigned long len,
-					 unsigned long fd_flags,
-					 unsigned long heap_flags)
+					 u32 fd_flags,
+					 u64 heap_flags)
 {
 	return cma_heap_do_allocate(heap, len, fd_flags, heap_flags, false);
 }
@@ -500,16 +500,16 @@ static const struct dma_heap_ops cma_heap_ops = {
 
 static struct dma_buf *cma_uncached_heap_allocate(struct dma_heap *heap,
 					 unsigned long len,
-					 unsigned long fd_flags,
-					 unsigned long heap_flags)
+					 u32 fd_flags,
+					 u64 heap_flags)
 {
 	return cma_heap_do_allocate(heap, len, fd_flags, heap_flags, true);
 }
 
 static struct dma_buf *cma_uncached_heap_not_initialized(struct dma_heap *heap,
 					 unsigned long len,
-					 unsigned long fd_flags,
-					 unsigned long heap_flags)
+					 u32 fd_flags,
+					 u64 heap_flags)
 {
 	pr_info("heap %s not initialized\n", dma_heap_get_name(heap));
 	return ERR_PTR(-EBUSY);
@@ -521,8 +521,6 @@ static struct dma_heap_ops cma_uncached_heap_ops = {
 
 static int set_heap_dev_dma(struct device *heap_dev)
 {
-	int err = 0;
-
 	if (!heap_dev)
 		return -EINVAL;
 
@@ -535,12 +533,7 @@ static int set_heap_dev_dma(struct device *heap_dev)
 		if (!heap_dev->dma_parms)
 			return -ENOMEM;
 
-		err = dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
-		if (err) {
-			devm_kfree(heap_dev, heap_dev->dma_parms);
-			dev_err(heap_dev, "Failed to set DMA segment size, err:%d\n", err);
-			return err;
-		}
+		dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
 	}
 
 	return 0;

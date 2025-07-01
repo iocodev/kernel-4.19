@@ -527,8 +527,8 @@ static struct page *system_heap_alloc_largest_available(struct dma_heap *heap,
 
 static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
 					       unsigned long len,
-					       unsigned long fd_flags,
-					       unsigned long heap_flags,
+					       u32 fd_flags,
+					       u64 heap_flags,
 					       bool uncached)
 {
 	struct system_heap_buffer *buffer;
@@ -671,8 +671,8 @@ free_buffer:
 
 static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
 					    unsigned long len,
-					    unsigned long fd_flags,
-					    unsigned long heap_flags)
+					    u32 fd_flags,
+					    u64 heap_flags)
 {
 	return system_heap_do_allocate(heap, len, fd_flags, heap_flags, false);
 }
@@ -696,8 +696,8 @@ static const struct dma_heap_ops system_heap_ops = {
 
 static struct dma_buf *system_uncached_heap_allocate(struct dma_heap *heap,
 						     unsigned long len,
-						     unsigned long fd_flags,
-						     unsigned long heap_flags)
+						     u32 fd_flags,
+						     u64 heap_flags)
 {
 	return system_heap_do_allocate(heap, len, fd_flags, heap_flags, true);
 }
@@ -705,8 +705,8 @@ static struct dma_buf *system_uncached_heap_allocate(struct dma_heap *heap,
 /* Dummy function to be used until we can call coerce_mask_and_coherent */
 static struct dma_buf *system_uncached_heap_not_initialized(struct dma_heap *heap,
 							    unsigned long len,
-							    unsigned long fd_flags,
-							    unsigned long heap_flags)
+							    u32 fd_flags,
+							    u64 heap_flags)
 {
 	return ERR_PTR(-EBUSY);
 }
@@ -718,8 +718,6 @@ static struct dma_heap_ops system_uncached_heap_ops = {
 
 static int set_heap_dev_dma(struct device *heap_dev)
 {
-	int err = 0;
-
 	if (!heap_dev)
 		return -EINVAL;
 
@@ -732,12 +730,7 @@ static int set_heap_dev_dma(struct device *heap_dev)
 		if (!heap_dev->dma_parms)
 			return -ENOMEM;
 
-		err = dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
-		if (err) {
-			devm_kfree(heap_dev, heap_dev->dma_parms);
-			dev_err(heap_dev, "Failed to set DMA segment size, err:%d\n", err);
-			return err;
-		}
+		dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
 	}
 
 	return 0;
@@ -748,30 +741,6 @@ static int system_heap_create(void)
 	struct dma_heap_export_info exp_info;
 	int i, err = 0;
 	struct dram_addrmap_info *ddr_map_info;
-
-	/*
-	 * Since swiotlb has memory size limitation, this will calculate
-	 * the maximum size locally.
-	 *
-	 * Once swiotlb_max_segment() return not '0', means that the totalram size
-	 * is larger than 4GiB and swiotlb is not force mode, in this case, system
-	 * heap should limit largest allocation.
-	 *
-	 * FIX: fix the orders[] as a workaround.
-	 */
-	if (swiotlb_max_segment()) {
-		unsigned int max_size = (1 << IO_TLB_SHIFT) * IO_TLB_SEGSIZE;
-		int max_order = MAX_ORDER;
-		int i;
-
-		max_size = max_t(unsigned int, max_size, PAGE_SIZE) >> PAGE_SHIFT;
-		max_order = min(max_order, ilog2(max_size));
-		for (i = 0; i < NUM_ORDERS; i++) {
-			if (max_order < orders[i])
-				orders[i] = max_order;
-			pr_info("system_heap: orders[%d] = %u\n", i, orders[i]);
-		}
-	}
 
 	for (i = 0; i < NUM_ORDERS; i++) {
 		pools[i] = dmabuf_page_pool_create(order_flags[i], orders[i]);

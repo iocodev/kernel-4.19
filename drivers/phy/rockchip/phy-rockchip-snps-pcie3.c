@@ -18,6 +18,9 @@
 #include <linux/reset.h>
 #include <dt-bindings/phy/phy.h>
 
+/* Common definition */
+#define RK_PCIE_SRAM_INIT_TIMEOUT		20000
+
 #define GRF_PCIE30PHY_CON1 0x4
 #define GRF_PCIE30PHY_CON4 0x10
 #define GRF_PCIE30PHY_CON6 0x18
@@ -106,7 +109,7 @@ static int rochchip_p3phy_init(struct phy *phy)
 	ret = regmap_read_poll_timeout(priv->phy_grf,
 				       GRF_PCIE30PHY_STATUS0,
 				       reg, SRAM_INIT_DONE(reg),
-				       0, 500);
+				       0, RK_PCIE_SRAM_INIT_TIMEOUT);
 	if (ret) {
 		pr_err("%s: lock failed 0x%x, check input refclk and power supply\n",
 		       __func__, reg);

@@ -110,7 +110,7 @@
 #define FTS_MAX_TOUCHNUM 		5
 #define TPD_RES_X 						1404
 #define TPD_RES_Y 						1872
-#define FTS_ROTATE_90			0
+#define FTS_ROTATE_90			1
 
 /*
  * For commnication error in PM(deep sleep) state

@@ -172,31 +172,25 @@
 	};
 
 	rk817-sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,rk817-codec";
-		simple-audio-card,mclk-fs = <256>;
-
-		simple-audio-card,cpu {
-			sound-dai = <&i2s1_8ch>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&rk817_codec>;
-		};
-	};
-
-	es7210_sound: es7210-sound {
-		status = "okay";
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "rockchip,es7210";
-
-		simple-audio-card,cpu {
-			sound-dai = <&i2s3_2ch>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&es7210>;
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-rk817";
+		hp-det-gpio = <&gpio4 RK_PB5 GPIO_ACTIVE_LOW>;
+		io-channels = <&saradc 2>;
+		io-channel-names = "adc-detect";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s1_8ch>;
+		rockchip,codec = <&rk817_codec>;
+		/*
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
+		 */
+		play-pause-key {
+			label = "playpause";
+			linux,code = <KEY_PLAYPAUSE>;
+			press-threshold-microvolt = <2000>;
 		};
 	};
 
@@ -744,8 +738,8 @@
 			fb_temperature = <95>;
 			virtual_power = <0>;
 			dc_det_adc = <0>;
-			//extcon = <&usb2phy0>;
-			extcon = <&fusb0>;
+			extcon = <&usb2phy0>;
+			//extcon = <&fusb0>;
 			gate_function_disable = <1>;
 
 			/*Utility  battery ntc -30 ~ 99 */
@@ -816,32 +810,26 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2m0_xfer>;
 
-	focaltech@38 {
-		compatible = "focaltech,fts";
+	focaltech: focaltech@38 {
+		status = "okay";
+		compatible = "rockchip,fts_ts";
 		reg = <0x38>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&tsc_gpio>;
-		interrupt-parent = <&gpio0>;
-		/*interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;*/
-		focaltech,reset-gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
-		focaltech,irq-gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
+		t_irq_gpio = <&gpio0 RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+		t_rst_gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 		focaltech,max-touch-number = <5>;
-		focaltech,display-coords =  <0 0 1600 1200>;
-		focaltech,exchange_xy = <1>;
-		focaltech,revert_x = <0>;
-		focaltech,revert_y = <0>;
-		wakeup-source;
+		focaltech,display-coords =  <0 0 1200 1600>;
 	};
 
 	fusb0: fusb30x@22 {
-		compatible = "fairchild,fusb302";
+		compatible = "fcs,fusb302";
 		reg = <0x22>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb0_int>;
-		int-n-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
-		fusb302,role = "ROLE_MODE_DRP";
-		fusb302,try_role = "ROLE_MODE_UFP";
-		status = "okay";
+		status = "disabled";
 	};
 };
 

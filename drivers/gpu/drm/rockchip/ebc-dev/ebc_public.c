@@ -34,3 +34,8 @@ int ebc_notify(unsigned long event)
 {
 	return blocking_notifier_call_chain(&ebc_notifier_list, event, NULL);
 }
+
+int ebc_get_init_log_level(void)
+{
+	return DEBUG_LEVEL_0;
+}

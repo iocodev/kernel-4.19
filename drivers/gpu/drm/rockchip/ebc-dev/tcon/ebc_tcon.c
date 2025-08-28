@@ -213,19 +213,24 @@
 #define RK3576_WIN_FMT(x)			UPDATE(x, 2, 0)
 #define RK3576_WIN_FMT_MASK			GENMASK(2, 0)
 
+#define RK3572_WIN2_FIFO_LEVEL(x)	UPDATE(x, 25, 16)
 #define RK3576_WIN_RID(x)		UPDATE(x, 7, 4)
 #define RK3576_WIN_AXI_GATHER_NUM(x)	UPDATE(x, 11, 8)
 #define RK3576_WIN_AXI_GATHER_EN	BIT(1)
 #define RK3576_WIN_EN			BIT(0)
 
-#define RK3576_WIN2_EMPTY_INT_MASK	BIT(26)
-#define RK3576_WIN1_EMPTY_INT_MASK	BIT(25)
-#define RK3576_WIN0_EMPTY_INT_MASK	BIT(24)
-#define RK3576_FRM_END_INT_MASK		BIT(4)
-#define RK3576_DSP_END_INT_MASK		BIT(5)
-#define RK3576_DSP_FRM_INT_MASK		BIT(6)
-#define RK3576_LINE_FLAG_INT_MASK	BIT(7)
+#define RK3572_RDATA_FIFO_EMPTY_INT		BIT(31)
+#define RK3572_RDATA_FIFO_EMPTY_INT_MASK	BIT(27)
+#define RK3576_WIN2_EMPTY_INT_MASK		BIT(26)
+#define RK3576_WIN1_EMPTY_INT_MASK		BIT(25)
+#define RK3576_WIN0_EMPTY_INT_MASK		BIT(24)
+#define RK3572_RDATA_FIFO_EMPTY_INT_CLR		BIT(23)
+#define RK3576_FRM_END_INT_MASK			BIT(4)
+#define RK3576_DSP_END_INT_MASK			BIT(5)
+#define RK3576_DSP_FRM_INT_MASK			BIT(6)
+#define RK3576_LINE_FLAG_INT_MASK		BIT(7)
 
+#define RK3572_WIN2_MUX(x)		UPDATE(x, 27, 27)
 #define RK3576_DSP_SDCE_WIDTH(x)	UPDATE(x, 23, 12)
 #define RK3576_DSP_SDCE_WIDTH_MASK(x)	GENMASK(x, 23, 12)
 #define RK3576_DSP_FRM_TOTAL(x)		UPDATE(x, 11, 4)
@@ -245,6 +250,8 @@
 #define RK3576_SW_NOC_QOS_EN			BIT(0)
 
 #define RK3576_REG_CONFIG_DONE		BIT(0)
+
+#define RK3572_LUT_DATA_ADDR		0x2000
 
 enum ebc_win_data_format {
 	Y_DATA_4BPP = 0,
@@ -380,7 +387,11 @@ static int rk3576_tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 	tcon_write(tcon, RK3576_EBC_WIN0_CTRL, RK3576_WIN_AXI_GATHER_NUM(8) |
 		   RK3576_WIN_AXI_GATHER_EN | RK3576_WIN_RID(1) | RK3576_WIN_EN);
 	tcon_write(tcon, RK3576_EBC_WIN1_CTRL, RK3576_WIN_RID(2));
-	tcon_write(tcon, RK3576_EBC_WIN2_CTRL, RK3576_WIN_RID(3));
+	if (tcon->version == EBC_VERSION_RK3576)
+		tcon_write(tcon, RK3576_EBC_WIN2_CTRL, RK3576_WIN_RID(3));
+	else
+		tcon_write(tcon, RK3576_EBC_WIN2_CTRL, RK3576_WIN_RID(3) |
+			   RK3572_WIN2_FIFO_LEVEL(0xa));
 
 	/*
 	 * RK3576_EBC_EPD_CTRL info:
@@ -404,6 +415,11 @@ static int rk3576_tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 		val = RK3576_DSP_SDCE_WIDTH(panel->ldl);
 	else
 		val = RK3576_DSP_SDCE_WIDTH(panel->sdce_width);
+
+	/* WIN2 should be enable for ebc mode */
+	if (tcon->version == EBC_VERSION_RK3572)
+		val |= RK3572_WIN2_MUX(1);
+
 	tcon_write(tcon, RK3576_EBC_DSP_CTRL2, RK3576_SW_BURST_CTRL | val);
 
 	/**
@@ -421,7 +437,7 @@ static int rk3576_tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 	tcon_update_bits(tcon, RK3576_EBC_INT_STATUS, RK3576_DSP_END_INT_MASK |
 			 RK3576_DSP_FRM_INT_MASK | RK3576_FRM_END_INT_MASK |
 			 RK3576_WIN2_EMPTY_INT_MASK | RK3576_WIN1_EMPTY_INT_MASK |
-			 RK3576_WIN0_EMPTY_INT_MASK, 0 |
+			 RK3576_WIN0_EMPTY_INT_MASK | RK3572_RDATA_FIFO_EMPTY_INT_MASK, 0 |
 			 RK3576_DSP_FRM_INT_MASK | RK3576_FRM_END_INT_MASK |
 			 RK3576_WIN2_EMPTY_INT_MASK | RK3576_WIN1_EMPTY_INT_MASK |
 			 RK3576_WIN0_EMPTY_INT_MASK);
@@ -490,6 +506,32 @@ static void rk3576_tcon_dsp_mode_set(struct ebc_tcon *tcon, int update_mode,
 	rk3576_tcon_cfg_done(tcon);
 }
 
+static void rk3572_tcon_dsp_mode_set(struct ebc_tcon *tcon, int update_mode,
+				     int display_mode, int three_win_mode,
+				     int eink_mode)
+{
+	struct ebc_panel *panel = tcon->panel;
+	u32 val;
+	int ret;
+
+	ret = clk_set_rate(tcon->dclk, panel->sdck * ((panel->panel_16bit ? 1 : 0) + 1));
+	if (ret)
+		dev_err(tcon->dev, "Failed to set dclk:%d\n", ret);
+
+	val = RK3576_DSP_SDCLK_DIV((panel && panel->panel_16bit) ? 1 : 0);
+
+	tcon->display_mode = display_mode;
+
+	tcon_write(tcon, RK3576_EBC_WIN1_CTRL, RK3576_WIN_AXI_GATHER_NUM(8) |
+		   RK3576_WIN_AXI_GATHER_EN | RK3576_WIN_RID(2) | ((!!display_mode)));
+
+	tcon_update_bits(tcon, RK3576_EBC_DSP_CTRL, RK3576_UPDATE_MODE_MASK |
+			 RK3576_DISPLAY_MODE_MASK | RK3576_DSP_SDCLK_DIV_MASK,
+			 RK3576_DSP_UPDATE_MODE(!!update_mode) |
+			 RK3576_DSP_DISPLAY_MODE(!!display_mode) | val);
+	rk3576_tcon_cfg_done(tcon);
+}
+
 static void rk3576_tcon_image_addr_set(struct ebc_tcon *tcon, u32 pre_image_addr,
 				       u32 cur_image_addr)
 {
@@ -508,31 +550,6 @@ static void rk3576_tcon_data_format_set(struct ebc_tcon *tcon, enum ebc_tcon_dat
 {
 	tcon_update_bits(tcon, RK3576_EBC_WIN_CTRL, RK3576_WIN_FMT_MASK, RK3576_WIN_FMT(format));
 	rk3576_tcon_cfg_done(tcon);
-}
-
-static int rk3576_tcon_lut_data_set(struct ebc_tcon *tcon, unsigned int *lut_data,
-				    int frame_count, int lut_32)
-{
-	int i;
-	int lut_size;
-
-	if ((!lut_32 && frame_count > 256) || (lut_32 && frame_count > 64)) {
-		dev_err(tcon->dev, "frame count over flow\n");
-		return -1;
-	}
-
-	if (lut_32)
-		lut_size = frame_count * 64;
-	else
-		lut_size = frame_count * 16;
-
-	for (i = 0; i < lut_size; i++) {
-		tcon_write(tcon, RK3576_EBC_LUT_ADDRESS_MAP_0 + (i * 4),
-			   lut_data[i]);
-	}
-	rk3576_tcon_cfg_done(tcon);
-
-	return 0;
 }
 
 static void rk3576_tcon_frame_start(struct ebc_tcon *tcon, int frame_total)
@@ -662,8 +679,10 @@ static void tcon_frame_addr_set(struct ebc_tcon *tcon, u32 frame_addr)
 	tcon_cfg_done(tcon);
 }
 
-static int tcon_lut_data_set(struct ebc_tcon *tcon, unsigned int *lut_data, int frame_count, int lut_32)
+static int tcon_lut_data_set(struct ebc_tcon *tcon, unsigned int *lut_data, int frame_count,
+			     int lut_32)
 {
+	const u32 lut_base = tcon->lut_offset;
 	int i;
 	int lut_size;
 
@@ -677,9 +696,9 @@ static int tcon_lut_data_set(struct ebc_tcon *tcon, unsigned int *lut_data, int 
 	else
 		lut_size = frame_count * 16;
 
-	for (i = 0; i < lut_size; i++) {
-		tcon_write(tcon, EBC_LUT_DATA_ADDR + (i * 4), lut_data[i]);
-	}
+	for (i = 0; i < lut_size; i++)
+		tcon_write(tcon, lut_base + (i * 4), lut_data[i]);
+
 	tcon_cfg_done(tcon);
 
 	return 0;
@@ -701,6 +720,11 @@ static irqreturn_t tcon_irq_hanlder(int irq, void *dev_id)
 
 	intr_status = tcon_read(tcon, EBC_INT_STATUS);
 
+	if (intr_status & RK3572_RDATA_FIFO_EMPTY_INT) {
+		tcon_update_bits(tcon, EBC_INT_STATUS,
+				 RK3572_RDATA_FIFO_EMPTY_INT_CLR, RK3572_RDATA_FIFO_EMPTY_INT_CLR);
+		dev_err_ratelimited(tcon->dev, "EBC RDATA_FIFO_EMPTY irq\n");
+	}
 
 	if (intr_status & DSP_END_INT) {
 		tcon_update_bits(tcon, EBC_INT_STATUS, DSP_END_INT_CLR, DSP_END_INT_CLR);
@@ -843,6 +867,7 @@ static struct rockchip_ebc_tcon_data rk3568_ebc_data = {
 	.volatile_reg = tcon_is_volatile_reg,
 	.tcon = {
 		.version = EBC_VERSION_RK3568,
+		.lut_offset = EBC_LUT_DATA_ADDR,
 		.enable = tcon_enable,
 		.disable = tcon_disable,
 		.dsp_mode_set = tcon_dsp_mode_set,
@@ -858,12 +883,30 @@ static struct rockchip_ebc_tcon_data rk3576_ebc_data = {
 	.volatile_reg = rk3576_tcon_is_volatile_reg,
 	.tcon = {
 		.version = EBC_VERSION_RK3576,
+		.lut_offset = EBC_LUT_DATA_ADDR,
 		.enable = rk3576_tcon_enable,
 		.disable = rk3576_tcon_disable,
 		.dsp_mode_set = rk3576_tcon_dsp_mode_set,
 		.image_addr_set = rk3576_tcon_image_addr_set,
 		.frame_addr_set = rk3576_tcon_frame_addr_set,
-		.lut_data_set = rk3576_tcon_lut_data_set,
+		.lut_data_set = tcon_lut_data_set,
+		.frame_start = rk3576_tcon_frame_start,
+		.data_format_set = rk3576_tcon_data_format_set,
+		.set_line_flag_event = tcon_set_line_flag_event,
+	},
+};
+
+static struct rockchip_ebc_tcon_data rk3572_ebc_data = {
+	.volatile_reg = rk3576_tcon_is_volatile_reg,
+	.tcon = {
+		.version = EBC_VERSION_RK3572,
+		.lut_offset = RK3572_LUT_DATA_ADDR,
+		.enable = rk3576_tcon_enable,
+		.disable = rk3576_tcon_disable,
+		.dsp_mode_set = rk3572_tcon_dsp_mode_set,
+		.image_addr_set = rk3576_tcon_image_addr_set,
+		.frame_addr_set = rk3576_tcon_frame_addr_set,
+		.lut_data_set = tcon_lut_data_set,
 		.frame_start = rk3576_tcon_frame_start,
 		.data_format_set = rk3576_tcon_data_format_set,
 		.set_line_flag_event = tcon_set_line_flag_event,
@@ -873,6 +916,7 @@ static struct rockchip_ebc_tcon_data rk3576_ebc_data = {
 static const struct of_device_id ebc_tcon_of_match[] = {
 	{ .compatible = "rockchip,rk3568-ebc-tcon", .data = &rk3568_ebc_data },
 	{ .compatible = "rockchip,rk3576-ebc-tcon", .data = &rk3576_ebc_data },
+	{ .compatible = "rockchip,rk3572-ebc-tcon", .data = &rk3572_ebc_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ebc_tcon_of_match);

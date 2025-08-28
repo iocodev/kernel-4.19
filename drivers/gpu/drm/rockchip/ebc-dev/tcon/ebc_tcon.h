@@ -26,11 +26,13 @@ enum ebc_tcon_data_format {
 	EBC_RGB565_FORMAT = 2,
 	EBC_XBGR8888_FORMAT = 3,
 	EBC_Y5_FORMAT = 4,
+	EBC_Y1_FORMAT = 5,
 };
 
 enum ebc_tcon_version {
 	EBC_VERSION_RK3568 = 0,
 	EBC_VERSION_RK3576 = 1,
+	EBC_VERSION_RK3572 = 2,
 };
 
 struct ebc_tcon {
@@ -47,6 +49,7 @@ struct ebc_tcon {
 	struct ebc_panel *panel;
 	int display_mode;
 	u32 version;
+	u32 lut_offset;
 
 	int (*enable)(struct ebc_tcon *tcon, struct ebc_panel *panel);
 	void (*disable)(struct ebc_tcon *tcon);

@@ -96,3 +96,17 @@ int epd_overlay_lut(void)
 {
 	return WF_TYPE_GRAY2;
 }
+
+//return value
+//0 : no modify  1: modify by customer
+int epd_gray2_last_repair(u8 *wf_table)
+{
+	return 0;
+}
+
+//return value
+//0 : no modify  1: modify by customer
+int epd_overlay_gray2_repair(u8 *wf_table)
+{
+	return 0;
+}

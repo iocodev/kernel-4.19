@@ -126,7 +126,7 @@ int ebc_overlay_temp_fix(int temp)
 	return temp;
 }
 
-int ebc_normal_temp_fix(int temp)
+int ebc_normal_temp_fix(int mode, int temp)
 {
 	return temp;
 }

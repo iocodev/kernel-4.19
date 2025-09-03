@@ -39,3 +39,14 @@ int ebc_get_init_log_level(void)
 {
 	return DEBUG_LEVEL_0;
 }
+
+int ebc_overlay_enable_control(void)
+{
+	return 0; //overlay enable/disable control by driver
+}
+
+int ebc_overlay_enable_timeout_ms(void)
+{
+	return 100; //100ms
+}
+

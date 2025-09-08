@@ -36,6 +36,10 @@ int rkcif_debug;
 module_param_named(debug, rkcif_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
+bool rkcif_frm_toisp_protect = true;
+module_param_named(toisp_protect, rkcif_frm_toisp_protect, bool, 0644);
+MODULE_PARM_DESC(toisp_protect, "frame protect of toisp");
+
 static char rkcif_version[RKCIF_VERNO_LEN];
 module_param_string(version, rkcif_version, RKCIF_VERNO_LEN, 0444);
 MODULE_PARM_DESC(version, "version number");
@@ -3231,6 +3235,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, cif_dev);
 	cif_dev->dev = dev;
+	cif_dev->unite_extend_pixel = 128;
 
 	if (sysfs_create_group(&pdev->dev.kobj, &dev_attr_grp))
 		return -ENODEV;

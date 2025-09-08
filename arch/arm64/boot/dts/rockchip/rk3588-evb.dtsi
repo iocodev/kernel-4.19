@@ -296,6 +296,7 @@
 		reset-delay-ms = <10>;
 		enable-delay-ms = <10>;
 		prepare-delay-ms = <10>;
+		init-delay-ms = <10>;
 		unprepare-delay-ms = <10>;
 		disable-delay-ms = <60>;
 		width-mm = <68>;
@@ -630,6 +631,7 @@
 		reset-delay-ms = <10>;
 		enable-delay-ms = <10>;
 		prepare-delay-ms = <10>;
+		init-delay-ms = <10>;
 		unprepare-delay-ms = <10>;
 		disable-delay-ms = <10>;
 		width-mm = <68>;

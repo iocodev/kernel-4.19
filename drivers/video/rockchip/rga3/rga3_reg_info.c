@@ -155,11 +155,13 @@ static void RGA3_set_reg_win0_info(u8 *base, struct rga3_req *msg)
 		win_interleaved = 2;
 		break;
 	case RGA_FORMAT_ARGB_8888:
+	case RGA_FORMAT_XRGB_8888:
 		win_format = 0x9;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
 	case RGA_FORMAT_ABGR_8888:
+	case RGA_FORMAT_XBGR_8888:
 		win_format = 0x7;
 		pixel_width = 4;
 		win_interleaved = 2;
@@ -540,11 +542,13 @@ static void RGA3_set_reg_win1_info(u8 *base, struct rga3_req *msg)
 		win_interleaved = 2;
 		break;
 	case RGA_FORMAT_ARGB_8888:
+	case RGA_FORMAT_XRGB_8888:
 		win_format = 0x9;
 		pixel_width = 4;
 		win_interleaved = 2;
 		break;
 	case RGA_FORMAT_ABGR_8888:
+	case RGA_FORMAT_XBGR_8888:
 		win_format = 0x7;
 		pixel_width = 4;
 		win_interleaved = 2;
@@ -825,13 +829,24 @@ static void RGA3_set_reg_wr_info(u8 *base, struct rga3_req *msg)
 		wr_format = 0x6;
 		pixel_width = 4;
 		wr_interleaved = 2;
-		wr_pix_swp = 1;
+
+		/* fbc default RGBA8888, raster default BGRA8888 */
+		if (msg->wr.rd_mode == 1)
+			wr_pix_swp = 0;
+		else
+			wr_pix_swp = 1;
 		break;
 	case RGA_FORMAT_BGRA_8888:
 	case RGA_FORMAT_BGRX_8888:
 		wr_format = 0x6;
 		pixel_width = 4;
 		wr_interleaved = 2;
+
+		/* fbc default BGRA8888, raster default RGBA8888 */
+		if (msg->wr.rd_mode == 1)
+			wr_pix_swp = 1;
+		else
+			wr_pix_swp = 0;
 		break;
 	case RGA_FORMAT_RGB_888:
 		wr_format = 0x5;
@@ -1569,9 +1584,6 @@ static void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 			addr_copy(&req->win0, &req_rga->dst);
 			req->win0.format = req_rga->dst.format;
 
-			/* only win1 && wr support fbcd, win0 default raster */
-			req->win0.rd_mode = 0;
-
 			/* set win0 dst size */
 			req->win0.dst_act_w = req_rga->dst.act_w;
 			req->win0.dst_act_h = req_rga->dst.act_h;
@@ -2077,6 +2089,27 @@ static void rga3_dump_read_back_reg(struct rga_job *job, struct rga_scheduler_t 
 			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
 }
 
+static void rga3_dump_read_back_iommu_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
+{
+	int i;
+	unsigned long flags;
+	uint32_t cmd_reg[12] = {0};
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	for (i = 0; i < 12; i++)
+		cmd_reg[i] = rga_read(RGA3_IOMMU_REG_BASE + i * 4, scheduler);
+
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	rga_job_log(job, "IOMMU_READ_BACK_REG\n");
+	for (i = 0; i < 3; i++)
+		rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
+			RGA3_IOMMU_REG_BASE + i * 0x10,
+			cmd_reg[0 + i * 4], cmd_reg[1 + i * 4],
+			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
+}
+
 static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int i;
@@ -2105,6 +2138,8 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 				RGA3_CMD_REG_BASE + i * 0x10,
 				cmd[0 + i * 4], cmd[1 + i * 4],
 				cmd[2 + i * 4], cmd[3 + i * 4]);
+
+		rga3_dump_read_back_iommu_reg(job, scheduler);
 	}
 
 	/* All CMD finish int */
@@ -2139,6 +2174,7 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	if (DEBUGGER_EN(REG)) {
 		rga3_dump_read_back_sys_reg(job, scheduler);
 		rga3_dump_read_back_reg(job, scheduler);
+		rga3_dump_read_back_iommu_reg(job, scheduler);
 	}
 
 	return 0;

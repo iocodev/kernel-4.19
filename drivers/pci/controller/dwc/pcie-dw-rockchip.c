@@ -577,13 +577,16 @@ static int rk_pcie_init_dma_trx(struct rk_pcie *rk_pcie)
 	if (!rk_pcie_udma_enabled(rk_pcie))
 		return 0;
 
+#ifdef PCIE_DW_ROCKCHIP_RC_DMATEST
 	rk_pcie->dma_obj = pcie_dw_dmatest_register(rk_pcie->pci->dev, true);
 	if (IS_ERR(rk_pcie->dma_obj)) {
 		dev_err(rk_pcie->pci->dev, "failed to prepare dmatest\n");
 		return -EINVAL;
-	} else if (!rk_pcie->dma_obj) { /* !CONFIG_ROCKCHIP_PCIE_DMA_OBJ */
-		return 0;
 	}
+#endif
+
+	if (!rk_pcie->dma_obj)
+		return 0;
 
 	/* Enable client write and read interrupt */
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xc000000);
@@ -1793,7 +1796,8 @@ static void rk_pcie_remove(struct platform_device *pdev)
 		 * Timeout should not happen as it's longer than regular probe actually.
 		 * But probe maybe fail, so need to double check bridge bus.
 		 */
-		if (!rk_pcie || !rk_pcie->finish_probe || !rk_pcie->pci->pp.bridge->bus) {
+		if (!rk_pcie || !rk_pcie->pci || !rk_pcie->pci->pp.bridge ||
+		    !rk_pcie->pci->pp.bridge->bus) {
 			dev_dbg(dev, "%s return early due to failure in threaded init\n", __func__);
 			return;
 		}

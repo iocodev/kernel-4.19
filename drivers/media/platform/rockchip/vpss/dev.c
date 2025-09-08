@@ -319,6 +319,7 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, vpss_dev);
 	vpss_dev->dev = dev;
+	vpss_dev->unite_extend_pixel = 128;
 
 	ret = rkvpss_attach_hw(vpss_dev);
 	if (ret)

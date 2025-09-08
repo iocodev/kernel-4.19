@@ -89,7 +89,7 @@ static DEFINE_MUTEX(rkep_mutex);
 
 #define PCIE_DMA_CHANEL_MAX_NUM		2
 
-#define RKEP_USER_MEM_SIZE		SZ_64M
+#define RKEP_USER_MEM_SIZE		SZ_4M
 
 #define PCIE_CFG_ELBI_APP_OFFSET	0xe00
 #define PCIE_CFG_ELBI_USER_DATA_OFF	0x10
@@ -609,9 +609,6 @@ static int pcie_rkep_mmap(struct file *file, struct vm_area_struct *vma)
 		dev_err(&pcie_rkep->pdev->dev, "cur mmap_res %d is unsurreport\n", pcie_rkep->cur_mmap_res);
 		return -EINVAL;
 	}
-
-	vm_flags_set(vma, VM_IO);
-	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
 
 	if (pcie_rkep->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_BAR2 ||
 	    pcie_rkep->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_USER_MEM)
@@ -1333,9 +1330,7 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	}
 
-#if IS_ENABLED(CONFIG_PCIE_FUNC_RKEP_USERPAGES)
-	pcie_rkep->user_pages =
-		alloc_contig_pages(RKEP_USER_MEM_SIZE >> PAGE_SHIFT, GFP_KERNEL, 0, NULL);
+	pcie_rkep->user_pages = alloc_pages(GFP_KERNEL, get_order(RKEP_USER_MEM_SIZE));
 	if (!pcie_rkep->user_pages) {
 		dev_err(&pcie_rkep->pdev->dev, "failed to allocate contiguous pages\n");
 		ret = -EINVAL;
@@ -1344,8 +1339,7 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_register_obj;
 	}
 	pcie_rkep->cur_mmap_res = PCIE_EP_MMAP_RESOURCE_USER_MEM;
-	dev_err(&pdev->dev, "successfully allocate continuouse buffer for userspace\n");
-#endif
+	dev_info(&pdev->dev, "successfully allocate continuouse buffer for userspace\n");
 
 	pci_read_config_word(pcie_rkep->pdev, PCI_VENDOR_ID, &val);
 	dev_info(&pdev->dev, "vid=%x\n", val);
@@ -1387,9 +1381,7 @@ static void pcie_rkep_remove(struct pci_dev *pdev)
 		pcie_dw_dmatest_unregister(pcie_rkep->dma_obj);
 
 	device_remove_file(&pdev->dev, &dev_attr_rkep);
-#if IS_ENABLED(CONFIG_PCIE_FUNC_RKEP_USERPAGES)
-	free_contig_range(page_to_pfn(pcie_rkep->user_pages), RKEP_USER_MEM_SIZE >> PAGE_SHIFT);
-#endif
+	__free_pages(pcie_rkep->user_pages, get_order(RKEP_USER_MEM_SIZE));
 	pcie_rkep_release_irq(pcie_rkep);
 
 	if (pcie_rkep->bar0)
@@ -1445,6 +1437,7 @@ static const struct pci_error_handlers pcie_rkep_err_handler = {
 
 static const struct pci_device_id pcie_rkep_pcidev_id[] = {
 	{ PCI_VDEVICE(ROCKCHIP, 0x356a), 1,  },
+	{ PCI_VDEVICE(ROCKCHIP, 0x182a), 1,  },
 	{ }
 };
 MODULE_DEVICE_TABLE(pcie_rkep, pcie_rkep_pcidev_id);

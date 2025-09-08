@@ -9,7 +9,11 @@
 #define EPD_LUT_H
 
 #define MAXFRAME    255
-#define LAST_REPAIR_NUM 13
+
+#define FRAME_STEP 10
+#define REPAIR_LEVEL_MAX 7
+#define REPAIR_NUM_MAX (REPAIR_LEVEL_MAX * FRAME_STEP + 2)
+#define LAST_FRAME_NUM(x) (x > REPAIR_LEVEL_MAX ? REPAIR_NUM_MAX : (x * FRAME_STEP + 2))
 
 #define WF_4BIT	16
 #define WF_5BIT	32
@@ -49,6 +53,7 @@ struct epd_lut_data {
 int epd_lut_from_mem_init(void *waveform);
 int epd_lut_from_file_init(struct device *dev, void *waveform, int size);
 const char *epd_lut_get_wf_version(void);
+int epd_lut_get_wf_bit(void);
 int epd_lut_get(struct epd_lut_data *output, enum epd_lut_type lut_type, int temperature, int pic, int wf_fix, int regal_pix);
 int epd_lut_get_original(struct epd_lut_data *output, enum epd_lut_type lut_type, int temperature, int pic);
 
@@ -61,6 +66,7 @@ int epd_overlay_lut(void);
 int pvi_wf_input(void *waveform_file);
 int pvi_wf_add_custom_mode_table(u8 *table, int size);
 const char *pvi_wf_get_version(void);
+int pvi_wf_get_wf_bit(void);
 int pvi_wf_get_lut(struct epd_lut_data *output, enum epd_lut_type lut_type, int temperature, int pic, int wf_fix, int regal_pix);
 int pvi_wf_get_original_lut(struct epd_lut_data *output, enum epd_lut_type lut_type, int temperature, int pic);
 
@@ -69,5 +75,6 @@ int pvi_wf_get_original_lut(struct epd_lut_data *output, enum epd_lut_type lut_t
  */
 int rkf_wf_input(void *waveform_file);
 const char *rkf_wf_get_version(void);
+int rkf_wf_get_wf_bit(void);
 int rkf_wf_get_lut(struct epd_lut_data *output, enum epd_lut_type lut_type, int temperature, int pic, int wf_fix, int regal_pix);
 #endif

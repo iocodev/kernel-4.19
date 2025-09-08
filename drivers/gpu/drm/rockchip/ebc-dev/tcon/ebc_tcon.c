@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/irq.h>
@@ -428,14 +429,15 @@ static int rk3576_tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 	enable_irq(tcon->irq);
 	tcon->panel = panel;
 
+	pinctrl_pm_select_default_state(tcon->dev);
+
 	return 0;
 }
 
 static void rk3576_tcon_disable(struct ebc_tcon *tcon)
 {
 	disable_irq(tcon->irq);
-	/* output low */
-	tcon_update_bits(tcon, RK3576_EBC_DSP_CTRL2, RK3576_DSP_OUT_LOW, RK3576_DSP_OUT_LOW);
+	pinctrl_pm_select_sleep_state(tcon->dev);
 
 	pm_runtime_put_sync(tcon->dev);
 	clk_disable_unprepare(tcon->dclk);

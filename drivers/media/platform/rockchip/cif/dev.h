@@ -232,6 +232,7 @@ struct rkcif_tools_buffer {
 };
 
 extern int rkcif_debug;
+extern bool rkcif_frm_toisp_protect;
 
 /*
  * struct rkcif_sensor_info - Sensor infomations
@@ -397,6 +398,8 @@ struct rkcif_irq_stats {
 	u64 frm_end_cnt[RKCIF_MAX_STREAM_MIPI];
 	u64 not_active_buf_cnt[RKCIF_MAX_STREAM_MIPI];
 	u64 trig_simult_cnt[RKCIF_MAX_STREAM_MIPI];
+	u64 bus0_err;
+	u64 bus1_err;
 	u64 all_err_cnt;
 };
 
@@ -478,12 +481,14 @@ enum rkcif_capture_mode {
 struct rkcif_rx_buffer {
 	int buf_idx;
 	struct list_head list;
+	struct list_head list_tool;
 	struct list_head list_free;
 	struct rkisp_rx_buf dbufs;
 	struct rkcif_dummy_buffer dummy;
 	struct rkisp_thunderboot_shmem shmem;
 	u64 fe_timestamp;
 	bool is_init[RKCIF_MAX_DEV];
+	int use_cnt;
 };
 
 enum rkcif_dma_en_mode {
@@ -1073,6 +1078,7 @@ struct rkcif_device {
 	u32				pre_buf_addr[MAX_PRE_BUF_NUM];
 	u64				pre_buf_timestamp[MAX_PRE_BUF_NUM];
 	u32				dvp_pin_group;
+	u32				unite_extend_pixel;
 	struct rkcif_switch_info	switch_info;
 };
 
@@ -1177,7 +1183,8 @@ void rkcif_free_buf_by_user_require(struct rkcif_device *dev);
 static inline u64 rkcif_time_get_ns(struct rkcif_device *dev)
 {
 	if (dev->chip_id == CHIP_RV1106_CIF ||
-	    dev->chip_id == CHIP_RV1103B_CIF)
+	    dev->chip_id == CHIP_RV1103B_CIF ||
+	    dev->chip_id == CHIP_RV1126B_CIF)
 		return ktime_get_boottime_ns();
 	else
 		return ktime_get_ns();
@@ -1201,4 +1208,5 @@ void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev);
 int rkcif_sensor_set_power(struct rkcif_stream *stream, int on);
 void rkcif_switch_change(struct rkcif_device *cif_dev, bool is_switch);
 
+void rkcif_update_unite_extend_pixel(struct rkcif_device *cif_dev);
 #endif

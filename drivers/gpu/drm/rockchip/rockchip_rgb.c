@@ -24,6 +24,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_self_refresh_helper.h>
 
 #include <uapi/linux/videodev2.h>
 
@@ -49,6 +50,8 @@
 
 #define RV1126B_GRF_VOP_LCDC_CON	0x30b9c
 #define RV1126B_VOP_MCU_SEL(v)		HIWORD_UPDATE(v, 15, 15)
+#define RV1126B_VOP_DCLK_DLL_NUM(v)	HIWORD_UPDATE(v, 8, 14)
+#define RV1126B_VOP_DCLK_DLL_SEL(v)	HIWORD_UPDATE(v, 1, 1)
 
 #define RK3288_GRF_SOC_CON6		0x025c
 #define RK3288_LVDS_LCDC_SEL(x)		HIWORD_UPDATE(x,  3,  3)
@@ -146,6 +149,7 @@ struct rockchip_rgb {
 	u8 id;
 	u32 max_dclk_rate;
 	u32 mcu_pix_total;
+	int data_map_mode;
 	struct device *dev;
 	struct device_node *np_mcu_panel;
 	struct drm_panel *panel;
@@ -393,6 +397,7 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 		break;
 	}
 
+	s->data_map_mode = rgb->data_map_mode;
 	s->output_type = DRM_MODE_CONNECTOR_DPI;
 	s->bus_flags = info->bus_flags;
 	s->tv_state = &conn_state->tv;
@@ -403,10 +408,9 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static int rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
-					       bool on)
+static int rockchip_rgb_encoder_loader_protect(struct rockchip_drm_sub_dev *sub_dev, bool on)
 {
-	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
+	struct rockchip_rgb *rgb = container_of(sub_dev, struct rockchip_rgb, sub_dev);
 
 	if (rgb->np_mcu_panel) {
 		struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(rgb->panel);
@@ -418,7 +422,7 @@ static int rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
 	}
 
 	if (rgb->panel)
-		panel_simple_loader_protect(rgb->panel);
+		rockchip_drm_panel_loader_protect(rgb->panel, on);
 
 	if (on) {
 		phy_init(rgb->phy);
@@ -913,6 +917,38 @@ static struct backlight_device *rockchip_mcu_panel_find_backlight(struct rockchi
 	return bd;
 }
 
+static void rockchip_rgb_drm_self_refresh_helper_init(struct rockchip_rgb *rgb)
+{
+	struct drm_encoder *encoder = &rgb->encoder;
+	struct drm_crtc *crtc;
+	int ret;
+
+	if (rgb->np_mcu_panel && rgb->support_psr) {
+		drm_for_each_crtc(crtc, encoder->dev) {
+			if (drm_encoder_crtc_ok(encoder, crtc)) {
+				ret = drm_self_refresh_helper_init(crtc);
+				if (ret)
+					dev_warn(rgb->dev,
+						 "Failed to init self refresh helper for crtc-%d\n",
+						 drm_crtc_index(crtc));
+			}
+		}
+	}
+}
+
+static void rockchip_rgb_drm_self_refresh_helper_cleanup(struct rockchip_rgb *rgb)
+{
+	struct drm_encoder *encoder = &rgb->encoder;
+	struct drm_crtc *crtc;
+
+	if (rgb->np_mcu_panel && rgb->support_psr) {
+		drm_for_each_crtc(crtc, encoder->dev) {
+			if (drm_encoder_crtc_ok(encoder, crtc))
+				drm_self_refresh_helper_cleanup(crtc);
+		}
+	}
+}
+
 static int rockchip_rgb_bind(struct device *dev, struct device *master,
 			     void *data)
 {
@@ -1018,6 +1054,8 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 		rockchip_drm_register_sub_dev(&rgb->sub_dev);
 	}
 
+	rockchip_rgb_drm_self_refresh_helper_init(rgb);
+
 	return 0;
 
 err_free_connector:
@@ -1031,6 +1069,8 @@ static void rockchip_rgb_unbind(struct device *dev, struct device *master,
 				void *data)
 {
 	struct rockchip_rgb *rgb = dev_get_drvdata(dev);
+
+	rockchip_rgb_drm_self_refresh_helper_cleanup(rgb);
 
 	if (rgb->sub_dev.connector)
 		rockchip_drm_unregister_sub_dev(&rgb->sub_dev);
@@ -1062,6 +1102,10 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 		id = 0;
 
 	rgb->data_sync_bypass = of_property_read_bool(dev->of_node, "rockchip,data-sync-bypass");
+	if (of_property_read_u32(dev->of_node, "rockchip,data-map-mode", &rgb->data_map_mode))
+		rgb->data_map_mode = -1;
+	if (rgb->data_map_mode < 0 || rgb->data_map_mode > 3)
+		rgb->data_map_mode = -1;
 
 	fwnode_mcu_panel = device_get_named_child_node(dev, "mcu-panel");
 	if (fwnode_mcu_panel) {
@@ -1247,6 +1291,14 @@ static const struct rockchip_rgb_data rv1126_rgb = {
 
 static void rv1126b_rgb_enable(struct rockchip_rgb *rgb)
 {
+	struct drm_crtc *crtc = rgb->encoder.crtc;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
+
+	if (s->output_if == VOP_OUTPUT_IF_BT1120 || s->output_if == VOP_OUTPUT_IF_BT656) {
+		regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON, RV1126B_VOP_DCLK_DLL_SEL(1));
+		regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON, RV1126B_VOP_DCLK_DLL_NUM(0x15));
+	}
+
 	regmap_write(rgb->grf, RV1126B_GRF_VOP_LCDC_CON,
 		     RV1126B_VOP_MCU_SEL(rgb->data_sync_bypass));
 }

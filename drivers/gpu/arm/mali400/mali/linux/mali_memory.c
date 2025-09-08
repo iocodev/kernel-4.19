@@ -210,14 +210,11 @@ int mali_mmap(struct file *filp, struct vm_area_struct *vma)
 		 * that it's present and can never be paged out (see also previous
 		 * entry)
 		 */
-		vm_flags_set(vma, VM_IO);
-		vm_flags_set(vma, VM_DONTCOPY);
-		vm_flags_set(vma, VM_PFNMAP);
+		vm_flags_set(vma, VM_IO | VM_DONTCOPY | VM_PFNMAP);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
 		vma->vm_flags |= VM_RESERVED;
 #else
-		vm_flags_set(vma, VM_DONTDUMP);
-		vm_flags_set(vma, VM_DONTEXPAND);
+		vm_flags_set(vma, VM_DONTDUMP | VM_DONTEXPAND);
 #endif
 	} else if (MALI_MEM_SWAP == mali_alloc->type) {
 		vma->vm_pgoff = mem_bkend->start_idx;

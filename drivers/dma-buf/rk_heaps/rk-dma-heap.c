@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 #include <uapi/linux/rk-dma-heap.h>
+#include <linux/vmalloc.h>
 
 #include "rk-dma-heap.h"
 
@@ -66,8 +67,6 @@ void *rk_vmap_contig_pfn(unsigned long pfn, unsigned int count, pgprot_t prot)
 
 int rk_dma_heap_set_dev(struct device *heap_dev)
 {
-	int err = 0;
-
 	if (!heap_dev)
 		return -EINVAL;
 
@@ -80,12 +79,7 @@ int rk_dma_heap_set_dev(struct device *heap_dev)
 		if (!heap_dev->dma_parms)
 			return -ENOMEM;
 
-		err = dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
-		if (err) {
-			devm_kfree(heap_dev, heap_dev->dma_parms);
-			dev_err(heap_dev, "Failed to set DMA segment size, err:%d\n", err);
-			return err;
-		}
+		dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
 	}
 
 	return 0;
@@ -477,7 +471,7 @@ err0:
 	return err_ret;
 }
 
-static char *rk_dma_heap_devnode(struct device *dev, umode_t *mode)
+static char *rk_dma_heap_devnode(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "rk_dma_heap/%s", dev_name(dev));
 }

@@ -530,13 +530,7 @@ static int panel_simple_loader_protect(struct rockchip_drm_sub_dev *sub_dev, boo
 			dev_err(p->base.dev, "failed to enable supply: %d\n", err);
 			return err;
 		}
-
-		p->prepared = true;
-		p->enabled = true;
 	} else {
-		p->enabled = false;
-		p->prepared = false;
-
 		panel_simple_regulator_disable(p);
 	}
 

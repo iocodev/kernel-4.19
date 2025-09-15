@@ -60,7 +60,8 @@ int epd_lut_get_original(struct epd_lut_data *output, enum epd_lut_type lut_type
 //you can change overlay lut mode here
 int epd_overlay_lut(void);
 int epd_gray2_last_repair(u8 *wf_table);
-int epd_overlay_gray2_repair(u8 *wf_table);
+int epd_overlay_gray2_repair(u8 *wf_table, int frame_num);
+int epd_regal_repair(u8 *wf_table, int frame_num);
 
 /*
  * PVI Waveform Interfaces

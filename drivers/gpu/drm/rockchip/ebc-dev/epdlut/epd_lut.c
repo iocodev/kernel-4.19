@@ -106,7 +106,14 @@ int epd_gray2_last_repair(u8 *wf_table)
 
 //return value
 //0 : no modify  1: modify by customer
-int epd_overlay_gray2_repair(u8 *wf_table)
+int epd_overlay_gray2_repair(u8 *wf_table, int frame_num)
+{
+	return 0;
+}
+
+//return value
+//0 : no modify  1: modify by customer
+int epd_regal_repair(u8 *wf_table, int frame_num)
 {
 	return 0;
 }

@@ -997,6 +997,7 @@ rkf_wf_get_lut:
 	cmp	w19, w7
 	bne	.L241
 .L222:
+	mov	w1, w19
 	mov	x0, x21
 	bl	epd_overlay_gray2_repair
 	cbnz	w0, .L216
@@ -1048,22 +1049,25 @@ rkf_wf_get_lut:
 	mov	w0, -12
 	b	.L169
 .L273:
-	ldr	x4, [x25, 16]
+	ldr	x23, [x25, 16]
+	mov	w1, w24
+	mov	x0, x23
+	bl	epd_regal_repair
+	cbnz	w0, .L182
 	cbz	w24, .L182
-	mov	w3, 0
 .L200:
-	lsl	w2, w3, 10
-	add	x2, x4, x2, sxtw
-	add	x0, x2, 29
+	lsl	w2, w0, 10
+	add	x2, x23, x2, sxtw
+	add	x1, x2, 93
 	add	x2, x2, 989
 .L199:
-	ldrb	w1, [x0, 1]
-	strb	w1, [x0, 2]
-	strb	w1, [x0], 64
-	cmp	x2, x0
+	ldrb	w3, [x1, 1]
+	strb	w3, [x1, 2]
+	strb	w3, [x1], 64
+	cmp	x2, x1
 	bne	.L199
-	add	w3, w3, 1
-	cmp	w24, w3
+	add	w0, w0, 1
+	cmp	w24, w0
 	bne	.L200
 	b	.L182
 .L225:
@@ -1087,13 +1091,13 @@ maxpic:
 	.size	need_pic, 4
 need_pic:
 	.word	16
-	.type	sftemp.17189, %object
-	.size	sftemp.17189, 4
-sftemp.17189:
+	.type	sftemp.17193, %object
+	.size	sftemp.17193, 4
+sftemp.17193:
 	.word	-1
-	.type	stype.17188, %object
-	.size	stype.17188, 4
-stype.17188:
+	.type	stype.17192, %object
+	.size	stype.17192, 4
+stype.17192:
 	.word	16
 	.bss
 	.align	3

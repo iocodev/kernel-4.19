@@ -102,7 +102,7 @@ static int sy7636a_get_status(struct regulator_dev *rdev)
 	return 0;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 static int sy7636a_set_suspend_disable(struct regulator_dev *rdev)
 {
 	DECLARE_BITMAP(values, SY7636A_MAX_ENABLE_GPIO_NUM);
@@ -166,7 +166,7 @@ static int sy7636a_set_suspend_disable(struct regulator_dev *rdev)
 }
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 static int sy7636a_resume(struct regulator_dev *rdev)
 {
 	DECLARE_BITMAP(values, SY7636A_MAX_ENABLE_GPIO_NUM);

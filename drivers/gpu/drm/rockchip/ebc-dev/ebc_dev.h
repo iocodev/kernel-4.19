@@ -145,4 +145,6 @@ enum ebc_debug_level {
 };
 
 int ebc_get_init_log_level(void);
+int ebc_overlay_enable_control(void);
+int ebc_overlay_enable_timeout_ms(void);
 #endif

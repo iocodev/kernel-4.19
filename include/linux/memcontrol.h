@@ -10,6 +10,7 @@
 
 #ifndef _LINUX_MEMCONTROL_H
 #define _LINUX_MEMCONTROL_H
+#include <linux/android_kabi.h>
 #include <linux/cgroup.h>
 #include <linux/vm_event_item.h>
 #include <linux/hardirq.h>
@@ -113,6 +114,8 @@ struct mem_cgroup_per_node {
 	CACHELINE_PADDING(_pad2_);
 	unsigned long		lru_zone_size[MAX_NR_ZONES][NR_LRU_LISTS];
 	struct mem_cgroup_reclaim_iter	iter;
+
+	ANDROID_BACKPORT_RESERVE(1);
 };
 
 struct mem_cgroup_threshold {
@@ -323,7 +326,8 @@ struct mem_cgroup {
 	spinlock_t event_list_lock;
 #endif /* CONFIG_MEMCG_V1 */
 
-	ANDROID_OEM_DATA(1);
+	ANDROID_BACKPORT_RESERVE(1);
+	ANDROID_OEM_DATA_ARRAY(1, 2);
 
 	struct mem_cgroup_per_node *nodeinfo[];
 };
@@ -366,6 +370,16 @@ enum objext_flags {
 #ifdef CONFIG_MEMCG
 
 static inline bool folio_memcg_kmem(struct folio *folio);
+
+void do_traversal_all_lruvec(int (*callback)(struct mem_cgroup *memcg,
+					     struct lruvec *lruvec,
+					     void *private),
+			     void *private);
+
+int mem_cgroup_move_account(struct folio *folio,
+			    bool compound,
+			    struct mem_cgroup *from,
+			    struct mem_cgroup *to);
 
 /*
  * After the initialization objcg->memcg is always pointing at
@@ -1096,6 +1110,7 @@ static inline void memcg_memory_event_mm(struct mm_struct *mm,
 
 void split_page_memcg(struct page *head, int old_order, int new_order);
 
+extern int mem_cgroup_init(void);
 #else /* CONFIG_MEMCG */
 
 #define MEM_CGROUP_ID_SHIFT	0
@@ -1134,6 +1149,14 @@ static inline bool folio_memcg_kmem(struct folio *folio)
 static inline bool PageMemcgKmem(struct page *page)
 {
 	return false;
+}
+
+static inline int mem_cgroup_move_account(struct folio *folio,
+					  bool compound,
+					  struct mem_cgroup *from,
+					  struct mem_cgroup *to)
+{
+	return 0;
 }
 
 static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
@@ -1513,6 +1536,8 @@ void count_memcg_event_mm(struct mm_struct *mm, enum vm_event_item idx)
 static inline void split_page_memcg(struct page *head, int old_order, int new_order)
 {
 }
+
+static inline int mem_cgroup_init(void) { return 0; }
 #endif /* CONFIG_MEMCG */
 
 /*

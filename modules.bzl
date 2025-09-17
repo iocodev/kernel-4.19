@@ -98,6 +98,7 @@ _ARM_GKI_MODULES_LIST = [
 _ARM64_GKI_MODULES_LIST = [
     # keep sorted
     "arch/arm64/geniezone/gzvm.ko",
+    "drivers/android/rust_binder.ko",
     "drivers/char/hw_random/cctrng.ko",
     "drivers/misc/open-dice.ko",
     "drivers/ptp/ptp_kvm.ko",
@@ -110,6 +111,7 @@ _X86_GKI_MODULES_LIST = [
 
 _X86_64_GKI_MODULES_LIST = [
     # keep sorted
+    "drivers/android/rust_binder.ko",
     "drivers/ptp/ptp_kvm.ko",
 ]
 
@@ -201,7 +203,10 @@ def get_kunit_modules_list(arch = None):
 
     return kunit_modules_list
 
-_COMMON_UNPROTECTED_MODULES_LIST = []
+_COMMON_UNPROTECTED_MODULES_LIST = [
+    "drivers/block/zram/zram.ko",
+    "mm/zsmalloc.ko",
+]
 
 # buildifier: disable=unnamed-macro
 def get_gki_protected_modules_list(arch = None):

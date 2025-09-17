@@ -145,6 +145,8 @@ static inline bool mapping_empty(struct address_space *mapping)
 	return xa_empty(&mapping->i_pages);
 }
 
+extern void _trace_android_rvh_mapping_shrinkable(bool *shrinkable);
+
 /*
  * mapping_shrinkable - test if page cache state allows inode reclaim
  * @mapping: the page cache mapping
@@ -169,7 +171,11 @@ static inline bool mapping_empty(struct address_space *mapping)
 static inline bool mapping_shrinkable(struct address_space *mapping)
 {
 	void *head;
+	bool shrinkable = false;
 
+	_trace_android_rvh_mapping_shrinkable(&shrinkable);
+	if (shrinkable)
+		return true;
 	/*
 	 * On highmem systems, there could be lowmem pressure from the
 	 * inodes before there is highmem pressure from the page
@@ -677,10 +683,12 @@ static inline struct page *__page_cache_alloc(gfp_t gfp)
 	return &filemap_alloc_folio(gfp, 0)->page;
 }
 
-static inline gfp_t readahead_gfp_mask(struct address_space *x)
+static inline gfp_t __readahead_gfp_mask(struct address_space *x)
 {
 	return mapping_gfp_mask(x) | __GFP_NORETRY | __GFP_NOWARN;
 }
+
+gfp_t readahead_gfp_mask(struct address_space *x);
 
 typedef int filler_t(struct file *, struct folio *);
 
@@ -1352,6 +1360,7 @@ struct readahead_control {
 	unsigned int _batch_count;
 	bool _workingset;
 	unsigned long _pflags;
+	ANDROID_OEM_DATA(1);
 };
 
 #define DEFINE_READAHEAD(ractl, f, r, m, i)				\

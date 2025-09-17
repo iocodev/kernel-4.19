@@ -6,16 +6,18 @@
 //! usage by Rust code in the kernel and is shared by all of them.
 //!
 //! In other words, all the rest of the Rust code in the kernel (e.g. kernel
-//! modules written in Rust) depends on [`core`], [`alloc`] and this crate.
+//! modules written in Rust) depends on [`core`] and this crate.
 //!
 //! If you need a kernel C API that is not ported or wrapped yet here, then
 //! do so first instead of bypassing this crate.
 
 #![no_std]
 #![feature(arbitrary_self_types)]
+#![feature(asm_goto)]
 #![feature(coerce_unsized)]
 #![feature(dispatch_from_dyn)]
-#![feature(new_uninit)]
+#![feature(inline_const)]
+#![feature(lint_reasons)]
 #![feature(unsize)]
 
 // Ensure conditional compilation based on the kernel configuration works;
@@ -25,6 +27,8 @@ compile_error!("Missing kernel configuration for conditional compilation");
 
 // Allow proc-macros to refer to `::kernel` inside the `kernel` crate (this crate).
 extern crate self as kernel;
+
+pub use ffi;
 
 pub mod alloc;
 #[cfg(CONFIG_BLOCK)]
@@ -47,6 +51,8 @@ pub mod mm;
 #[cfg(CONFIG_NET)]
 pub mod net;
 pub mod page;
+pub mod page_size_compat;
+pub mod pid_namespace;
 pub mod prelude;
 pub mod print;
 pub mod rbtree;

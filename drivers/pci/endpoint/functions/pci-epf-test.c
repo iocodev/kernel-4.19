@@ -617,7 +617,7 @@ static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test,
 	case IRQ_TYPE_MSIX:
 		count = pci_epc_get_msix(epc, epf->func_no, epf->vfunc_no);
 		if (reg->irq_number > count || count <= 0) {
-			dev_err(dev, "Invalid MSIX IRQ number %d / %d\n",
+			dev_err(dev, "Invalid MSI-X IRQ number %d / %d\n",
 				reg->irq_number, count);
 			return;
 		}
@@ -703,6 +703,7 @@ static int pci_epf_test_set_bar(struct pci_epf *epf)
 		if (ret) {
 			pci_epf_free_space(epf, epf_test->reg[bar], bar,
 					   PRIMARY_INTERFACE);
+			epf_test->reg[bar] = NULL;
 			dev_err(dev, "Failed to set BAR%d\n", bar);
 			if (bar == test_reg_bar)
 				return ret;
@@ -878,6 +879,7 @@ static void pci_epf_test_free_space(struct pci_epf *epf)
 
 		pci_epf_free_space(epf, epf_test->reg[bar], bar,
 				   PRIMARY_INTERFACE);
+		epf_test->reg[bar] = NULL;
 	}
 }
 

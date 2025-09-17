@@ -4,7 +4,6 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("@kernel_toolchain_info//:dict.bzl", "BRANCH")
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_pkg//pkg:install.bzl", "pkg_install")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_filegroup", "pkg_files", "strip_prefix")
@@ -102,9 +101,12 @@ write_file(
 )
 
 write_file(
-    name = "gki_aarch64_protected_modules",
-    out = "gki/aarch64/protected_modules",
-    content = get_gki_protected_modules_list("arm64") + [
+    name = "gki_aarch64_protected_module_names",
+    out = "gki/aarch64/protected_module_names",
+    content = [
+        module.removesuffix(".ko")
+        for module in get_gki_protected_modules_list("arm64")
+    ] + [
         "",  # Ensure new line at the end.
     ],
 )
@@ -120,9 +122,12 @@ write_file(
 )
 
 write_file(
-    name = "gki_x86_64_protected_modules",
-    out = "gki/x86_64/protected_modules",
-    content = get_gki_protected_modules_list("x86_64") + [
+    name = "gki_x86_64_protected_module_names",
+    out = "gki/x86_64/protected_module_names",
+    content = [
+        module.removesuffix(".ko")
+        for module in get_gki_protected_modules_list("x86_64")
+    ] + [
         "",  # Ensure new line at the end.
     ],
 )
@@ -164,6 +169,9 @@ filegroup(
             # cscope files
             "cscope.*",
             "ncscope.*",
+
+            # ABI and symbol list files
+            "gki/**",
         ],
     ),
     visibility = ["//visibility:public"],
@@ -173,17 +181,37 @@ filegroup(
     name = "aarch64_additional_kmi_symbol_lists",
     srcs = [
         # keep sorted
+        "gki/aarch64/symbols/allwinner",
+        "gki/aarch64/symbols/amlogic",
+        "gki/aarch64/symbols/asr",
+        "gki/aarch64/symbols/bcmstb",
         "gki/aarch64/symbols/db845c",
+        "gki/aarch64/symbols/desktop",
+        "gki/aarch64/symbols/exynos",
         "gki/aarch64/symbols/exynosauto",
         "gki/aarch64/symbols/fips140",
         "gki/aarch64/symbols/galaxy",
+        "gki/aarch64/symbols/honor",
         "gki/aarch64/symbols/imx",
+        "gki/aarch64/symbols/lenovo",
+        "gki/aarch64/symbols/meizu",
+        "gki/aarch64/symbols/mtk",
+        "gki/aarch64/symbols/mtktv",
         "gki/aarch64/symbols/oplus",
         "gki/aarch64/symbols/pixel",
+        "gki/aarch64/symbols/pixel_watch",
         "gki/aarch64/symbols/qcom",
+        "gki/aarch64/symbols/rtkstb",
+        "gki/aarch64/symbols/rtktv",
+        "gki/aarch64/symbols/tcl",
+        "gki/aarch64/symbols/transsion",
         "gki/aarch64/symbols/trusty",
+        "gki/aarch64/symbols/tuxera",
+        "gki/aarch64/symbols/type_visibility",
         "gki/aarch64/symbols/unisoc",
         "gki/aarch64/symbols/virtual_device",
+        "gki/aarch64/symbols/vivo",
+        "gki/aarch64/symbols/xiaomi",
     ],
     visibility = ["//visibility:public"],
 )
@@ -235,8 +263,7 @@ common_kernel(
     make_goals = _GKI_AARCH64_MAKE_GOALS,
     makefile = ":Makefile",
     module_implicit_outs = get_gki_modules_list("arm64") + get_kunit_modules_list("arm64"),
-    protected_exports_list = "gki/aarch64/protected_exports",
-    protected_modules_list = ":gki_aarch64_protected_modules",
+    protected_module_names_list = ":gki_aarch64_protected_module_names",
     system_dlkm_extra_archive_files = [":generate_gki_module_info_arm64"],
     trim_nonlisted_kmi = True,
     visibility = ["//visibility:public"],
@@ -245,6 +272,7 @@ common_kernel(
 common_kernel(
     name = "kernel_aarch64_16k",
     outs = DEFAULT_GKI_OUTS,
+    additional_kmi_symbol_lists = [":aarch64_additional_kmi_symbol_lists"],
     arch = "arm64",
     build_gki_artifacts = True,
     ddk_headers_archive = ":kernel_aarch64_ddk_headers_archive",
@@ -257,11 +285,45 @@ common_kernel(
     gki_boot_img_sizes = _GKI_AARCH64_BOOT_IMAGE_SIZES,
     gki_system_dlkm_modules = ":gki_system_dlkm_modules_arm64",
     kcflags = COMMON_KCFLAGS,
+    # We don't guarantee ABI stability for 16k target
+    kmi_enforced = False,
+    kmi_symbol_list = "gki/aarch64/symbols/base",
+    kmi_symbol_list_strict_mode = True,
     make_goals = _GKI_AARCH64_MAKE_GOALS,
     makefile = ":Makefile",
     module_implicit_outs = get_gki_modules_list("arm64") + get_kunit_modules_list("arm64"),
     page_size = "16k",
+    protected_module_names_list = ":gki_aarch64_protected_module_names",
     system_dlkm_extra_archive_files = [":generate_gki_module_info_arm64"],
+    trim_nonlisted_kmi = True,
+    visibility = ["//visibility:public"],
+)
+
+common_kernel(
+    name = "kernel_aarch64_tv",
+    outs = DEFAULT_GKI_OUTS,
+    additional_kmi_symbol_lists = [":aarch64_additional_kmi_symbol_lists"],
+    arch = "arm64",
+    build_gki_artifacts = True,
+    check_defconfig = "disabled",
+    ddk_headers_archive = ":kernel_aarch64_ddk_headers_archive",
+    ddk_module_headers = [":all_headers_aarch64"],
+    defconfig = "arch/arm64/configs/gki_defconfig",
+    extra_dist = [],
+    gki_boot_img_sizes = _GKI_AARCH64_BOOT_IMAGE_SIZES,
+    gki_system_dlkm_modules = ":gki_system_dlkm_modules_arm64",
+    kcflags = COMMON_KCFLAGS,
+    # We don't guarantee ABI stability for TV target
+    kmi_enforced = False,
+    kmi_symbol_list = "gki/aarch64/symbols/base",
+    kmi_symbol_list_strict_mode = False,
+    make_goals = _GKI_AARCH64_MAKE_GOALS,
+    makefile = ":Makefile",
+    module_implicit_outs = get_gki_modules_list("arm64") + get_kunit_modules_list("arm64"),
+    pre_defconfig_fragments = ["arch/arm64/configs/tv_gki.fragment"],
+    protected_module_names_list = ":gki_aarch64_protected_module_names",
+    system_dlkm_extra_archive_files = [":generate_gki_module_info_arm64"],
+    trim_nonlisted_kmi = True,
     visibility = ["//visibility:public"],
 )
 
@@ -275,32 +337,12 @@ Consider building @@//common:kernel_aarch64 with:
 )
 
 common_kernel(
-    name = "kernel_aarch64_interceptor",
-    outs = DEFAULT_GKI_OUTS,
-    arch = "arm64",
-    ddk_headers_archive = ":kernel_aarch64_ddk_headers_archive",
-    ddk_module_headers = [":all_headers_aarch64"],
-    defconfig = "arch/arm64/configs/gki_defconfig",
-    enable_interceptor = True,
-    extra_dist = [
-        ":test_mappings_zip",
-        ":tests_zip_arm64",
-    ],
-    gki_system_dlkm_modules = ":gki_system_dlkm_modules_arm64",
-    kcflags = COMMON_KCFLAGS,
-    make_goals = _GKI_AARCH64_MAKE_GOALS,
-    makefile = ":Makefile",
-    module_implicit_outs = get_gki_modules_list("arm64") + get_kunit_modules_list("arm64"),
-    system_dlkm_extra_archive_files = [":generate_gki_module_info_arm64"],
-    visibility = ["//visibility:public"],
-)
-
-common_kernel(
     name = "kernel_aarch64_autofdo",
     outs = DEFAULT_GKI_OUTS,
+    additional_kmi_symbol_lists = [":aarch64_additional_kmi_symbol_lists"],
     arch = "arm64",
     build_gki_artifacts = True,
-    clang_autofdo_profile = "//toolchain/pgo-profiles/kernel:aarch64/" + BRANCH + "/kernel.afdo",
+    clang_autofdo_profile = ":gki/aarch64/afdo/kernel.afdo",
     ddk_headers_archive = ":kernel_aarch64_ddk_headers_archive",
     ddk_module_headers = [":all_headers_aarch64"],
     defconfig = "arch/arm64/configs/gki_defconfig",
@@ -310,9 +352,17 @@ common_kernel(
     ],
     gki_boot_img_sizes = _GKI_AARCH64_BOOT_IMAGE_SIZES,
     gki_system_dlkm_modules = ":gki_system_dlkm_modules_arm64",
+    kcflags = COMMON_KCFLAGS,
+    # We don't guarantee ABI stability for AutoFDO target
+    kmi_enforced = False,
+    kmi_symbol_list = "gki/aarch64/symbols/base",
+    kmi_symbol_list_strict_mode = True,
     make_goals = _GKI_AARCH64_MAKE_GOALS,
     makefile = ":Makefile",
     module_implicit_outs = get_gki_modules_list("arm64") + get_kunit_modules_list("arm64"),
+    protected_module_names_list = ":gki_aarch64_protected_module_names",
+    system_dlkm_extra_archive_files = [":generate_gki_module_info_arm64"],
+    trim_nonlisted_kmi = True,
     visibility = ["//visibility:public"],
 )
 
@@ -693,8 +743,8 @@ _DB845C_MODULE_OUTS = [
     "drivers/net/wireless/ath/ath11k/ath11k_pci.ko",
     "drivers/net/wireless/ath/ath12k/ath12k.ko",
     "drivers/nvmem/nvmem_qfprom.ko",
-    "drivers/pci/pwrctl/pci-pwrctl-core.ko",
-    "drivers/pci/pwrctl/pci-pwrctl-pwrseq.ko",
+    "drivers/pci/pwrctrl/pci-pwrctrl-core.ko",
+    "drivers/pci/pwrctrl/pci-pwrctrl-pwrseq.ko",
     "drivers/phy/qualcomm/phy-qcom-eusb2-repeater.ko",
     "drivers/phy/qualcomm/phy-qcom-qmp-combo.ko",
     "drivers/phy/qualcomm/phy-qcom-qmp-pcie.ko",
@@ -953,6 +1003,7 @@ pkg_files(
         ":kernel_aarch64",
         ":kernel_aarch64_modules",
         ":kernel_aarch64_additional_artifacts",
+        ":tests_zip_arm64",
     ],
     strip_prefix = strip_prefix.files_only(),
     visibility = ["//visibility:private"],
@@ -1413,6 +1464,7 @@ kernel_build(
     makefile = ":Makefile",
     module_outs = ["crypto/fips140.ko"],
     post_defconfig_fragments = ["arch/arm64/configs/fips140_gki.fragment"],
+    strip_modules = True,
 )
 
 kernel_abi(
@@ -1454,7 +1506,7 @@ kernel_build(
         "modules",
     ],
     makefile = ":Makefile",
-    post_defconfig_fragments = [":gki/aarch64/defconfig/allmodconfig"],
+    post_defconfig_fragments = ["arch/arm64/configs/allmodconfig.fragment"],
     visibility = ["//visibility:private"],
 )
 
@@ -1472,7 +1524,7 @@ kernel_build(
         "modules",
     ],
     makefile = ":Makefile",
-    post_defconfig_fragments = [":gki/x86_64/defconfig/allmodconfig"],
+    post_defconfig_fragments = ["arch/x86/configs/allmodconfig.fragment"],
     visibility = ["//visibility:private"],
 )
 
@@ -1500,7 +1552,7 @@ kernel_build(
         "modules",
     ],
     makefile = ":Makefile",
-    post_defconfig_fragments = [":gki/arm/defconfig/allmodconfig"],
+    post_defconfig_fragments = ["arch/arm/configs/allmodconfig.fragment"],
     visibility = ["//visibility:private"],
 )
 
@@ -1631,6 +1683,26 @@ ddk_headers(
 # Implementation details for DDK headers. The targets below cannot be directly
 # depended on by DDK modules.
 
+# Headers for building pKVM modules. They are for pKVM only so not added to
+# all_headers_aarch64.
+ddk_headers(
+    name = "pkvm_headers_aarch64",
+    hdrs = [
+        "arch/arm64/kvm/hyp/include/module/nvhe/define_events.h",
+        "arch/arm64/kvm/hyp/include/module/nvhe/trace.h",
+        "arch/arm64/kvm/hyp/include/nvhe/iommu.h",
+        "arch/arm64/kvm/hyp/include/nvhe/spinlock.h",
+        "arch/arm64/kvm/hyp/include/nvhe/trap_handler.h",
+    ],
+    includes = [
+        # LINT.IfChange(pkvm_includes)
+        "arch/arm64/kvm/hyp/include/module",
+        # LINT.ThenChange(/arch/arm64/kvm/hyp/nvhe/Makefile.module:includes)
+        "arch/arm64/kvm/hyp/include",
+    ],
+    visibility = ["//visibility:private"],
+)
+
 # Headers needed to include drivers/usb/host/xhci.h.
 ddk_headers(
     name = "xhci_headers",
@@ -1656,16 +1728,24 @@ ddk_headers(
 ddk_headers(
     name = "all_headers_allowlist_aarch64",
     hdrs = [
+        "drivers/dma/dmaengine.h",
         "drivers/extcon/extcon.h",
+        "drivers/pci/controller/dwc/pcie-designware.h",
+        "drivers/pci/pci.h",
         "drivers/thermal/thermal_core.h",
         "drivers/thermal/thermal_debugfs.h",
         "drivers/thermal/thermal_netlink.h",
         "drivers/thermal/thermal_thresholds.h",
+        "drivers/ufs/core/ufshcd-crypto.h",
+        "drivers/ufs/core/ufshcd-priv.h",
+        "drivers/ufs/host/ufshcd-pltfrm.h",
         "drivers/usb/dwc3/core.h",
         "sound/usb/card.h",
         "sound/usb/usbaudio.h",
         ":all_headers_allowlist_aarch64_globs",
         ":all_headers_allowlist_common_globs",
+        ":all_headers_allowlist_exynos",
+        ":pkvm_headers_aarch64",
         ":xhci_headers",
     ],
     # The list of include directories where source files can #include headers
@@ -1674,8 +1754,12 @@ ddk_headers(
     linux_includes = [
         "arch/arm64/include",
         "arch/arm64/include/uapi",
+        "drivers/dma",
         "drivers/extcon",
+        "drivers/pci",
+        "drivers/pci/controller/dwc",
         "drivers/thermal",
+        "drivers/ufs",
         "drivers/usb",
         "sound/usb",
         "include",
@@ -1765,6 +1849,7 @@ ddk_headers(
     hdrs = [
         "drivers/devfreq/governor.h",
         "drivers/pinctrl/core.h",
+        "drivers/ufs/core/ufshcd-priv.h",
         "drivers/ufs/host/ufshcd-pltfrm.h",
         "drivers/usb/dwc3/core.h",
         "drivers/usb/dwc3/debug.h",
@@ -1790,11 +1875,30 @@ ddk_headers(
         ".",
         "drivers/devfreq",
         "drivers/pinctrl",
+        "drivers/ufs/core",
         "drivers/ufs/host",
         "drivers/usb/dwc3",
         "drivers/usb/gadget",
         "drivers/usb/gadget/function",
         "drivers/usb/host",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+ddk_headers(
+    name = "all_headers_allowlist_exynos",
+    hdrs = [
+        "drivers/android/binder_alloc.h",
+        "drivers/android/binder_internal.h",
+        "drivers/android/binder_trace.h",
+        "drivers/android/dbitmap.h",
+        "kernel/sched/cpudeadline.h",
+        "kernel/sched/cpupri.h",
+        "kernel/sched/ext.h",
+        "kernel/sched/features.h",
+        "kernel/sched/sched.h",
+        "kernel/sched/stats.h",
+        "kernel/workqueue_internal.h",
     ],
     visibility = ["//visibility:private"],
 )

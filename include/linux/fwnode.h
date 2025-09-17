@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/types.h>
+#include <linux/android_kabi.h>
 
 enum dev_dma_attr {
 	DEV_DMA_NOT_SUPPORTED,
@@ -53,6 +54,7 @@ struct fwnode_handle {
 	struct list_head suppliers;
 	struct list_head consumers;
 	u8 flags;
+	ANDROID_KABI_RESERVE(1);
 };
 
 /*
@@ -70,6 +72,9 @@ struct fwnode_link {
 	struct fwnode_handle *consumer;
 	struct list_head c_hook;
 	u8 flags;
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
 };
 
 /**
@@ -91,7 +96,7 @@ struct fwnode_endpoint {
 #define SWNODE_GRAPH_PORT_NAME_FMT		"port@%u"
 #define SWNODE_GRAPH_ENDPOINT_NAME_FMT		"endpoint@%u"
 
-#define NR_FWNODE_REFERENCE_ARGS	8
+#define NR_FWNODE_REFERENCE_ARGS	16
 
 /**
  * struct fwnode_reference_args - Fwnode reference with additional arguments

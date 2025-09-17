@@ -8,6 +8,7 @@
 #include <linux/gunyah.h>
 #include <linux/notifier.h>
 #include <linux/types.h>
+#include <linux/android_kabi.h>
 
 #define GUNYAH_VMID_INVAL U16_MAX
 #define GUNYAH_MEM_HANDLE_INVAL U32_MAX
@@ -48,8 +49,10 @@ enum gunyah_rm_vm_status {
 	GUNYAH_RM_VM_STATUS_EXITED		= 9,
 	GUNYAH_RM_VM_STATUS_RESETTING		= 10,
 	GUNYAH_RM_VM_STATUS_RESET		= 11,
+	GUNYAH_RM_VM_STATUS_RESET_FAILED	= 12,
 	/* clang-format on */
 };
+ANDROID_KABI_ENUMERATOR_IGNORE(gunyah_rm_vm_status, GUNYAH_RM_VM_STATUS_RESET_FAILED);
 
 struct gunyah_rm_vm_status_payload {
 	__le16 vmid;
@@ -74,11 +77,20 @@ int gunyah_rm_vm_stop(struct gunyah_rm *rm, u16 vmid);
 enum gunyah_rm_vm_auth_mechanism {
 	/* clang-format off */
 	GUNYAH_RM_VM_AUTH_NONE			= 0,
-	GUNYAH_RM_VM_AUTH_QCOM_PIL_ELF		= 1,
+	GUNYAH_RM_VM_AUTH_QCOM_TRUSTED_VM	= 1,
 	GUNYAH_RM_VM_AUTH_QCOM_ANDROID_PVM	= 2,
 	/* clang-format on */
 };
 
+#define GUNYAH_VM_AUTH_PARAM_PAS_ID		0
+struct gunyah_rm_vm_authenticate_param_entry {
+	u32 param_type;
+	u32 param;
+} __packed;
+
+int gunyah_rm_vm_authenticate(struct gunyah_rm *rm, u16 vmid,
+			   ssize_t n_entries,
+			   struct gunyah_rm_vm_authenticate_param_entry *entry);
 int gunyah_rm_vm_configure(struct gunyah_rm *rm, u16 vmid,
 			   enum gunyah_rm_vm_auth_mechanism auth_mechanism,
 			   u32 mem_handle, u64 image_offset, u64 image_size,

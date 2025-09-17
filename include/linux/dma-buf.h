@@ -13,6 +13,7 @@
 #ifndef __DMA_BUF_H__
 #define __DMA_BUF_H__
 
+#include <linux/android_kabi.h>
 #include <linux/iosys-map.h>
 #include <linux/file.h>
 #include <linux/err.h>
@@ -23,6 +24,7 @@
 #include <linux/dma-fence.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/android_kabi.h>
 
 struct device;
 struct dma_buf;
@@ -357,6 +359,9 @@ struct dma_buf_ops {
 	 * will be populated with the buffer's flags.
 	 */
 	int (*get_flags)(struct dma_buf *dmabuf, unsigned long *flags);
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 #ifdef CONFIG_DMABUF_CACHE
@@ -550,6 +555,10 @@ struct dma_buf {
 	void *dtor_data;
 	struct mutex cache_lock;
 #endif
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_BACKPORT_RESERVE(1);
 };
 
 /**
@@ -585,6 +594,8 @@ struct dma_buf_attach_ops {
 	 * point to the new location of the DMA-buf.
 	 */
 	void (*move_notify)(struct dma_buf_attachment *attach);
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -622,6 +633,9 @@ struct dma_buf_attachment {
 	void *importer_priv;
 	void *priv;
 	unsigned long dma_map_attrs;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 /**
@@ -645,11 +659,14 @@ struct dma_buf_export_info {
 	int flags;
 	struct dma_resv *resv;
 	void *priv;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
 };
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
-extern struct list_head debugfs_list;
-extern struct mutex debugfs_list_mutex;
+int get_dmabuf_debugfs_data(int (*fn)(const struct dma_buf *, void *),
+			void *private);
 #endif
 
 /**

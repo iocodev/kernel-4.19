@@ -646,7 +646,7 @@ static void rockchip_iodomain_dump(const struct platform_device *pdev,
 	struct device *dev = iod->dev;
 	struct regulator_dev *r = NULL;
 
-	r = of_regulator_dev_lookup(dev, name);
+	r = of_regulator_dev_lookup(dev, dev_of_node(dev), name);
 	if (!IS_ERR_OR_NULL(r))
 		dev_info(&pdev->dev, "%s(%d uV) supplied by %s\n",
 			 name, regulator_get_voltage(supply->reg),

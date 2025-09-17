@@ -523,7 +523,7 @@ static struct chunk_hdr *
 get_free_chunk(struct hyp_allocator *allocator, size_t size)
 {
 	struct chunk_hdr *chunk, *best_chunk = NULL;
-	size_t best_available_size = allocator->size;
+	size_t best_available_size = SIZE_MAX;
 
 	list_for_each_entry(chunk, &allocator->chunks, node) {
 		size_t available_size = chunk->mapped_size +
@@ -533,11 +533,6 @@ get_free_chunk(struct hyp_allocator *allocator, size_t size)
 
 		if (chunk_size(size) > available_size)
 			continue;
-
-		if (!best_chunk) {
-			best_chunk = chunk;
-			continue;
-		}
 
 		if (best_available_size <= available_size)
 			continue;
@@ -554,9 +549,16 @@ void *hyp_alloc(size_t size)
 	struct hyp_allocator *allocator = &hyp_allocator;
 	struct chunk_hdr *chunk, *last_chunk;
 	unsigned long chunk_addr;
-	int missing_map, ret = 0;
+	size_t missing_map;
+	int ret = 0;
 
-	size = ALIGN(size, MIN_ALLOC);
+	/* constrained by chunk_hdr *_size types */
+	if (size > U32_MAX) {
+		ret = -E2BIG;
+		goto end_unlocked;
+	}
+
+	size = ALIGN(size ?: MIN_ALLOC, MIN_ALLOC);
 
 	hyp_spin_lock(&allocator->lock);
 
@@ -591,9 +593,11 @@ void *hyp_alloc(size_t size)
 	}
 
 	WARN_ON(chunk_install(chunk, size, last_chunk, allocator));
+
 end:
 	hyp_spin_unlock(&allocator->lock);
 
+end_unlocked:
 	*(this_cpu_ptr(&hyp_allocator_errno)) = ret;
 
 	/* Enforce zeroing allocated memory */

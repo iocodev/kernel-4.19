@@ -7,7 +7,7 @@
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2024 Intel Corporation
+ * Copyright (C) 2018 - 2025 Intel Corporation
  */
 
 #ifndef MAC80211_H
@@ -19,6 +19,7 @@
 #include <linux/skbuff.h>
 #include <linux/ieee80211.h>
 #include <linux/lockdep.h>
+#include <linux/android_kabi.h>
 #include <net/cfg80211.h>
 #include <net/codel.h>
 #include <net/ieee80211_radiotap.h>
@@ -834,6 +835,8 @@ struct ieee80211_bss_conf {
 	bool eht_su_beamformee;
 	bool eht_mu_beamformer;
 	bool eht_80mhz_full_bw_ul_mumimo;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -1275,6 +1278,9 @@ struct ieee80211_tx_info {
 			void *rate_driver_data[
 				IEEE80211_TX_INFO_RATE_DRIVER_DATA_SIZE / sizeof(void *)];
 		};
+
+		ANDROID_KABI_RESERVE(1);
+
 		void *driver_data[
 			IEEE80211_TX_INFO_DRIVER_DATA_SIZE / sizeof(void *)];
 	};
@@ -1789,6 +1795,8 @@ struct ieee80211_conf {
 	struct cfg80211_chan_def chandef;
 	bool radar_enabled;
 	enum ieee80211_smps_mode smps_mode;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /**
@@ -2034,6 +2042,8 @@ struct ieee80211_vif {
 	bool rx_mcast_action_reg;
 
 	struct ieee80211_vif *mbssid_tx_vif;
+
+	ANDROID_KABI_RESERVE(1);
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -2512,6 +2522,8 @@ struct ieee80211_sta {
 	struct ieee80211_link_sta deflink;
 	struct ieee80211_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
 
+	ANDROID_KABI_RESERVE(1);
+
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
 };
@@ -2826,6 +2838,11 @@ struct ieee80211_txq {
  *	implements MLO, so operation can continue on other links when one
  *	link is switching.
  *
+ * @IEEE80211_HW_STRICT: strictly enforce certain things mandated by the spec
+ *	but otherwise ignored/worked around for interoperability. This is a
+ *	HW flag so drivers can opt in according to their own control, e.g. in
+ *	testing.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2885,6 +2902,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_DISALLOW_PUNCTURING,
 	IEEE80211_HW_DISALLOW_PUNCTURING_5GHZ,
 	IEEE80211_HW_HANDLES_QUIET_CSA,
+	IEEE80211_HW_STRICT,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -3053,6 +3071,8 @@ struct ieee80211_hw {
 	u32 max_mtu;
 	const s8 *tx_power_levels;
 	u8 max_txpwr_levels_idx;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 static inline bool _ieee80211_hw_check(struct ieee80211_hw *hw,
@@ -3797,7 +3817,7 @@ enum ieee80211_reconfig_type {
  * @was_assoc: set if this call is due to deauth/disassoc
  *	while just having been associated
  * @link_id: the link id on which the frame will be TX'ed.
- *	Only used with the mgd_prepare_tx() method.
+ *	0 for a non-MLO connection.
  */
 struct ieee80211_prep_tx_info {
 	u16 duration;
@@ -4828,6 +4848,11 @@ struct ieee80211_ops {
 	enum ieee80211_neg_ttlm_res
 	(*can_neg_ttlm)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct ieee80211_neg_ttlm *ttlm);
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 /**
@@ -5304,22 +5329,6 @@ void ieee80211_get_tx_rates(struct ieee80211_vif *vif,
 			    struct sk_buff *skb,
 			    struct ieee80211_tx_rate *dest,
 			    int max_rates);
-
-/**
- * ieee80211_sta_set_expected_throughput - set the expected tpt for a station
- *
- * Call this function to notify mac80211 about a change in expected throughput
- * to a station. A driver for a device that does rate control in firmware can
- * call this function when the expected throughput estimate towards a station
- * changes. The information is used to tune the CoDel AQM applied to traffic
- * going towards that station (which can otherwise be too aggressive and cause
- * slow stations to starve).
- *
- * @pubsta: the station to set throughput for.
- * @thr: the current expected throughput in kbps.
- */
-void ieee80211_sta_set_expected_throughput(struct ieee80211_sta *pubsta,
-					   u32 thr);
 
 /**
  * ieee80211_tx_rate_update - transmit rate update callback
@@ -7003,6 +7012,11 @@ struct rate_control_ops {
 				struct dentry *dir);
 
 	u32 (*get_expected_throughput)(void *priv_sta);
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 static inline int rate_supported(struct ieee80211_sta *sta,

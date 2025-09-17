@@ -1233,6 +1233,10 @@ static int nl80211_msg_put_channel(struct sk_buff *msg, struct wiphy *wiphy,
 		if ((chan->flags & IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP) &&
 		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_ALLOW_6GHZ_VLP_AP))
 			goto nla_put_failure;
+		if ((chan->flags & IEEE80211_CHAN_ALLOW_20MHZ_ACTIVITY) &&
+		    nla_put_flag(msg,
+				 NL80211_FREQUENCY_ATTR_ALLOW_20MHZ_ACTIVITY))
+			goto nla_put_failure;
 	}
 
 	if (nla_put_u32(msg, NL80211_FREQUENCY_ATTR_MAX_TX_POWER,
@@ -4238,6 +4242,11 @@ static int parse_monitor_flags(struct nlattr *nla, u32 *mntrflags)
 	for (flag = 1; flag <= NL80211_MNTR_FLAG_MAX; flag++)
 		if (flags[flag])
 			*mntrflags |= (1<<flag);
+
+	/* cooked monitor mode is incompatible with other modes */
+	if (*mntrflags & MONITOR_FLAG_COOK_FRAMES &&
+	    *mntrflags != MONITOR_FLAG_COOK_FRAMES)
+		return -EOPNOTSUPP;
 
 	*mntrflags |= MONITOR_FLAG_CHANGED;
 
@@ -11182,6 +11191,7 @@ static struct cfg80211_bss *nl80211_assoc_bss(struct cfg80211_registered_device 
 
 static int nl80211_process_links(struct cfg80211_registered_device *rdev,
 				 struct cfg80211_assoc_link *links,
+				 int assoc_link_id,
 				 const u8 *ssid, int ssid_len,
 				 struct genl_info *info)
 {
@@ -11212,7 +11222,7 @@ static int nl80211_process_links(struct cfg80211_registered_device *rdev,
 		}
 		links[link_id].bss =
 			nl80211_assoc_bss(rdev, ssid, ssid_len, attrs,
-					  link_id, link_id);
+					  assoc_link_id, link_id);
 		if (IS_ERR(links[link_id].bss)) {
 			err = PTR_ERR(links[link_id].bss);
 			links[link_id].bss = NULL;
@@ -11409,8 +11419,8 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		req.ap_mld_addr = nla_data(info->attrs[NL80211_ATTR_MLD_ADDR]);
 		ap_addr = req.ap_mld_addr;
 
-		err = nl80211_process_links(rdev, req.links, ssid, ssid_len,
-					    info);
+		err = nl80211_process_links(rdev, req.links, req.link_id,
+					    ssid, ssid_len, info);
 		if (err)
 			goto free;
 
@@ -16576,7 +16586,10 @@ static int nl80211_assoc_ml_reconf(struct sk_buff *skb, struct genl_info *info)
 
 	add_links = 0;
 	if (info->attrs[NL80211_ATTR_MLO_LINKS]) {
-		err = nl80211_process_links(rdev, links, NULL, 0, info);
+		err = nl80211_process_links(rdev, links,
+					    /* mark as MLO, but not assoc */
+					    IEEE80211_MLD_MAX_NUM_LINKS,
+					    NULL, 0, info);
 		if (err)
 			return err;
 

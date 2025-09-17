@@ -2,6 +2,8 @@
 #ifndef __USBAUDIO_CARD_H
 #define __USBAUDIO_CARD_H
 
+#include <linux/android_kabi.h>
+
 #define MAX_NR_RATES	1024
 #define MAX_PACKS	6		/* per URB */
 #define MAX_PACKS_HS	(MAX_PACKS * 8)	/* in high speed mode */
@@ -145,6 +147,11 @@ struct snd_usb_endpoint {
 
 	spinlock_t lock;
 	struct list_head list;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 struct media_ctl;
@@ -196,6 +203,8 @@ struct snd_usb_substream {
 	bool trigger_tstamp_pending_update; /* trigger timestamp being updated from initial estimate */
 	bool lowlatency_playback;	/* low-latency playback mode */
 	struct media_ctl *media_ctl;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct snd_usb_stream {
@@ -213,6 +222,10 @@ struct snd_usb_platform_ops {
 	void (*suspend_cb)(struct usb_interface *intf, pm_message_t message);
 	void (*resume_cb)(struct usb_interface *intf);
 };
+
+struct snd_usb_stream *
+snd_usb_find_suppported_substream(int card_idx, struct snd_pcm_hw_params *params,
+				  int direction);
 
 int snd_usb_register_platform_ops(struct snd_usb_platform_ops *ops);
 int snd_usb_unregister_platform_ops(void);

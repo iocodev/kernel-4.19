@@ -8,6 +8,7 @@
 #include <linux/gunyah.h>
 #include <linux/uuid.h>
 
+#define GUNYAH_VCPU_RUN_STATE_PSCI_SYSTEM_RESET		256
 /* {c1d58fcd-a453-5fdb-9265-ce36673d5f14} */
 static const uuid_t GUNYAH_UUID = UUID_INIT(0xc1d58fcd, 0xa453, 0x5fdb, 0x92,
 					    0x65, 0xce, 0x36, 0x67, 0x3d, 0x5f,
@@ -43,8 +44,11 @@ EXPORT_SYMBOL_GPL(arch_is_gunyah_guest);
 #define GUNYAH_HYPERCALL_MSGQ_RECV		GUNYAH_HYPERCALL(0x801C)
 #define GUNYAH_HYPERCALL_ADDRSPACE_MAP		GUNYAH_HYPERCALL(0x802B)
 #define GUNYAH_HYPERCALL_ADDRSPACE_UNMAP	GUNYAH_HYPERCALL(0x802C)
+#define GUNYAH_HYPERCALL_ADDRSPACE_CONFIG_VMMIO_RANGE	GUNYAH_HYPERCALL(0x8060)
 #define GUNYAH_HYPERCALL_MEMEXTENT_DONATE	GUNYAH_HYPERCALL(0x8061)
 #define GUNYAH_HYPERCALL_VCPU_RUN		GUNYAH_HYPERCALL(0x8065)
+#define GUNYAH_HYPERCALL_ADDRSPC_MODIFY_PAGES	GUNYAH_HYPERCALL(0x8069)
+#define GUNYAH_HYPERCALL_ADDRSPACE_FIND_INFO_AREA	GUNYAH_HYPERCALL(0x806a)
 /* clang-format on */
 
 /**
@@ -65,6 +69,46 @@ void gunyah_hypercall_hyp_identify(
 	hyp_identity->flags[2] = res.a3;
 }
 EXPORT_SYMBOL_GPL(gunyah_hypercall_hyp_identify);
+
+enum gunyah_error gunyah_hypercall_addrspc_modify_pages(u64 capid, u64 addr,
+						    u64 size, u64 flags)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_1_1_hvc(GUNYAH_HYPERCALL_ADDRSPC_MODIFY_PAGES, capid,
+						addr, size, flags, &res);
+
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(gunyah_hypercall_addrspc_modify_pages);
+
+/**
+ * gunyah_hypercall_addrspc_configure_vmmio_range() - Configure virtual MMIO device regions for
+ *                                                    the address space.
+ * @capid: Address space capability ID
+ * @base: Base guest address of MMIO region
+ * @size: Size of the MMIO region
+ * @op: Map or Unmap
+ */
+enum gunyah_error gunyah_hypercall_addrspc_configure_vmmio_range(u64 capid, u64 base,
+						    u64 size, u64 op)
+{
+	struct arm_smccc_1_2_regs args = {
+		.a0 = GUNYAH_HYPERCALL_ADDRSPACE_CONFIG_VMMIO_RANGE,
+		.a1 = capid,
+		.a2 = base,
+		.a3 = size,
+		.a4 = op,
+		/* Reserved. Must be 0 */
+		.a5 = 0,
+	};
+	struct arm_smccc_1_2_regs res;
+
+	arm_smccc_1_2_hvc(&args, &res);
+
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(gunyah_hypercall_addrspc_configure_vmmio_range);
 
 /**
  * gunyah_hypercall_bell_send() - Assert a gunyah doorbell
@@ -271,9 +315,40 @@ gunyah_hypercall_vcpu_run(u64 capid, unsigned long *resume_data,
 		resp->state_data[2] = res.a4;
 	}
 
+	/*
+	 * PSCI_SYSTEM_RESET is also a state where VM is shutdown
+	 * Translate it to GUNYAH_VCPU_STATE_SYSTEM_OFF as VMM will
+	 * be able to take the action based on the exit_info.
+	 */
+	if (resp->sized_state == GUNYAH_VCPU_RUN_STATE_PSCI_SYSTEM_RESET)
+		resp->sized_state = GUNYAH_VCPU_STATE_SYSTEM_OFF;
+
 	return res.a0;
 }
 EXPORT_SYMBOL_GPL(gunyah_hypercall_vcpu_run);
+
+/**
+ * gunyah_hypercall_addrspace_find_info_area() - Find the IPA and size of the info area
+ * @ipa: Filled with the IPA of the info area
+ * @size: Filled with the size of the info area
+ *
+ * See also:
+ * https://github.com/quic/gunyah-hypervisor/blob/develop/docs/api/gunyah_api.md#address-space-management
+ */
+enum gunyah_error
+gunyah_hypercall_addrspace_find_info_area(unsigned long *ipa, unsigned long *size)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_1_1_hvc(GUNYAH_HYPERCALL_ADDRSPACE_FIND_INFO_AREA, 0, &res);
+	if (res.a0 == GUNYAH_ERROR_OK) {
+		*ipa = res.a1;
+		*size = res.a2;
+	}
+
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(gunyah_hypercall_addrspace_find_info_area);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Gunyah Hypervisor Hypercalls");

@@ -4,6 +4,8 @@
  * Author: Quentin Perret <qperret@google.com>
  */
 
+#include <linux/arm_ffa.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/initrd.h>
 #include <linux/interval_tree_generic.h>
@@ -39,11 +41,19 @@
 
 #define PKVM_DEVICE_ASSIGN_COMPAT	"pkvm,device-assignment"
 
+/*
+ * Retry the VM creation message for the host for a maximul total
+ * amount of times, with sleeps in between. For the first few attempts,
+ * do a faster reschedule instead of a full sleep.
+ */
+#define VM_AVAILABILITY_FAST_RETRIES	5
+#define VM_AVAILABILITY_TOTAL_RETRIES	500
+#define VM_AVAILABILITY_RETRY_SLEEP_MS	10
+
 DEFINE_STATIC_KEY_FALSE(kvm_protected_mode_initialized);
 
-static struct reserved_mem *pkvm_firmware_mem;
-static phys_addr_t *pvmfw_base = &kvm_nvhe_sym(pvmfw_base);
-static phys_addr_t *pvmfw_size = &kvm_nvhe_sym(pvmfw_size);
+static phys_addr_t pvmfw_base;
+static phys_addr_t pvmfw_size;
 
 static struct pkvm_moveable_reg *moveable_regs = kvm_nvhe_sym(pkvm_moveable_regs);
 static struct memblock_region *hyp_memory = kvm_nvhe_sym(hyp_memory);
@@ -75,12 +85,33 @@ static void __init sort_memblock_regions(void)
 static int __init register_memblock_regions(void)
 {
 	struct memblock_region *reg;
+	bool pvmfw_in_mem = false;
 
 	for_each_mem_region(reg) {
 		if (*hyp_memblock_nr_ptr >= HYP_MEMBLOCK_REGIONS)
 			return -ENOMEM;
 
 		hyp_memory[*hyp_memblock_nr_ptr] = *reg;
+		(*hyp_memblock_nr_ptr)++;
+
+		if (!pvmfw_size || pvmfw_in_mem ||
+			!memblock_addrs_overlap(reg->base, reg->size, pvmfw_base, pvmfw_size))
+			continue;
+		/* If the pvmfw region overlaps a memblock, it must be a subset */
+		if (pvmfw_base < reg->base || (pvmfw_base + pvmfw_size) > (reg->base + reg->size))
+			return -EINVAL;
+		pvmfw_in_mem = true;
+	}
+
+	if (pvmfw_size && !pvmfw_in_mem) {
+		if (*hyp_memblock_nr_ptr >= HYP_MEMBLOCK_REGIONS)
+			return -ENOMEM;
+
+		hyp_memory[*hyp_memblock_nr_ptr] = (struct memblock_region) {
+			.base   = pvmfw_base,
+			.size   = pvmfw_size,
+			.flags  = MEMBLOCK_NOMAP,
+		};
 		(*hyp_memblock_nr_ptr)++;
 	}
 	sort_memblock_regions();
@@ -195,6 +226,8 @@ static int __init early_hyp_lm_size_mb_cfg(char *arg)
 }
 early_param("kvm-arm.hyp_lm_size_mb", early_hyp_lm_size_mb_cfg);
 
+DEFINE_STATIC_KEY_FALSE(kvm_ffa_unmap_on_lend);
+
 void __init kvm_hyp_reserve(void)
 {
 	u64 hyp_mem_pages = 0;
@@ -226,6 +259,11 @@ void __init kvm_hyp_reserve(void)
 	hyp_mem_pages += hyp_vmemmap_pages(STRUCT_HYP_PAGE_SIZE);
 	hyp_mem_pages += pkvm_selftest_pages();
 	hyp_mem_pages += hyp_ffa_proxy_pages();
+
+	if (static_branch_unlikely(&kvm_ffa_unmap_on_lend))
+		hyp_mem_pages += KVM_FFA_SPM_HANDLE_NR_PAGES;
+
+	hyp_mem_pages++; /* hyp_ppages */
 
 	/*
 	 * Try to allocate a PMD-aligned region to reduce TLB pressure once
@@ -289,27 +327,21 @@ err_free_reqs:
 }
 
 /*
- * Handle broken down huge pages which have not been reported to the
- * kvm_pinned_page.
+ * Handle split huge pages which have not been reported to the kvm_pinned_page tree.
  */
-int pkvm_call_hyp_nvhe_ppage(struct kvm_pinned_page *ppage,
-			     int (*call_hyp_nvhe)(u64 pfn, u64 gfn, u8 order, void* args),
-			     void *args, bool unmap)
+static int pkvm_call_hyp_nvhe_ppage(struct kvm_pinned_page *ppage,
+				    int (*call_hyp_nvhe)(u64 pfn, u64 gfn, u8 order, void *args),
+				    void *args)
 {
 	size_t page_size, size = PAGE_SIZE << ppage->order;
 	u64 pfn = page_to_pfn(ppage->page);
 	u8 order = ppage->order;
 	u64 gfn = ppage->ipa >> PAGE_SHIFT;
 
-	/* We already know this huge-page has been broken down in the stage-2 */
-	if (ppage->pins < (1 << order))
-		order = 0;
-
 	while (size) {
 		int err = call_hyp_nvhe(pfn, gfn, order, args);
 
 		switch (err) {
-		/* The stage-2 huge page has been broken down */
 		case -E2BIG:
 			if (order)
 				order = 0;
@@ -317,16 +349,6 @@ int pkvm_call_hyp_nvhe_ppage(struct kvm_pinned_page *ppage,
 				/* Something is really wrong ... */
 				return -EINVAL;
 			break;
-		/* This has been unmapped already */
-		case -ENOENT:
-			/*
-			 * We are not supposed to lose track of PAGE_SIZE pinned
-			 * page.
-			 */
-			if (!ppage->order)
-				return -EINVAL;
-
-			fallthrough;
 		case 0:
 			page_size = PAGE_SIZE << order;
 			gfn += 1 << order;
@@ -334,13 +356,6 @@ int pkvm_call_hyp_nvhe_ppage(struct kvm_pinned_page *ppage,
 
 			if (page_size > size)
 				return -EINVAL;
-
-			/* If -ENOENT, the pin was already dropped. */
-			if (unmap && !err)
-				ppage->pins -= 1 << order;
-
-			if (!ppage->pins)
-				return 0;
 
 			size -= page_size;
 			break;
@@ -361,38 +376,109 @@ static int __reclaim_dying_guest_page_call(u64 pfn, u64 gfn, u8 order, void *arg
 				 pfn, gfn, order);
 }
 
+/* __pkvm_notify_guest_vm_avail_retry - notify secure of the VM state change
+ * @host_kvm: the kvm structure
+ * @availability_msg: the VM state that will be notified
+ *
+ * Returns: 0 when the notification is sent with success, -EINTR or -EAGAIN if
+ * the destruction notification is interrupted and retries exceeded and
+ * a positive value indicating the remaining jiffies when the creation
+ * notification is sent but interrupted.
+ */
+static int __pkvm_notify_guest_vm_avail_retry(struct kvm *host_kvm, u32 availability_msg)
+{
+	int ret, retries;
+	long timeout;
+
+	if (!host_kvm->arch.pkvm.ffa_support)
+		return 0;
+
+	for (retries = 0; retries < VM_AVAILABILITY_TOTAL_RETRIES; retries++) {
+		ret = kvm_call_hyp_nvhe(__pkvm_notify_guest_vm_avail,
+					host_kvm->arch.pkvm.handle);
+		if (!ret)
+			return 0;
+		else if (ret != -EINTR && ret != -EAGAIN)
+			return ret;
+
+		if (retries < VM_AVAILABILITY_FAST_RETRIES) {
+			cond_resched();
+		} else if (availability_msg == FFA_VM_DESTRUCTION_MSG) {
+			msleep(VM_AVAILABILITY_RETRY_SLEEP_MS);
+		} else {
+			timeout = msecs_to_jiffies(VM_AVAILABILITY_RETRY_SLEEP_MS);
+			timeout = schedule_timeout_killable(timeout);
+			if (timeout) {
+				/*
+				 * The timer did not expire,
+				 * most likely because the
+				 * process was killed.
+				 */
+				return ret;
+			}
+		}
+	}
+
+	return ret;
+}
+
 static void __pkvm_destroy_hyp_vm(struct kvm *host_kvm)
 {
 	struct mm_struct *mm = current->mm;
 	struct kvm_pinned_page *ppage;
 	struct kvm_vcpu *host_vcpu;
-	unsigned long pages = 0;
+	unsigned long nr_busy;
+	unsigned long pages;
 	unsigned long idx;
+	int ret, notify_status;
 
 	if (!pkvm_is_hyp_created(host_kvm))
 		goto out_free;
 
 	WARN_ON(kvm_call_hyp_nvhe(__pkvm_start_teardown_vm, host_kvm->arch.pkvm.handle));
 
+retry:
+	pages = 0;
+	nr_busy = 0;
 	ppage = kvm_pinned_pages_iter_first(&host_kvm->arch.pkvm.pinned_pages, 0, ~(0UL));
 	while (ppage) {
 		struct kvm_pinned_page *next;
-		u16 pins = ppage->pins;
 
-		WARN_ON(pkvm_call_hyp_nvhe_ppage(ppage,
-						 __reclaim_dying_guest_page_call,
-						 host_kvm, true));
+		ret = pkvm_call_hyp_nvhe_ppage(ppage, __reclaim_dying_guest_page_call,
+					       host_kvm);
 		cond_resched();
+		if (ret == -EBUSY) {
+			nr_busy++;
+			next = kvm_pinned_pages_iter_next(ppage, 0, ~(0UL));
+			ppage = next;
+			continue;
+		}
+		WARN_ON(ret);
 
 		unpin_user_pages_dirty_lock(&ppage->page, 1, true);
 		next = kvm_pinned_pages_iter_next(ppage, 0, ~(0UL));
 		kvm_pinned_pages_remove(ppage, &host_kvm->arch.pkvm.pinned_pages);
-		pages += pins;
+		pages += 1 << ppage->order;
 		kfree(ppage);
 		ppage = next;
 	}
 
 	account_locked_vm(mm, pages, false);
+
+	notify_status = __pkvm_notify_guest_vm_avail_retry(host_kvm, FFA_VM_DESTRUCTION_MSG);
+	if (nr_busy) {
+		do {
+			ret = kvm_call_hyp_nvhe(__pkvm_reclaim_dying_guest_ffa_resources,
+						host_kvm->arch.pkvm.handle);
+			WARN_ON(ret && ret != -EAGAIN);
+
+			if (notify_status == -EINTR || notify_status == -EAGAIN)
+				notify_status = __pkvm_notify_guest_vm_avail_retry(
+						host_kvm, FFA_VM_DESTRUCTION_MSG);
+			cond_resched();
+		} while (ret == -EAGAIN);
+		goto retry;
+	}
 
 	WARN_ON(kvm_call_hyp_nvhe(__pkvm_finalize_teardown_vm, host_kvm->arch.pkvm.handle));
 
@@ -403,6 +489,8 @@ out_free:
 		     &host_kvm->stat.protected_hyp_mem);
 	free_hyp_memcache(&host_kvm->arch.pkvm.stage2_teardown_mc);
 
+	kvm_iommu_guest_free_mc(&host_kvm->arch.pkvm.teardown_iommu_mc);
+
 	kvm_for_each_vcpu(idx, host_vcpu, host_kvm) {
 		struct kvm_hyp_req *hyp_reqs = host_vcpu->arch.hyp_reqs;
 
@@ -412,6 +500,8 @@ out_free:
 		kvm_unshare_hyp(hyp_reqs, hyp_reqs + 1);
 		host_vcpu->arch.hyp_reqs = NULL;
 		free_page((unsigned long)hyp_reqs);
+
+		kvm_iommu_guest_free_mc(&host_vcpu->arch.iommu_mc);
 	}
 }
 
@@ -457,7 +547,7 @@ static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 
 	kvm_account_pgtable_pages(pgd, pgd_sz >> PAGE_SHIFT);
 
-	return 0;
+	return __pkvm_notify_guest_vm_avail_retry(host_kvm, FFA_VM_CREATION_MSG);
 free_pgd:
 	free_pages_exact(pgd, pgd_sz);
 	atomic64_sub(pgd_sz, &host_kvm->stat.protected_hyp_mem);
@@ -699,31 +789,45 @@ device_initcall_sync(finalize_pkvm);
 
 void pkvm_host_reclaim_page(struct kvm *host_kvm, phys_addr_t ipa)
 {
-	struct kvm_pinned_page *ppage;
 	struct mm_struct *mm = current->mm;
+	struct kvm_pinned_page *ppage;
+	u8 order;
 
 	write_lock(&host_kvm->mmu_lock);
 	ppage = kvm_pinned_pages_iter_first(&host_kvm->arch.pkvm.pinned_pages,
 					   ipa, ipa + PAGE_SIZE - 1);
 	if (ppage) {
-		if (ppage->pins)
-			ppage->pins--;
-		else
-			WARN_ON(1);
-
-		if (!ppage->pins)
-			kvm_pinned_pages_remove(ppage,
-						&host_kvm->arch.pkvm.pinned_pages);
+		order = ppage->order;
+		if (!order)
+			kvm_pinned_pages_remove(ppage, &host_kvm->arch.pkvm.pinned_pages);
 	}
 	write_unlock(&host_kvm->mmu_lock);
 
-	WARN_ON(!ppage);
-	if (!ppage)
+	if (WARN_ON(!ppage || order))
 		return;
 
-	account_locked_vm(mm, 1, false);
+	account_locked_vm(mm, 1 << ppage->order, false);
 	unpin_user_pages_dirty_lock(&ppage->page, 1, true);
 	kfree(ppage);
+}
+
+int pkvm_enable_smc_forwarding(struct file *kvm_file)
+{
+	struct kvm *host_kvm;
+
+	if (!file_is_kvm(kvm_file))
+		return -EINVAL;
+
+	if (!kvm_get_kvm_safe(kvm_file->private_data))
+		return -EINVAL;
+
+	host_kvm = kvm_file->private_data;
+	if (!host_kvm)
+		return -EINVAL;
+
+	host_kvm->arch.pkvm.smc_forwarded = true;
+
+	return 0;
 }
 
 static int __init pkvm_firmware_rmem_err(struct reserved_mem *rmem,
@@ -740,7 +844,7 @@ static int __init pkvm_firmware_rmem_init(struct reserved_mem *rmem)
 {
 	unsigned long node = rmem->fdt_node;
 
-	if (pkvm_firmware_mem)
+	if (pvmfw_size)
 		return pkvm_firmware_rmem_err(rmem, "duplicate reservation");
 
 	if (!of_get_flat_dt_prop(node, "no-map", NULL))
@@ -755,9 +859,8 @@ static int __init pkvm_firmware_rmem_init(struct reserved_mem *rmem)
 	if (!PAGE_ALIGNED(rmem->size))
 		return pkvm_firmware_rmem_err(rmem, "size is not page-aligned");
 
-	*pvmfw_size = rmem->size;
-	*pvmfw_base = rmem->base;
-	pkvm_firmware_mem = rmem;
+	pvmfw_size = kvm_nvhe_sym(pvmfw_size) = rmem->size;
+	pvmfw_base = kvm_nvhe_sym(pvmfw_base) = rmem->base;
 	return 0;
 }
 RESERVEDMEM_OF_DECLARE(pkvm_firmware, "linux,pkvm-guest-firmware-memory",
@@ -768,12 +871,16 @@ static int __init pkvm_firmware_rmem_clear(void)
 	void *addr;
 	phys_addr_t size;
 
-	if (likely(!pkvm_firmware_mem))
+	if (likely(!pvmfw_size))
 		return 0;
 
 	kvm_info("Clearing pKVM firmware memory\n");
-	size = pkvm_firmware_mem->size;
-	addr = memremap(pkvm_firmware_mem->base, size, MEMREMAP_WB);
+	size = pvmfw_size;
+	addr = memremap(pvmfw_base, size, MEMREMAP_WB);
+
+	pvmfw_size = kvm_nvhe_sym(pvmfw_size) = 0;
+	pvmfw_base = kvm_nvhe_sym(pvmfw_base) = 0;
+
 	if (!addr)
 		return -EINVAL;
 
@@ -787,7 +894,7 @@ static int pkvm_vm_ioctl_set_fw_ipa(struct kvm *kvm, u64 ipa)
 {
 	int ret = 0;
 
-	if (!pkvm_firmware_mem)
+	if (!pvmfw_size)
 		return -EINVAL;
 
 	mutex_lock(&kvm->lock);
@@ -802,16 +909,59 @@ out_unlock:
 	return ret;
 }
 
+static u32 pkvm_get_ffa_version(void)
+{
+	static u32 ffa_version;
+	u32 ret;
+
+	ret = READ_ONCE(ffa_version);
+	if (ret)
+		return ret;
+
+	ret = kvm_call_hyp_nvhe(__pkvm_host_get_ffa_version);
+	WRITE_ONCE(ffa_version, ret);
+	return ret;
+
+}
+
 static int pkvm_vm_ioctl_info(struct kvm *kvm,
 			      struct kvm_protected_vm_info __user *info)
 {
 	struct kvm_protected_vm_info kinfo = {
-		.firmware_size = pkvm_firmware_mem ?
-				 pkvm_firmware_mem->size :
-				 0,
+		.firmware_size = pvmfw_size,
+		.ffa_version = pkvm_get_ffa_version(),
 	};
 
 	return copy_to_user(info, &kinfo, sizeof(kinfo)) ? -EFAULT : 0;
+}
+
+static int pkvm_vm_ioctl_ffa_support(struct kvm *kvm, u32 enable)
+{
+	int ret = 0;
+	u32 ffa_version;
+
+	/* Restrict userspace from having an IPC channel over FF-A with secure */
+	if (!capable(CAP_IPC_OWNER))
+		return -EPERM;
+
+	/*
+	 * If the host hasn't negotiated a version don't enable the
+	 * FF-A capability.
+	 */
+	ffa_version = pkvm_get_ffa_version();
+	if (!ffa_version)
+		return -EINVAL;
+
+	mutex_lock(&kvm->arch.config_lock);
+	if (kvm->arch.pkvm.handle) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
+	kvm->arch.pkvm.ffa_support = enable;
+out_unlock:
+	mutex_unlock(&kvm->arch.config_lock);
+	return ret;
 }
 
 int pkvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
@@ -827,6 +977,8 @@ int pkvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		return pkvm_vm_ioctl_set_fw_ipa(kvm, cap->args[0]);
 	case KVM_CAP_ARM_PROTECTED_VM_FLAGS_INFO:
 		return pkvm_vm_ioctl_info(kvm, (void __force __user *)cap->args[0]);
+	case KVM_CAP_ARM_PROTECTED_VM_FLAGS_SET_FFA:
+		return pkvm_vm_ioctl_ffa_support(kvm, cap->args[0]);
 	default:
 		return -EINVAL;
 	}
@@ -852,9 +1004,26 @@ static int __init early_pkvm_modules_cfg(char *arg)
 }
 early_param("kvm-arm.protected_modules", early_pkvm_modules_cfg);
 
-static void free_modprobe_argv(struct subprocess_info *info)
+static void __init free_modprobe_argv(struct subprocess_info *info)
 {
 	kfree(info->argv);
+}
+
+static int __init init_modprobe(struct subprocess_info *info, struct cred *new)
+{
+	struct file *file = filp_open("/dev/kmsg", O_RDWR, 0);
+
+	if (IS_ERR(file)) {
+		pr_warn("Warning: unable to open /dev/kmsg, modprobe will be silent.\n");
+		return 0;
+	}
+
+	init_dup(file);
+	init_dup(file);
+	init_dup(file);
+	fput(file);
+
+	return 0;
 }
 
 /*
@@ -899,7 +1068,7 @@ static int __init __pkvm_request_early_module(char *module_name,
 	argv[idx++] = NULL;
 
 	info = call_usermodehelper_setup(modprobe_path, argv, envp, GFP_KERNEL,
-					 NULL, free_modprobe_argv, NULL);
+					 init_modprobe, free_modprobe_argv, NULL);
 	if (!info)
 		goto err;
 
@@ -1002,7 +1171,7 @@ static struct module *pkvm_el2_mod_to_module(struct pkvm_el2_module *hyp_mod)
 	return container_of(arch, struct module, arch);
 }
 
-#ifdef CONFIG_PROTECTED_NVHE_STACKTRACE
+#ifdef CONFIG_PKVM_STACKTRACE
 unsigned long pkvm_el2_mod_kern_va(unsigned long addr)
 {
 	struct pkvm_el2_module *mod;
@@ -1374,7 +1543,7 @@ EXPORT_SYMBOL(__pkvm_register_el2_call);
 
 void pkvm_el2_mod_frob_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs, char *secstrings)
 {
-#ifdef CONFIG_PROTECTED_NVHE_FTRACE
+#ifdef CONFIG_PKVM_FTRACE
 	int i;
 
 	for (i = 0; i < ehdr->e_shnum; i++) {
@@ -1730,9 +1899,16 @@ kvm_pte_t *pkvm_pgtable_stage2_create_unlinked(struct kvm_pgtable *pgt, u64 phys
 	return NULL;
 }
 
-int pkvm_pgtable_stage2_split(struct kvm_pgtable *pgt, u64 addr, u64 size,
-			      struct kvm_mmu_memory_cache *mc)
+int pkvm_pgtable_stage2_split(struct kvm_pgtable *pgt, u64 addr, u64 size, void *mc)
 {
 	WARN_ON_ONCE(1);
 	return -EINVAL;
 }
+
+static int early_ffa_unmap_on_lend_cfg(char *arg)
+{
+	static_branch_enable(&kvm_ffa_unmap_on_lend);
+	return 0;
+}
+
+early_param("kvm-arm.ffa-unmap-on-lend", early_ffa_unmap_on_lend_cfg);

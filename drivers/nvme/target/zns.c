@@ -49,7 +49,7 @@ bool nvmet_bdev_zns_enable(struct nvmet_ns *ns)
 	 * not supported by ZNS. Exclude zoned drives that have such smaller
 	 * last zone.
 	 */
-	if (get_capacity(bd_disk) & (bdev_zone_sectors(ns->bdev) - 1))
+	if (!bdev_is_zone_start(bd_disk->part0, get_capacity(bd_disk)))
 		return false;
 	/*
 	 * ZNS does not define a conventional zone type. Use report zones
@@ -497,7 +497,7 @@ static void nvmet_bdev_zmgmt_send_work(struct work_struct *w)
 		goto out;
 	}
 
-	if (sect & (zone_sectors - 1)) {
+	if (!bdev_is_zone_start(bdev, sect)) {
 		req->error_loc = offsetof(struct nvme_zone_mgmt_send_cmd, slba);
 		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		goto out;
@@ -537,12 +537,20 @@ void nvmet_bdev_execute_zone_append(struct nvmet_req *req)
 	u16 status = NVME_SC_SUCCESS;
 	unsigned int total_len = 0;
 	struct scatterlist *sg;
+	u32 data_len = nvmet_rw_data_len(req);
 	struct bio *bio;
 	int sg_cnt;
 
 	/* Request is completed on len mismatch in nvmet_check_transter_len() */
 	if (!nvmet_check_transfer_len(req, nvmet_rw_data_len(req)))
 		return;
+
+	if (data_len >
+	    bdev_max_zone_append_sectors(req->ns->bdev) << SECTOR_SHIFT) {
+		req->error_loc = offsetof(struct nvme_rw_command, length);
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
+		goto out;
+	}
 
 	if (!req->sg_cnt) {
 		nvmet_req_complete(req, 0);
@@ -555,7 +563,7 @@ void nvmet_bdev_execute_zone_append(struct nvmet_req *req)
 		goto out;
 	}
 
-	if (sect & (bdev_zone_sectors(req->ns->bdev) - 1)) {
+	if (!bdev_is_zone_start(req->ns->bdev, sect)) {
 		req->error_loc = offsetof(struct nvme_rw_command, slba);
 		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		goto out;
@@ -576,20 +584,16 @@ void nvmet_bdev_execute_zone_append(struct nvmet_req *req)
 		bio->bi_opf |= REQ_FUA;
 
 	for_each_sg(req->sg, sg, req->sg_cnt, sg_cnt) {
-		struct page *p = sg_page(sg);
-		unsigned int l = sg->length;
-		unsigned int o = sg->offset;
-		unsigned int ret;
+		unsigned int len = sg->length;
 
-		ret = bio_add_zone_append_page(bio, p, l, o);
-		if (ret != sg->length) {
+		if (bio_add_page(bio, sg_page(sg), len, sg->offset) != len) {
 			status = NVME_SC_INTERNAL;
 			goto out_put_bio;
 		}
-		total_len += sg->length;
+		total_len += len;
 	}
 
-	if (total_len != nvmet_rw_data_len(req)) {
+	if (total_len != data_len) {
 		status = NVME_SC_INTERNAL | NVME_STATUS_DNR;
 		goto out_put_bio;
 	}

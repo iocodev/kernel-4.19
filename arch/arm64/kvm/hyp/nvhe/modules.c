@@ -14,7 +14,7 @@
 #include <nvhe/mm.h>
 #include <nvhe/serial.h>
 #include <nvhe/spinlock.h>
-#include <nvhe/trace/trace.h>
+#include <nvhe/trace.h>
 #include <nvhe/trap_handler.h>
 
 static void *__pkvm_module_memcpy(void *to, const void *from, size_t count)
@@ -116,12 +116,20 @@ static void tracing_mod_hyp_printk(u8 fmt_id, u64 a, u64 b, u64 c, u64 d)
 
 static int host_stage2_enable_lazy_pte(u64 pfn, u64 nr_pages)
 {
-	return __pkvm_host_lazy_pte(pfn, nr_pages, true);
+	/*
+	 * Deprecating the lazy PTE functionality as now the
+	 * host can unmap on FF-A lend.
+	 */
+	WARN_ON(1);
+
+	return -EPERM;
 }
 
 static int host_stage2_disable_lazy_pte(u64 pfn, u64 nr_pages)
 {
-	return __pkvm_host_lazy_pte(pfn, nr_pages, false);
+	WARN_ON(1);
+
+	return -EPERM;
 }
 
 static int __hyp_smp_processor_id(void)
@@ -134,6 +142,7 @@ static int __hyp_smp_processor_id(void)
 enum mod_handler_type {
 	HOST_FAULT_HANDLER = 0,
 	HOST_SMC_HANDLER,
+	GUEST_SMC_HANDLER,
 	NUM_MOD_HANDLER_TYPES,
 };
 
@@ -180,6 +189,13 @@ static int __register_host_smc_handler(bool (*cb)(struct user_pt_regs *))
 	return mod_handler_register(HOST_SMC_HANDLER, cb);
 }
 
+static int __register_guest_smc_handler(bool (*cb)(struct arm_smccc_1_2_regs *regs,
+						   struct arm_smccc_1_2_regs *res,
+						   pkvm_handle_t handle))
+{
+	return mod_handler_register(GUEST_SMC_HANDLER, cb);
+}
+
 bool module_handle_host_perm_fault(struct user_pt_regs *regs, u64 esr, u64 addr)
 {
 	int (*cb)(struct user_pt_regs *regs, u64 esr, u64 addr);
@@ -206,6 +222,21 @@ bool module_handle_host_smc(struct user_pt_regs *regs)
 	return false;
 }
 
+bool module_handle_guest_smc(struct arm_smccc_1_2_regs *regs, struct arm_smccc_1_2_regs *res,
+			     pkvm_handle_t handle)
+{
+	bool (*cb)(struct arm_smccc_1_2_regs *regs, struct arm_smccc_1_2_regs *res,
+		   pkvm_handle_t handle);
+	int i;
+
+	for_each_mod_handler(GUEST_SMC_HANDLER, cb, i) {
+		if (cb(regs, res, handle))
+			return true;
+	}
+
+	return false;
+}
+
 const struct pkvm_module_ops module_ops = {
 	.create_private_mapping = __pkvm_create_private_mapping,
 	.alloc_module_va = __pkvm_alloc_module_va,
@@ -216,6 +247,8 @@ const struct pkvm_module_ops module_ops = {
 	.putx64 = hyp_putx64,
 	.fixmap_map = hyp_fixmap_map,
 	.fixmap_unmap = hyp_fixmap_unmap,
+	.fixblock_map = hyp_fixblock_map,
+	.fixblock_unmap = hyp_fixblock_unmap,
 	.linear_map_early = __pkvm_linear_map_early,
 	.linear_unmap_early = __pkvm_linear_unmap_early,
 	.flush_dcache_to_poc = __kvm_flush_dcache_to_poc,
@@ -227,6 +260,7 @@ const struct pkvm_module_ops module_ops = {
 	.host_stage2_enable_lazy_pte = host_stage2_enable_lazy_pte,
 	.host_stage2_disable_lazy_pte = host_stage2_disable_lazy_pte,
 	.register_host_smc_handler = __register_host_smc_handler,
+	.register_guest_smc_handler = __register_guest_smc_handler,
 	.register_default_trap_handler = __pkvm_register_default_trap_handler,
 	.register_illegal_abt_notifier = __pkvm_register_illegal_abt_notifier,
 	.register_psci_notifier = __pkvm_register_psci_notifier,
@@ -234,6 +268,7 @@ const struct pkvm_module_ops module_ops = {
 	.register_unmask_serror = __pkvm_register_unmask_serror,
 	.host_donate_hyp = ___pkvm_host_donate_hyp,
 	.host_donate_hyp_prot = ___pkvm_host_donate_hyp_prot,
+	.host_donate_sglist_hyp = __pkvm_host_donate_sglist_hyp,
 	.hyp_donate_host = __pkvm_hyp_donate_host,
 	.host_share_hyp = __pkvm_host_share_hyp,
 	.host_unshare_hyp = __pkvm_host_unshare_hyp,
@@ -256,7 +291,7 @@ const struct pkvm_module_ops module_ops = {
 	.iommu_init_device = kvm_iommu_init_device,
 	.udelay = pkvm_udelay,
 	.iommu_iotlb_gather_add_page = kvm_iommu_iotlb_gather_add_page,
-	.pkvm_host_unuse_dma = __pkvm_host_unuse_dma,
+	.pkvm_unuse_dma = iommu_pkvm_unuse_dma,
 #ifdef CONFIG_LIST_HARDENED
 	.list_add_valid_or_report = __list_add_valid_or_report,
 	.list_del_entry_valid_or_report = __list_del_entry_valid_or_report,

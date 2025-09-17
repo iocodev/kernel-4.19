@@ -20,6 +20,11 @@ enum pkvm_psci_notification {
 	PKVM_PSCI_CPU_ENTRY,
 };
 
+struct pkvm_sglist_page {
+	u64	pfn : 40;
+	u8	order;
+} __packed;
+
 /**
  * struct pkvm_module_ops - pKVM modules callbacks
  * @create_private_mapping:	Map a memory region into the hypervisor private
@@ -51,6 +56,14 @@ enum pkvm_psci_notification {
  *				new mapping is visible.
  * @fixmap_unmap:		Unmap a page from the hypervisor fixmap. This
  * 				call is required between each @fixmap_map().
+ * @fixblock_map:		Map a PMD-size large page into a CPU-shared
+ *				fixmap. This can be used to replace and speed-up
+ *				a set of @fixmap_map. @fixblock_unmap must be
+ *				called between each mappings to do cache
+ *				maintenance and ensure the new mapping is visible.
+ * @fixblock_unmap:		Unmap a PMD-size large page from the hypervisor
+ *				fixmap. This call is required between each
+ *				@fixblock_map.
  * @linear_map_early:		Map a large portion of memory into the
  *				hypervisor linear VA space. This is intended to
  *				be used only for module bootstrap and must be
@@ -82,12 +95,14 @@ enum pkvm_psci_notification {
  *				allows to apply this prot on a range of
  *				contiguous memory.
  * @host_stage2_enable_lazy_pte:
+ *				DEPRECATED
  *				Unmap a range of memory from the host stage-2,
  *				leaving the pages host ownership intact. The
  *				pages will be remapped lazily (subject to the
  *				usual ownership checks) in response to a
  *				faulting access from the host.
  * @host_stage2_disable_lazy_pte:
+ *				DEPRECATED
  *				This is the opposite function of
  *				host_stage2_enable_lazy_pte. Must be called once
  *				the module is done with the region.
@@ -99,6 +114,10 @@ enum pkvm_psci_notification {
  *				order depends on the registration order. If no
  *				handler return True, the SMC is forwarded to
  *				EL3.
+ * @register_guest_smc_handler: @cb is called when guest identified by the
+ *				pkvm_handle issues an SMC that pKVM couldn't
+ *				handle. If @cb returns false, then unsupported
+ *				operation error is returned back to the guest.
  * @register_default_trap_handler:
  *				@cb is called whenever EL2 traps EL1 and pKVM
  *				has not handled it. If @cb returns false, the
@@ -124,6 +143,9 @@ enum pkvm_psci_notification {
  *				full control is given to the hypervisor.
  * @host_donate_hyp_prot:	As host_donate_hyp_prot, but this variant sets
  *				the prot of the hyp.
+ * @host_donate_sglist_hyp:	Similar to host_donate_hyp but take an array of PFNs
+ *				(kvm_sglist_page) as an argument. This intends to
+ *				batch IOMMU updates.
  * @hyp_donate_host:		The page @pfn whom control has previously been
  *				given to the hypervisor (@host_donate_hyp) is
  *				given back to the host.
@@ -158,7 +180,7 @@ enum pkvm_psci_notification {
  *				Missing donations if allocator returns NULL
  * @iommu_iotlb_gather_add_page:
  *				Add an IOVA range to an iommu_iotlb_gather.
- * @pkvm_host_unuse_dma:	Decrement the refcount for pages used for DMA,
+ * @pkvm_unuse_dma:		Decrement the refcount for pages used for DMA,
  * 				this is typically called from the module after a
  * 				successful unmap() operation, so the hypervisor
  * 				can track the page state.
@@ -197,6 +219,8 @@ struct pkvm_module_ops {
 	void (*putx64)(u64 x);
 	void *(*fixmap_map)(phys_addr_t phys);
 	void (*fixmap_unmap)(void);
+	void *(*fixblock_map)(phys_addr_t phys);
+	void (*fixblock_unmap)(void);
 	void *(*linear_map_early)(phys_addr_t phys, size_t size, enum kvm_pgtable_prot prot);
 	void (*linear_unmap_early)(void *addr, size_t size);
 	void (*flush_dcache_to_poc)(void *addr, size_t size);
@@ -208,6 +232,9 @@ struct pkvm_module_ops {
 	int (*host_stage2_enable_lazy_pte)(u64 addr, u64 nr_pages);
 	int (*host_stage2_disable_lazy_pte)(u64 addr, u64 nr_pages);
 	int (*register_host_smc_handler)(bool (*cb)(struct user_pt_regs *));
+	int (*register_guest_smc_handler)(bool (*cb)(struct arm_smccc_1_2_regs *regs,
+						     struct arm_smccc_1_2_regs *res,
+						     pkvm_handle_t handle));
 	int (*register_default_trap_handler)(bool (*cb)(struct user_pt_regs *));
 	int (*register_illegal_abt_notifier)(void (*cb)(struct user_pt_regs *));
 	int (*register_psci_notifier)(void (*cb)(enum pkvm_psci_notification, struct user_pt_regs *));
@@ -215,6 +242,7 @@ struct pkvm_module_ops {
 	int (*register_unmask_serror)(bool (*unmask)(void), void (*mask)(void));
 	int (*host_donate_hyp)(u64 pfn, u64 nr_pages, bool accept_mmio);
 	int (*host_donate_hyp_prot)(u64 pfn, u64 nr_pages, bool accept_mmio, enum kvm_pgtable_prot prot);
+	int (*host_donate_sglist_hyp)(struct pkvm_sglist_page *sglist, size_t nr_pages);
 	int (*hyp_donate_host)(u64 pfn, u64 nr_pages);
 	int (*host_share_hyp)(u64 pfn);
 	int (*host_unshare_hyp)(u64 pfn);
@@ -240,7 +268,7 @@ struct pkvm_module_ops {
 					    struct iommu_iotlb_gather *gather,
 					    unsigned long iova,
 					    size_t size);
-	int (*pkvm_host_unuse_dma)(phys_addr_t phys_addr, size_t size);
+	int (*pkvm_unuse_dma)(phys_addr_t phys_addr, size_t size);
 #ifdef CONFIG_LIST_HARDENED
 	/* These 2 functions change calling convention based on CONFIG_DEBUG_LIST. */
 	typeof(__list_add_valid_or_report) *list_add_valid_or_report;
@@ -348,6 +376,17 @@ static inline int pkvm_register_el2_mod_call(dyn_hcall_t hfn,
 		WARN_ON(res.a0 != SMCCC_RET_SUCCESS);			\
 									\
 		res.a1;							\
+	})
+
+#define pkvm_el2_mod_call_smccc(id, ...)				\
+	({								\
+		struct arm_smccc_res res;				\
+									\
+		arm_smccc_1_1_hvc(KVM_HOST_SMCCC_ID(id),		\
+				  ##__VA_ARGS__, &res);			\
+		WARN_ON(res.a0 != SMCCC_RET_SUCCESS);			\
+									\
+		res;							\
 	})
 #endif
 #endif

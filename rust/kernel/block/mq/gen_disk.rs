@@ -134,6 +134,8 @@ impl GenDiskBuilder {
             pr_ops: core::ptr::null_mut(),
             free_disk: None,
             poll_bio: None,
+            // SAFETY: Allow all zeros because of Android KABI members
+            ..unsafe { core::mem::MaybeUninit::zeroed().assume_init() }
         };
 
         // SAFETY: `gendisk` is a valid pointer as we initialized it above
@@ -174,9 +176,9 @@ impl GenDiskBuilder {
 ///
 /// # Invariants
 ///
-///  - `gendisk` must always point to an initialized and valid `struct gendisk`.
-///  - `gendisk` was added to the VFS through a call to
-///     `bindings::device_add_disk`.
+/// - `gendisk` must always point to an initialized and valid `struct gendisk`.
+/// - `gendisk` was added to the VFS through a call to
+///   `bindings::device_add_disk`.
 pub struct GenDisk<T: Operations> {
     _tagset: Arc<TagSet<T>>,
     gendisk: *mut bindings::gendisk,

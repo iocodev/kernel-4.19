@@ -86,6 +86,7 @@ void si_meminfo(struct sysinfo *val)
 	val->freehigh = nr_free_highpages();
 	val->mem_unit = PAGE_SIZE;
 	trace_android_vh_si_meminfo_adjust(&val->totalram, &val->freeram);
+	trace_android_vh_si_meminfo_adjust_shmem(&val->sharedram);
 }
 
 EXPORT_SYMBOL(si_meminfo);
@@ -315,6 +316,7 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 			" low:%lukB"
 			" high:%lukB"
 			" reserved_highatomic:%luKB"
+			" free_highatomic:%luKB"
 			" active_anon:%lukB"
 			" inactive_anon:%lukB"
 			" active_file:%lukB"
@@ -336,6 +338,7 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
 			K(low_wmark_pages(zone)),
 			K(high_wmark_pages(zone)),
 			K(zone->nr_reserved_highatomic),
+			K(zone->nr_free_highatomic),
 			K(zone_page_state(zone, NR_ZONE_ACTIVE_ANON)),
 			K(zone_page_state(zone, NR_ZONE_INACTIVE_ANON)),
 			K(zone_page_state(zone, NR_ZONE_ACTIVE_FILE)),

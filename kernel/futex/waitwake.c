@@ -355,7 +355,7 @@ void futex_wait_queue(struct futex_hash_bucket *hb, struct futex_q *q,
 	 * access to the hash list and forcing another memory barrier.
 	 */
 	set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
-	futex_queue(q, hb);
+	futex_queue(q, hb, current);
 
 	/* Arm the timer */
 	if (timeout)
@@ -468,7 +468,7 @@ retry:
 			 * next futex. Queue each futex at this moment so hb can
 			 * be unlocked.
 			 */
-			futex_queue(q, hb);
+			futex_queue(q, hb, current);
 			continue;
 		}
 
@@ -705,8 +705,10 @@ int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val, ktime_t *abs_time
 	ret = __futex_wait(uaddr, flags, val, to, bitset);
 
 	/* No timeout, nothing to clean up. */
-	if (!to)
+	if (!to) {
+		trace_android_vh_futex_wait_end(flags, bitset);
 		return ret;
+	}
 
 	hrtimer_cancel(&to->timer);
 	destroy_hrtimer_on_stack(&to->timer);
@@ -719,6 +721,7 @@ int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val, ktime_t *abs_time
 		restart->futex.bitset = bitset;
 		restart->futex.flags = flags | FLAGS_HAS_TIMEOUT;
 
+		trace_android_vh_futex_wait_end(flags, bitset);
 		return set_restart_fn(restart, futex_wait_restart);
 	}
 

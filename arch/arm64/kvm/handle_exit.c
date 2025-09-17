@@ -373,12 +373,24 @@ static int handle_trap_exceptions(struct kvm_vcpu *vcpu)
 static int handle_hyp_req_mem(struct kvm_vcpu *vcpu,
 			      struct kvm_hyp_req *req)
 {
+	struct kvm *kvm = vcpu->kvm;
+	unsigned long nr_pages;
+	int ret;
+
 	switch (req->mem.dest) {
 	case REQ_MEM_DEST_HYP_ALLOC:
 		return __pkvm_topup_hyp_alloc(req->mem.nr_pages);
 	case REQ_MEM_DEST_VCPU_MEMCACHE:
-		return topup_hyp_memcache(&vcpu->arch.stage2_mc,
-					  req->mem.nr_pages, 0);
+		nr_pages = vcpu->arch.stage2_mc.nr_pages;
+		ret = topup_hyp_memcache(&vcpu->arch.stage2_mc,
+					 req->mem.nr_pages, 0);
+		nr_pages = vcpu->arch.stage2_mc.nr_pages - nr_pages;
+		atomic64_add(nr_pages << PAGE_SHIFT, &kvm->stat.protected_hyp_mem);
+
+		return ret;
+	case REQ_MEM_DEST_HYP_IOMMU:
+		return kvm_iommu_guest_alloc_mc(&vcpu->arch.iommu_mc,
+						req->mem.sz_alloc, req->mem.nr_pages);
 	};
 
 	pr_warn("Unknown kvm_hyp_req mem dest: %d\n", req->mem.dest);
@@ -390,6 +402,11 @@ static int handle_hyp_req_map(struct kvm_vcpu *vcpu,
 			      struct kvm_hyp_req *req)
 {
 	return pkvm_mem_abort_range(vcpu, req->map.guest_ipa, req->map.size);
+}
+
+static int handle_hyp_req_split(struct kvm_vcpu *vcpu, struct kvm_hyp_req *req)
+{
+	return __pkvm_pgtable_stage2_split(vcpu, req->split.guest_ipa, req->split.size);
 }
 
 static int handle_hyp_req(struct kvm_vcpu *vcpu)
@@ -407,6 +424,9 @@ static int handle_hyp_req(struct kvm_vcpu *vcpu)
 			break;
 		case KVM_HYP_REQ_TYPE_MAP:
 			ret = handle_hyp_req_map(vcpu, hyp_req);
+			break;
+		case KVM_HYP_REQ_TYPE_SPLIT:
+			ret = handle_hyp_req_split(vcpu, hyp_req);
 			break;
 		default:
 			pr_warn("Unknown kvm_hyp_req type: %d\n", hyp_req->type);
@@ -533,17 +553,13 @@ void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr,
 		kvm_err("Invalid host exception to nVHE hyp!\n");
 	} else if (ESR_ELx_EC(esr) == ESR_ELx_EC_BRK64 &&
 		   esr_brk_comment(esr) == BUG_BRK_IMM) {
+		struct bug_entry *bug = find_bug(elr_in_kimg);
 		const char *file = NULL;
 		unsigned int line = 0;
 
 		/* All hyp bugs, including warnings, are treated as fatal. */
-		if (!is_protected_kvm_enabled() ||
-		    IS_ENABLED(CONFIG_NVHE_EL2_DEBUG)) {
-			struct bug_entry *bug = find_bug(elr_in_kimg);
-
-			if (bug)
-				bug_get_file_line(bug, &file, &line);
-		}
+		if (bug)
+			bug_get_file_line(bug, &file, &line);
 
 		if (file)
 			kvm_err("nVHE hyp BUG at: %s:%u!\n", file, line);

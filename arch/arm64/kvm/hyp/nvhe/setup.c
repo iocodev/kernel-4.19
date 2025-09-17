@@ -19,7 +19,7 @@
 #include <nvhe/mm.h>
 #include <nvhe/pkvm.h>
 #include <nvhe/serial.h>
-#include <nvhe/trace/trace.h>
+#include <nvhe/trace.h>
 #include <nvhe/trap_handler.h>
 
 unsigned long hyp_nr_cpus;
@@ -75,6 +75,10 @@ static int divide_memory_pool(void *virt, unsigned long size)
 	nr_pages = hyp_ffa_proxy_pages();
 	ffa_proxy_pages = hyp_early_alloc_contig(nr_pages);
 	if (!ffa_proxy_pages)
+		return -ENOMEM;
+
+	hyp_ppages = hyp_early_alloc_contig(1);
+	if (!hyp_ppages)
 		return -ENOMEM;
 
 	return 0;

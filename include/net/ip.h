@@ -25,6 +25,7 @@
 #include <linux/jhash.h>
 #include <linux/sockptr.h>
 #include <linux/static_key.h>
+#include <linux/android_kabi.h>
 
 #include <net/inet_sock.h>
 #include <net/route.h>
@@ -83,6 +84,7 @@ struct ipcm_cookie {
 	__s16			tos;
 	char			priority;
 	__u16			gso_size;
+	ANDROID_KABI_RESERVE(1);
 };
 
 static inline void ipcm_init(struct ipcm_cookie *ipcm)
@@ -422,6 +424,11 @@ int ip_decrease_ttl(struct iphdr *iph)
 	check += (__force u32)htons(0x0100);
 	iph->check = (__force __sum16)(check + (check>=0xFFFF));
 	return --iph->ttl;
+}
+
+static inline dscp_t ip4h_dscp(const struct iphdr *ip4h)
+{
+	return inet_dsfield_to_dscp(ip4h->tos);
 }
 
 static inline int ip_mtu_locked(const struct dst_entry *dst)

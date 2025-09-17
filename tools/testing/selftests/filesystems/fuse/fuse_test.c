@@ -255,7 +255,7 @@ static int bpf_test_partial(const char *mount_dir)
 	TEST(src_fd = open(ft_src, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
 	     src_fd != -1);
 	TESTEQUAL(create_file(src_fd, s(test_name), 1, 2), 0);
-	TESTEQUAL(install_elf_bpf("test_bpf.bpf", "test_trace",
+	TESTEQUAL(install_elf_bpf("test_bpf.bpf", "test_partial",
 				  &bpf_fd, NULL, NULL), 0);
 	TESTEQUAL(mount_fuse(mount_dir, bpf_fd, src_fd, &fuse_dev), 0);
 
@@ -363,7 +363,7 @@ static int bpf_test_readdir(const char *mount_dir)
 	     src_fd != -1);
 	TESTEQUAL(create_file(src_fd, s(names[0]), 1, 2), 0);
 	TESTEQUAL(create_file(src_fd, s(names[1]), 1, 2), 0);
-	TESTEQUAL(install_elf_bpf("test_bpf.bpf", "test_trace",
+	TESTEQUAL(install_elf_bpf("test_bpf.bpf", "test_partial",
 				  &bpf_fd, NULL, NULL), 0);
 	TESTEQUAL(mount_fuse(mount_dir, bpf_fd, src_fd, &fuse_dev), 0);
 
@@ -1490,6 +1490,8 @@ out:
 static int bpf_test_lseek(const char *mount_dir)
 {
 	const char *file = "real";
+	const char *sparse_file = "sparse";
+	const off_t sparse_length = 0x100000000u;
 	const char *test_data = "data";
 	int result = TEST_FAILURE;
 	int src_fd = -1;
@@ -1502,6 +1504,12 @@ static int bpf_test_lseek(const char *mount_dir)
 	TEST(fd = openat(src_fd, file, O_CREAT | O_RDWR | O_CLOEXEC, 0777),
 	     fd != -1);
 	TESTEQUAL(write(fd, test_data, strlen(test_data)), strlen(test_data));
+	TESTSYSCALL(close(fd));
+	fd = -1;
+	TEST(fd = openat(src_fd, sparse_file, O_CREAT | O_RDWR | O_CLOEXEC,
+			 0777),
+	     fd != -1);
+	TESTSYSCALL(ftruncate(fd, sparse_length));
 	TESTSYSCALL(close(fd));
 	fd = -1;
 	TESTEQUAL(install_elf_bpf("test_bpf.bpf", "test_trace",
@@ -1518,6 +1526,18 @@ static int bpf_test_lseek(const char *mount_dir)
 	TESTEQUAL(bpf_test_trace("lseek"), 0);
 	TESTEQUAL(lseek(fd, 1, SEEK_DATA), 1);
 	TESTEQUAL(bpf_test_trace("lseek"), 0);
+	TESTSYSCALL(close(fd));
+	fd = -1;
+
+	TEST(fd = s_open(s_path(s(mount_dir), s(sparse_file)),
+			 O_RDONLY | O_CLOEXEC),
+	     fd != -1);
+	TESTEQUAL(lseek(fd, -256, SEEK_END), sparse_length - 256);
+	TESTEQUAL(lseek(fd, 0, SEEK_CUR), sparse_length - 256);
+
+	TESTSYSCALL(close(fd));
+	fd = -1;
+
 	result = TEST_SUCCESS;
 out:
 	close(fd);
@@ -2212,6 +2232,180 @@ out:
 	return result;
 }
 
+/**
+ * Test that fuse passthrough correctly traverses a mount point on the lower fs
+ */
+static int copy_file_range_test(const char *mount_dir)
+{
+	const char *backing = "backing";
+	const char *user = "user";
+	const char *src = "source";
+	const char *dst = "dest";
+	int fd = -1;
+	char buf[4096] = {};
+	int src_fd = -1;
+	int bpf_fd = -1;
+	int fuse_dev = -1;
+	int result = TEST_FAILURE;
+	int backing_src = -1;
+	int backing_dst = -1;
+	int user_src = -1;
+	int user_dst = -1;
+	FUSE_DECLARE_DAEMON;
+
+	TESTSYSCALL(s_mkdir(s_path(s(ft_src), s(backing)), 0777));
+	TESTSYSCALL(s_mkdir(s_path(s(ft_src), s(user)), 0777));
+	TEST(fd = s_creat(s_pathn(3, s(ft_src), s(backing), s(src)), 0777),
+		fd != -1);
+	TESTEQUAL(write(fd, buf, sizeof(buf)), sizeof(buf));
+	TESTSYSCALL(close(fd));
+	TEST(fd = s_creat(s_pathn(3, s(ft_src), s(backing), s(dst)), 0777),
+		fd != -1);
+	TESTEQUAL(write(fd, buf, sizeof(buf)), sizeof(buf));
+	TESTSYSCALL(close(fd));
+	fd = -1;
+
+	TEST(src_fd = open(ft_src, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
+	src_fd != -1);
+	TESTEQUAL(install_elf_bpf("test_bpf.bpf", "copy_file_range_test",
+		&bpf_fd, NULL, NULL), 0);
+	TESTEQUAL(mount_fuse(mount_dir, bpf_fd, src_fd, &fuse_dev), 0);
+
+	FUSE_START_DAEMON();
+	if (action) {
+		off_t off_in, off_out;
+
+		TEST(backing_src = s_open(s_pathn(3, s(mount_dir), s(backing),
+						s(src)),
+				O_RDONLY),
+			backing_src != -1);
+		TEST(backing_dst = s_open(s_pathn(3, s(mount_dir), s(backing),
+						s(dst)),
+				O_RDWR),
+			backing_dst != -1);
+		TEST(user_src = s_open(s_pathn(3, s(mount_dir), s(user),
+						s(src)),
+				O_RDONLY),
+			user_src != -1);
+		TEST(user_dst = s_open(s_pathn(3, s(mount_dir), s(user),
+						s(dst)),
+				O_RDWR),
+			user_dst != -1);
+		off_in = 0; off_out = 0;
+		TESTEQUAL(copy_file_range(backing_src, &off_in, backing_dst,
+				&off_out, sizeof(buf), 0),
+			sizeof(buf));
+		off_in = 0; off_out = 0;
+			TESTEQUAL(copy_file_range(user_src, &off_in,
+				backing_dst, &off_out, sizeof(buf), 0),
+			sizeof(buf));
+		off_in = 0; off_out = 0;
+		TESTEQUAL(copy_file_range(backing_src, &off_in, user_dst,
+				&off_out, sizeof(buf), 0),
+			sizeof(buf));
+		off_in = 0; off_out = 0;
+		TESTEQUAL(copy_file_range(user_src, &off_in, user_dst, &off_out,
+				sizeof(buf), 0),
+			sizeof(buf));
+		TESTSYSCALL(close(backing_src));
+		backing_src = -1;
+		TESTSYSCALL(close(backing_dst));
+		backing_dst = -1;
+		TESTSYSCALL(close(user_src));
+		user_src = -1;
+		TESTSYSCALL(close(user_dst));
+		user_dst = -1;
+	} else {
+		DECL_FUSE_IN(open);
+		DECL_FUSE_IN(copy_file_range);
+		DECL_FUSE_IN(read);
+		DECL_FUSE_IN(getxattr);
+		DECL_FUSE_IN(write);
+		DECL_FUSE_IN(flush);
+		DECL_FUSE_IN(release);
+
+		TESTFUSELOOKUP(src, 0);
+		TESTFUSEOUT1(fuse_entry_out, ((struct fuse_entry_out) {
+			.nodeid		= 2,
+			.generation	= 1,
+			.attr.ino = 100,
+			.attr.size = 4096,
+			.attr.blksize = 512,
+			.attr.mode = S_IFREG | 0777,
+			}));
+
+		TESTFUSEIN(FUSE_OPEN, open_in);
+		TESTFUSEOUT1(fuse_open_out, ((struct fuse_open_out) {
+			.fh = 2,
+			.open_flags = open_in->flags,
+		}));
+
+		TESTFUSEINNULL(FUSE_CANONICAL_PATH);
+		TESTFUSEOUTREAD("ignored", 7);
+
+		TESTFUSELOOKUP(dst, 0);
+		TESTFUSEOUT1(fuse_entry_out, ((struct fuse_entry_out) {
+			.nodeid		= 3,
+			.generation	= 1,
+			.attr.ino = 100,
+			.attr.size = 4096,
+			.attr.blksize = 512,
+			.attr.mode = S_IFREG | 0777,
+			}));
+
+		TESTFUSEIN(FUSE_OPEN, open_in);
+		TESTFUSEOUT1(fuse_open_out, ((struct fuse_open_out) {
+			.fh = 3,
+			.open_flags = open_in->flags,
+		}));
+
+		TESTFUSEINNULL(FUSE_CANONICAL_PATH);
+		TESTFUSEOUTREAD("ignored", 7);
+
+		TESTFUSEIN(FUSE_COPY_FILE_RANGE, copy_file_range_in);
+		TESTEQUAL(copy_file_range_in->fh_in, 2);
+		TESTEQUAL(copy_file_range_in->fh_out, 0);
+		TESTFUSEOUTERROR(-EXDEV);
+		TESTFUSEIN(FUSE_READ, read_in);
+		TESTFUSEOUTREAD(buf, sizeof(buf));
+
+		TESTFUSEINEXT(FUSE_GETXATTR, getxattr_in, 20);
+		TESTFUSEDIROUTREAD(&((struct fuse_getxattr_out) {.size  = 0}),
+			"", 0);
+		TESTFUSEINEXT(FUSE_WRITE, write_in, sizeof(buf));
+		TESTFUSEOUT1(fuse_write_out, ((struct fuse_write_out) {
+				.size = sizeof(buf)
+			}));
+
+		TESTFUSEINEXT(FUSE_GETXATTR, getxattr_in, 20);
+		TESTFUSEDIROUTREAD(&((struct fuse_getxattr_out) {.size  = 0}),
+			"", 0);
+		TESTFUSEIN(FUSE_COPY_FILE_RANGE, copy_file_range_in);
+		TESTEQUAL(copy_file_range_in->fh_in, 2);
+		TESTEQUAL(copy_file_range_in->fh_out, 3);
+		TESTFUSEOUT1(fuse_write_out, ((struct fuse_write_out) {
+				.size = sizeof(buf)
+			}));
+
+		TESTFUSEIN(FUSE_FLUSH, flush_in);
+		TESTFUSEOUTEMPTY();
+		TESTFUSEIN(FUSE_RELEASE, release_in);
+		TESTFUSEOUTEMPTY();
+		TESTFUSEIN(FUSE_FLUSH, flush_in);
+		TESTFUSEOUTEMPTY();
+		TESTFUSEIN(FUSE_RELEASE, release_in);
+		TESTFUSEOUTEMPTY();
+		exit(TEST_SUCCESS);
+	}
+	FUSE_END_DAEMON();
+	umount(mount_dir);
+	close(bpf_fd);
+	close(src_fd);
+	close(fuse_dev);
+	close(fd);
+	return result;
+}
+
 static void parse_range(const char *ranges, bool *run_test, size_t tests)
 {
 	size_t i;
@@ -2344,6 +2538,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(bpf_test_readahead),
 		MAKE_TEST(splice_test),
 		MAKE_TEST(bpf_test_follow_mounts),
+		MAKE_TEST(copy_file_range_test),
 	};
 #undef MAKE_TEST
 

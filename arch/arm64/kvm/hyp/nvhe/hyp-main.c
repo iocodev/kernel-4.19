@@ -7,6 +7,7 @@
 #include <kvm/arm_hypercalls.h>
 
 #include <hyp/adjust_pc.h>
+#include <hyp/switch.h>
 
 #include <asm/pgtable-types.h>
 #include <asm/kvm_asm.h>
@@ -24,7 +25,8 @@
 #include <nvhe/modules.h>
 #include <nvhe/mm.h>
 #include <nvhe/pkvm.h>
-#include <nvhe/trace/trace.h>
+#include <nvhe/pviommu-host.h>
+#include <nvhe/trace.h>
 #include <nvhe/trap_handler.h>
 
 #include <linux/irqchip/arm-gic-v3.h>
@@ -544,7 +546,7 @@ static void fpsimd_sve_sync(struct kvm_vcpu *vcpu)
 	if (system_supports_sve())
 		__hyp_sve_restore_host();
 	else
-		__fpsimd_restore_state(*host_data_ptr(fpsimd_state));
+		__fpsimd_restore_state(host_data_ptr(host_ctxt.fp_regs));
 
 	if (has_fpmr)
 		write_sysreg_s(*host_data_ptr(fpmr), SYS_FPMR);
@@ -899,30 +901,6 @@ static void sync_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu, u64 *exit_code)
 	hyp_vcpu->exit_code = *exit_code;
 }
 
-static void fpsimd_host_restore(void)
-{
-	cpacr_clear_set(0, CPACR_ELx_FPEN | CPACR_ELx_ZEN);
-	isb();
-
-
-	if (unlikely(is_protected_kvm_enabled())) {
-		struct pkvm_hyp_vcpu *hyp_vcpu = pkvm_get_loaded_hyp_vcpu();
-
-		if (vcpu_has_sve(&hyp_vcpu->vcpu))
-			__hyp_sve_save_guest(&hyp_vcpu->vcpu);
-		else
-			__fpsimd_save_state(&hyp_vcpu->vcpu.arch.ctxt.fp_regs);
-
-		__fpsimd_restore_state(*host_data_ptr(fpsimd_state));
-
-		*host_data_ptr(fp_owner) = FP_STATE_HOST_OWNED;
-	}
-
-	if (system_supports_sve())
-		sve_cond_update_zcr_vq(sve_vq_from_vl(kvm_host_sve_max_vl) - 1,
-				       SYS_ZCR_EL2);
-}
-
 static void handle___pkvm_vcpu_load(struct kvm_cpu_context *host_ctxt)
 {
 	DECLARE_REG(pkvm_handle_t, handle, host_ctxt, 1);
@@ -951,8 +929,6 @@ static void handle___pkvm_vcpu_load(struct kvm_cpu_context *host_ctxt)
 		*last_ran = hyp_vcpu->vcpu.vcpu_id;
 	}
 
-	*host_data_ptr(fp_owner) = FP_STATE_HOST_OWNED;
-
 	if (pkvm_hyp_vcpu_is_protected(hyp_vcpu)) {
 		/* Propagate WFx trapping flags */
 		hyp_vcpu->vcpu.arch.hcr_el2 &= ~(HCR_TWE | HCR_TWI);
@@ -970,9 +946,6 @@ static void handle___pkvm_vcpu_put(struct kvm_cpu_context *host_ctxt)
 	hyp_vcpu = pkvm_get_loaded_hyp_vcpu();
 	if (hyp_vcpu) {
 		struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
-
-		if (guest_owns_fp_regs())
-			fpsimd_host_restore();
 
 		if (!pkvm_hyp_vcpu_is_protected(hyp_vcpu) &&
 		    !vcpu_get_flag(host_vcpu, PKVM_HOST_STATE_DIRTY)) {
@@ -993,9 +966,6 @@ static void handle___pkvm_vcpu_sync_state(struct kvm_cpu_context *host_ctxt)
 	hyp_vcpu = pkvm_get_loaded_hyp_vcpu();
 	if (!hyp_vcpu || pkvm_hyp_vcpu_is_protected(hyp_vcpu))
 		return;
-
-	if (guest_owns_fp_regs())
-		fpsimd_host_restore();
 
 	__sync_hyp_vcpu(hyp_vcpu);
 }
@@ -1063,17 +1033,13 @@ static void handle___kvm_vcpu_run(struct kvm_cpu_context *host_ctxt)
 			goto out;
 
 		flush_hyp_vcpu(hyp_vcpu);
-
 		ret = __kvm_vcpu_run(&hyp_vcpu->vcpu);
-
 		sync_hyp_vcpu(hyp_vcpu, &ret);
-
-		/* Trap host fpsimd/sve if the guest has used fpsimd/sve. */
-		if (guest_owns_fp_regs())
-			cpacr_clear_set(CPACR_ELx_FPEN | CPACR_ELx_ZEN, 0);
 	} else {
 		/* The host is fully trusted, run its vCPU directly. */
+		fpsimd_lazy_switch_to_guest(host_vcpu);
 		ret = __kvm_vcpu_run(host_vcpu);
+		fpsimd_lazy_switch_to_host(host_vcpu);
 	}
 out:
 	cpu_reg(host_ctxt, 1) =  ret;
@@ -1099,6 +1065,28 @@ static void handle___pkvm_host_donate_guest(struct kvm_cpu_context *host_ctxt)
 		goto out;
 
 	ret = __pkvm_host_donate_guest(pfn, gfn, hyp_vcpu, nr_pages);
+out:
+	cpu_reg(host_ctxt, 1) =  ret;
+}
+
+static void handle___pkvm_host_donate_guest_sglist(struct kvm_cpu_context *host_ctxt)
+{
+	struct pkvm_hyp_vcpu *hyp_vcpu;
+	int ret = -EINVAL;
+
+	if (!is_protected_kvm_enabled())
+		goto out;
+
+	hyp_vcpu = pkvm_get_loaded_hyp_vcpu();
+	if (!hyp_vcpu || !pkvm_hyp_vcpu_is_protected(hyp_vcpu))
+		goto out;
+
+	ret = pkvm_refill_memcache(hyp_vcpu);
+	if (ret)
+		goto out;
+
+	ret = __pkvm_host_donate_sglist_guest(hyp_vcpu);
+
 out:
 	cpu_reg(host_ctxt, 1) =  ret;
 }
@@ -1227,6 +1215,29 @@ static void handle___pkvm_host_mkyoung_guest(struct kvm_cpu_context *host_ctxt)
 	pte = __pkvm_host_mkyoung_guest(gfn, hyp_vcpu);
 out:
 	cpu_reg(host_ctxt, 1) =  pte;
+}
+
+static void handle___pkvm_host_split_guest(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(u64, gfn, host_ctxt, 1);
+	DECLARE_REG(u64, size, host_ctxt, 2);
+	struct pkvm_hyp_vcpu *hyp_vcpu;
+	int ret = -EINVAL;
+
+	if (!is_protected_kvm_enabled())
+		goto out;
+
+	hyp_vcpu = pkvm_get_loaded_hyp_vcpu();
+	if (!hyp_vcpu)
+		goto out;
+
+	if (!pkvm_hyp_vcpu_is_protected(hyp_vcpu))
+		goto out;
+
+	ret = __pkvm_host_split_guest(gfn, size, hyp_vcpu);
+
+out:
+	cpu_reg(host_ctxt, 1) = ret;
 }
 
 static void handle___kvm_adjust_pc(struct kvm_cpu_context *host_ctxt)
@@ -1451,6 +1462,20 @@ static void handle___pkvm_reclaim_dying_guest_page(struct kvm_cpu_context *host_
 		__pkvm_reclaim_dying_guest_page(handle, pfn, gfn, order);
 }
 
+static void handle___pkvm_reclaim_dying_guest_ffa_resources(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(pkvm_handle_t, handle, host_ctxt, 1);
+
+	cpu_reg(host_ctxt, 1) = __pkvm_reclaim_dying_guest_ffa_resources(handle);
+}
+
+static void handle___pkvm_notify_guest_vm_avail(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(pkvm_handle_t, handle, host_ctxt, 1);
+
+	cpu_reg(host_ctxt, 1) = __pkvm_notify_guest_vm_avail(handle);
+}
+
 static void handle___pkvm_create_private_mapping(struct kvm_cpu_context *host_ctxt)
 {
 	DECLARE_REG(phys_addr_t, phys, host_ctxt, 1);
@@ -1576,7 +1601,7 @@ static void handle___pkvm_selftest_event(struct kvm_cpu_context *host_ctxt)
 {
 	int smc_ret = SMCCC_RET_NOT_SUPPORTED, ret = -EOPNOTSUPP;
 
-#ifdef CONFIG_PROTECTED_NVHE_TESTING
+#ifdef CONFIG_PKVM_SELFTESTS
 	trace_selftest();
 	smc_ret = SMCCC_RET_SUCCESS;
 	ret = 0;
@@ -1694,9 +1719,10 @@ static void handle___pkvm_host_iommu_attach_dev(struct kvm_cpu_context *host_ctx
 	DECLARE_REG(unsigned int, endpoint, host_ctxt, 3);
 	DECLARE_REG(unsigned int, pasid, host_ctxt, 4);
 	DECLARE_REG(unsigned int, pasid_bits, host_ctxt, 5);
+	DECLARE_REG(unsigned long, flags, host_ctxt, 6);
 
 	ret = kvm_iommu_attach_dev(iommu, domain, endpoint,
-				   pasid, pasid_bits);
+				   pasid, pasid_bits, flags);
 	hyp_reqs_smccc_encode(ret, host_ctxt, this_cpu_ptr(&host_hyp_reqs));
 }
 
@@ -1714,7 +1740,8 @@ static void handle___pkvm_host_iommu_detach_dev(struct kvm_cpu_context *host_ctx
 
 static void handle___pkvm_host_iommu_map_pages(struct kvm_cpu_context *host_ctxt)
 {
-	unsigned long ret;
+	int ret;
+	unsigned long mapped;
 	DECLARE_REG(pkvm_handle_t, domain, host_ctxt, 1);
 	DECLARE_REG(unsigned long, iova, host_ctxt, 2);
 	DECLARE_REG(phys_addr_t, paddr, host_ctxt, 3);
@@ -1723,8 +1750,9 @@ static void handle___pkvm_host_iommu_map_pages(struct kvm_cpu_context *host_ctxt
 	DECLARE_REG(unsigned int, prot, host_ctxt, 6);
 
 	ret = kvm_iommu_map_pages(domain, iova, paddr,
-				  pgsize, pgcount, prot);
-	hyp_reqs_smccc_encode(ret, host_ctxt, this_cpu_ptr(&host_hyp_reqs));
+				  pgsize, pgcount, prot, &mapped);
+	cpu_reg(host_ctxt, 0) = ret;
+	hyp_reqs_smccc_encode(mapped, host_ctxt, this_cpu_ptr(&host_hyp_reqs));
 }
 
 static void handle___pkvm_host_iommu_unmap_pages(struct kvm_cpu_context *host_ctxt)
@@ -1852,6 +1880,30 @@ out:
 	cpu_reg(host_ctxt, 1) = ret;
 }
 
+static void handle___pkvm_pviommu_attach(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(struct kvm *, host_kvm, host_ctxt, 1);
+	DECLARE_REG(int, pviommu, host_ctxt, 2);
+
+	cpu_reg(host_ctxt, 1) = pkvm_pviommu_attach(host_kvm, pviommu);
+}
+
+static void handle___pkvm_pviommu_add_vsid(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(struct kvm *, host_kvm, host_ctxt, 1);
+	DECLARE_REG(pkvm_handle_t, pviommu, host_ctxt, 2);
+	DECLARE_REG(pkvm_handle_t, iommu, host_ctxt, 3);
+	DECLARE_REG(pkvm_handle_t, sid, host_ctxt, 4);
+	DECLARE_REG(pkvm_handle_t, vsid, host_ctxt, 5);
+
+	cpu_reg(host_ctxt, 1) = pkvm_pviommu_add_vsid(host_kvm, pviommu, iommu, sid, vsid);
+}
+
+static void handle___pkvm_host_get_ffa_version(struct kvm_cpu_context *host_ctxt)
+{
+	cpu_reg(host_ctxt, 1) = ffa_get_hypervisor_version();
+}
+
 typedef void (*hcall_t)(struct kvm_cpu_context *);
 
 #define HANDLE_FUNC(x)	[__KVM_HOST_SMCCC_FUNC_##x] = (hcall_t)handle_##x
@@ -1883,12 +1935,14 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__pkvm_host_share_hyp),
 	HANDLE_FUNC(__pkvm_host_unshare_hyp),
 	HANDLE_FUNC(__pkvm_host_donate_guest),
+	HANDLE_FUNC(__pkvm_host_donate_guest_sglist),
 	HANDLE_FUNC(__pkvm_host_share_guest),
 	HANDLE_FUNC(__pkvm_host_unshare_guest),
 	HANDLE_FUNC(__pkvm_host_relax_perms_guest),
 	HANDLE_FUNC(__pkvm_host_wrprotect_guest),
 	HANDLE_FUNC(__pkvm_host_test_clear_young_guest),
 	HANDLE_FUNC(__pkvm_host_mkyoung_guest),
+	HANDLE_FUNC(__pkvm_host_split_guest),
 	HANDLE_FUNC(__kvm_adjust_pc),
 	HANDLE_FUNC(__kvm_vcpu_run),
 	HANDLE_FUNC(__kvm_timer_set_cntvoff),
@@ -1899,6 +1953,8 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__pkvm_start_teardown_vm),
 	HANDLE_FUNC(__pkvm_finalize_teardown_vm),
 	HANDLE_FUNC(__pkvm_reclaim_dying_guest_page),
+	HANDLE_FUNC(__pkvm_reclaim_dying_guest_ffa_resources),
+	HANDLE_FUNC(__pkvm_notify_guest_vm_avail),
 	HANDLE_FUNC(__pkvm_vcpu_load),
 	HANDLE_FUNC(__pkvm_vcpu_put),
 	HANDLE_FUNC(__pkvm_vcpu_sync_state),
@@ -1929,6 +1985,9 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__pkvm_host_donate_hyp_mmio),
 	HANDLE_FUNC(__pkvm_host_reclaim_hyp_mmio),
 	HANDLE_FUNC(__pkvm_host_map_guest_mmio),
+	HANDLE_FUNC(__pkvm_pviommu_attach),
+	HANDLE_FUNC(__pkvm_pviommu_add_vsid),
+	HANDLE_FUNC(__pkvm_host_get_ffa_version),
 };
 
 static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)
@@ -1976,12 +2035,7 @@ inval:
 static void handle_host_smc(struct kvm_cpu_context *host_ctxt)
 {
 	DECLARE_REG(u64, func_id, host_ctxt, 0);
-	struct pkvm_hyp_vcpu *hyp_vcpu;
 	bool handled;
-
-	hyp_vcpu = pkvm_get_loaded_hyp_vcpu();
-	if (hyp_vcpu && guest_owns_fp_regs())
-		fpsimd_host_restore();
 
 	func_id &= ~ARM_SMCCC_CALL_HINTS;
 
@@ -2016,11 +2070,6 @@ void handle_trap(struct kvm_cpu_context *host_ctxt)
 		break;
 	case ESR_ELx_EC_SMC64:
 		handle_host_smc(host_ctxt);
-		break;
-	case ESR_ELx_EC_FP_ASIMD:
-	case ESR_ELx_EC_SVE:
-	case ESR_ELx_EC_SME:
-		fpsimd_host_restore();
 		break;
 	case ESR_ELx_EC_IABT_LOW:
 	case ESR_ELx_EC_DABT_LOW:

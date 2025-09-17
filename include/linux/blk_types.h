@@ -11,6 +11,7 @@
 #include <linux/device.h>
 #include <linux/ktime.h>
 #include <linux/rw_hint.h>
+#include <linux/android_kabi.h>
 
 struct bio_set;
 struct bio;
@@ -272,6 +273,10 @@ struct bio {
 
 	struct bio_set		*bi_pool;
 
+	ANDROID_OEM_DATA(1);
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+
 	/*
 	 * We can inline a number of vecs at the end of the bio, to avoid
 	 * double allocations for a small number of bio_vecs. This member
@@ -438,7 +443,7 @@ static inline enum req_op bio_op(const struct bio *bio)
 
 static inline bool op_is_write(blk_opf_t op)
 {
-	return !!(op & (__force blk_opf_t)1);
+	return (op & (__force blk_opf_t)1) || op == REQ_OP_ZONE_FINISH;
 }
 
 /*

@@ -31,7 +31,7 @@
 #include <linux/xarray.h>
 #include <uapi/linux/android/binder.h>
 #include <uapi/linux/android/binderfs.h>
-
+#include <trace/hooks/binder.h>
 #include "binder_internal.h"
 
 #define FIRST_INODE 1
@@ -59,6 +59,7 @@ struct binder_features {
 	bool oneway_spam_detection;
 	bool extended_error;
 	bool freeze_notification;
+	bool transaction_report;
 };
 
 static const struct constant_table binderfs_param_stats[] = {
@@ -76,6 +77,7 @@ static struct binder_features binder_features = {
 	.oneway_spam_detection = true,
 	.extended_error = true,
 	.freeze_notification = true,
+	.transaction_report = true,
 };
 
 static inline struct binderfs_info *BINDERFS_SB(const struct super_block *sb)
@@ -616,6 +618,12 @@ static int init_binder_features(struct super_block *sb)
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
+	dentry = binderfs_create_file(dir, "transaction_report",
+				      &binder_features_fops,
+				      &binder_features.transaction_report);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+
 	return 0;
 }
 
@@ -649,6 +657,7 @@ static int init_binder_logs(struct super_block *sb)
 		ret = PTR_ERR(proc_log_dir);
 		goto out;
 	}
+	trace_android_rvh_init_binder_logs(sb);
 	info = sb->s_fs_info;
 	info->proc_log_dir = proc_log_dir;
 
@@ -765,6 +774,9 @@ static int binderfs_init_fs_context(struct fs_context *fc)
 {
 	struct binderfs_mount_opts *ctx;
 
+	if (on_binderfs_mount())
+		return -EINVAL;
+
 	ctx = kzalloc(sizeof(struct binderfs_mount_opts), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
@@ -831,4 +843,10 @@ int __init init_binderfs(void)
 	}
 
 	return ret;
+}
+
+void unload_binderfs(void)
+{
+	unregister_filesystem(&binder_fs_type);
+	unregister_chrdev_region(binderfs_dev, BINDERFS_MAX_MINOR);
 }

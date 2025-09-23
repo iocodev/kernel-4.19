@@ -544,7 +544,8 @@ static void rk3576_tcon_frame_start(struct ebc_tcon *tcon, int frame_total)
 
 static int tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 {
-	u32 width, height, vir_width, vir_height;
+	u32 width, height, vir_width, vir_height, div = 0;
+	unsigned long dclk_rate;
 
 	clk_prepare_enable(tcon->hclk);
 	clk_prepare_enable(tcon->dclk);
@@ -608,14 +609,18 @@ static int tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 				| EPD_GDRL(1)
 				| EPD_SDSHR(1));
 	tcon_write(tcon, EBC_DSP_START, DSP_SDCE_WIDTH(panel->ldl) | SW_BURST_CTRL);
+	dclk_rate = clk_get_rate(clk_get_parent(tcon->dclk));
+	div = DIV_ROUND_CLOSEST(dclk_rate, panel->sdck);
 	tcon_write(tcon, EBC_DSP_CTRL,
-				DSP_SWAP_MODE(panel->panel_16bit ? 2 : 3) | DSP_VCOM_MODE(1) | DSP_SDCLK_DIV(0));
+				DSP_SWAP_MODE(panel->panel_16bit ? 2 : 3) | DSP_VCOM_MODE(1) |
+				DSP_SDCLK_DIV(div ? div - 1 : div));
 	/* unmask DSP_END_INT_MASK */
 	tcon_update_bits(tcon, EBC_INT_STATUS, FRM_END_INT_MASK | DSP_END_INT_MASK |
 			 DSP_FRM_INT_MASK, FRM_END_INT_MASK | DSP_FRM_INT_MASK);
 	tcon_cfg_done(tcon);
 
 	enable_irq(tcon->irq);
+	tcon->panel = panel;
 
 	return 0;
 }

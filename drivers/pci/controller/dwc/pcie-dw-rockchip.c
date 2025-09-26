@@ -155,7 +155,6 @@ struct rk_pcie {
 	u32				l1ss_ctl1;
 	u32				l1ss_ctl2;
 	struct dentry			*debugfs;
-	u32				msi_vector_num;
 	struct workqueue_struct		*hot_rst_wq;
 	struct work_struct		hot_rst_work;
 	u32				comp_prst[2];
@@ -166,10 +165,6 @@ struct rk_pcie {
 	u8				slot_power_limit_scale;
 	u32				rasdes_off;
 	u32				linkcap_off;
-};
-
-struct rk_pcie_of_data {
-	u32 msi_vector_num;
 };
 
 #define to_rk_pcie(x)	dev_get_drvdata((x)->dev)
@@ -604,22 +599,6 @@ static int rk_pcie_init_dma_trx(struct rk_pcie *rk_pcie)
 	return 0;
 }
 
-#ifdef MODULE
-void dw_pcie_write_dbi2(struct dw_pcie *pci, u32 reg, size_t size, u32 val)
-{
-	int ret;
-
-	if (pci->ops && pci->ops->write_dbi2) {
-		pci->ops->write_dbi2(pci, pci->dbi_base2, reg, size, val);
-		return;
-	}
-
-	ret = dw_pcie_write(pci->dbi_base2 + reg, size, val);
-	if (ret)
-		dev_err(pci->dev, "write DBI address failed\n");
-}
-#endif
-
 static struct dw_pcie_host_ops rk_pcie_host_ops;
 
 static int rk_add_pcie_port(struct rk_pcie *rk_pcie, struct platform_device *pdev)
@@ -630,13 +609,6 @@ static int rk_add_pcie_port(struct rk_pcie *rk_pcie, struct platform_device *pde
 	struct device *dev = pci->dev;
 
 	pp->ops = &rk_pcie_host_ops;
-
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		if (rk_pcie->msi_vector_num > 0) {
-			dev_info(dev, "max MSI vector is %d\n", rk_pcie->msi_vector_num);
-			pp->num_vectors = rk_pcie->msi_vector_num;
-		}
-	}
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
@@ -901,30 +873,21 @@ static int rk_pcie_request_sys_irq(struct rk_pcie *rk_pcie,
 	return 0;
 }
 
-static const struct rk_pcie_of_data rk3528_pcie_rc_of_data = {
-	.msi_vector_num = 32,
-};
-
 static const struct of_device_id rk_pcie_of_match[] = {
 	{
 		.compatible = "rockchip,rk3528-pcie",
-		.data = &rk3528_pcie_rc_of_data,
 	},
 	{
 		.compatible = "rockchip,rk3562-pcie",
-		.data = &rk3528_pcie_rc_of_data,
 	},
 	{
 		.compatible = "rockchip,rk3568-pcie",
-		.data = NULL,
 	},
 	{
 		.compatible = "rockchip,rk3576-pcie",
-		.data = &rk3528_pcie_rc_of_data,
 	},
 	{
 		.compatible = "rockchip,rk3588-pcie",
-		.data = NULL,
 	},
 	{},
 };
@@ -1635,18 +1598,8 @@ static int rk_pcie_really_probe(void *p)
 	struct rk_pcie *rk_pcie = NULL;
 	struct dw_pcie *pci;
 	int ret;
-	const struct of_device_id *match;
-	const struct rk_pcie_of_data *data;
 
 	/* 1. resource initialization */
-	match = of_match_device(rk_pcie_of_match, dev);
-	if (!match) {
-		ret = -EINVAL;
-		goto release_driver;
-	}
-
-	data = (struct rk_pcie_of_data *)match->data;
-
 	rk_pcie = devm_kzalloc(dev, sizeof(*rk_pcie), GFP_KERNEL);
 	if (!rk_pcie) {
 		ret = -ENOMEM;
@@ -1661,7 +1614,6 @@ static int rk_pcie_really_probe(void *p)
 
 	/* 2. variables assignment */
 	rk_pcie->pci = pci;
-	rk_pcie->msi_vector_num = data ? data->msi_vector_num : 0;
 	rk_pcie->intx = 0xffffffff;
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;

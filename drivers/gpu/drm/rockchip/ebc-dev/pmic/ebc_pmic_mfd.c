@@ -84,6 +84,7 @@ static struct pmic_mfd_data fitipower_fp9931 = {
 
 static const struct mfd_cell fp9936_cells[] = {
 	{ .name = "fp9936-regulator", },
+	{ .name = "fp9936-thermal", },
 };
 
 static struct pmic_mfd_data fitipower_fp9936 = {

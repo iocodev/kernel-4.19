@@ -67,7 +67,7 @@ static int fp9931_thermal_probe(struct platform_device *pdev)
 
 	data->regulator = devm_regulator_get(&pdev->dev, "vcom");
 	if (IS_ERR(data->regulator)) {
-		dev_err(&pdev->dev, "Unable to get fp9931 vcom regulator, returned %ld\n",
+		dev_err(&pdev->dev, "Unable to get fp993x vcom regulator, returned %ld\n",
 			PTR_ERR(data->regulator));
 		return PTR_ERR(data->regulator);
 	}
@@ -80,7 +80,7 @@ static int fp9931_thermal_probe(struct platform_device *pdev)
 	data->thermal_zone_dev = devm_thermal_zone_of_sensor_register(pdev->dev.parent, 0, data, &ops);
 #endif
 	if (IS_ERR(data->thermal_zone_dev)) {
-		dev_err(&pdev->dev, "Fail to create fp9931 thermal zone\n");
+		dev_err(&pdev->dev, "Fail to create fp993x thermal zone\n");
 		return PTR_ERR(data->thermal_zone_dev);
 	}
 
@@ -89,6 +89,7 @@ static int fp9931_thermal_probe(struct platform_device *pdev)
 
 static const struct platform_device_id fp9931_thermal_id_table[] = {
 	{ "fp9931-thermal", },
+	{ "fp9936-thermal", },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, fp9931_thermal_id_table);

@@ -644,7 +644,7 @@ static int rk_dma_heap_debug_show(struct seq_file *s, void *unused)
 	mutex_lock(&rk_heap_list_lock);
 	list_for_each_entry(heap, &rk_heap_list, list) {
 		heap->s = s;
-		dma_buf_get_each(rk_dma_heap_dump_dmabuf, heap);
+		get_dmabuf_debugfs_data(rk_dma_heap_dump_dmabuf, heap);
 		rk_dma_heap_dump_contig(heap);
 		rk_dma_heap_dump_pages(heap);
 		total += heap->total_size;
@@ -694,7 +694,7 @@ static int rk_dma_heap_proc_show(struct seq_file *s, void *unused)
 	mutex_lock(&rk_heap_list_lock);
 	list_for_each_entry(heap, &rk_heap_list, list) {
 		heap->s = s;
-		dma_buf_get_each(rk_dma_heap_dump_dmabuf, heap);
+		get_dmabuf_debugfs_data(rk_dma_heap_dump_dmabuf, heap);
 		rk_dma_heap_dump_contig(heap);
 		rk_dma_heap_dump_pages(heap);
 		total += heap->total_size;

@@ -37,11 +37,8 @@
 #define RK3588_PCIE3PHY_GRF_PHY1_STATUS1	0xa04
 #define RK3588_SRAM_INIT_DONE(reg)		((reg & 0xf) == 0xf)
 
-#define RK3588_BIFURCATION_LANE_0_1		BIT(0)
-#define RK3588_BIFURCATION_LANE_2_3		BIT(1)
-#define RK3588_LANE_AGGREGATION		BIT(2)
-#define RK3588_PCIE1LN_SEL_EN			(GENMASK(1, 0) << 16)
-#define RK3588_PCIE30_PHY_MODE_EN		(GENMASK(2, 0) << 16)
+/* Common definition */
+#define RK_PCIE_SRAM_INIT_TIMEOUT		20000
 
 struct rockchip_p3phy_ops;
 
@@ -241,10 +238,23 @@ static int rockchip_p3phy_exit(struct phy *phy)
 	return 0;
 }
 
+static int rockchip_p3phy_calibrate(struct phy *phy)
+{
+	struct rockchip_p3phy_priv *priv = phy_get_drvdata(phy);
+	int ret = 0;
+
+	if (priv->ops->phy_calibrate) {
+		ret = priv->ops->phy_calibrate(priv);
+	};
+
+	return ret;
+}
+
 static const struct phy_ops rockchip_p3phy_ops = {
 	.init = rockchip_p3phy_init,
 	.exit = rockchip_p3phy_exit,
 	.set_mode = rockchip_p3phy_set_mode,
+	.calibrate = rockchip_p3phy_calibrate,
 	.owner = THIS_MODULE,
 };
 
@@ -306,9 +316,8 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		if (priv->pcie30_phymode != PHY_MODE_PCIE_AGGREGATION)
-			regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
-				     (0x7 << 16) | priv->pcie30_phymode);
+		regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
+			     (0x7 << 16) | priv->pcie30_phymode);
 
 		/* Set pcie1ln_sel in PHP_GRF_PCIESEL_CON */
 		if (!IS_ERR(priv->pipe_grf)) {

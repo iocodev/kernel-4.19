@@ -1453,7 +1453,7 @@ kernel_build(
         "arch/arm64/configs/rockchip_gki.config",
         "kernel/configs/bifrost_gpu_gki.config",
         ],
-    module_outs = get_gki_modules_list("arm64") + get_kunit_modules_list("arm64") + _ROCKCHIP_MODULE_OUTS,
+    module_outs = _ROCKCHIP_MODULE_OUTS,
     strip_modules = True,
     visibility = ["//visibility:private"],
 )

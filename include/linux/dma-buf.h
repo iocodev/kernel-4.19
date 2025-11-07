@@ -664,10 +664,8 @@ struct dma_buf_export_info {
 	ANDROID_KABI_RESERVE(2);
 };
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
 int get_dmabuf_debugfs_data(int (*fn)(const struct dma_buf *, void *),
 			void *private);
-#endif
 
 /**
  * DEFINE_DMA_BUF_EXPORT_INFO - helper macro for exporters

@@ -1481,6 +1481,7 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 }
 
 #else /* !CONFIG_PREEMPT_RT */
+#include <trace/hooks/rwsem.h>
 
 #define RT_MUTEX_BUILD_MUTEX
 #include "rtmutex.c"

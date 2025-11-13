@@ -7518,6 +7518,8 @@ static void vop2_atomic_plane_reset(struct drm_plane *plane)
 	__drm_atomic_helper_plane_reset(plane, &vpstate->base);
 	vpstate->base.zpos = win->zpos;
 	vpstate->alpha_map = 0x8000ff00;
+	vpstate->base.color_encoding = DRM_COLOR_YCBCR_BT709;
+	vpstate->base.color_range = DRM_COLOR_YCBCR_FULL_RANGE;
 }
 
 static struct drm_plane_state *vop2_atomic_plane_duplicate_state(struct drm_plane *plane)
@@ -15357,7 +15359,6 @@ static int vop2_gamma_init(struct vop2 *vop2)
 		if (!lut_len)
 			continue;
 		vp->gamma_lut_len = vp_data->gamma_lut_len;
-		vp->lut_dma_rid = vp_data->lut_dma_rid;
 		if (!vp->gamma_lut_active) {
 			vp->lut = devm_kmalloc_array(dev, lut_len, sizeof(*vp->lut), GFP_KERNEL);
 			if (!vp->lut)
@@ -15634,6 +15635,7 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 	char clk_name[16];
 	int i = 0, j = 0, k = 0;
 	int ret = 0;
+	int overlay_plane_index = 0;
 	bool be_used_for_primary_plane = false;
 	bool find_primary_plane = false;
 	bool bootloader_initialized = false;
@@ -15667,6 +15669,7 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 		vp->vop2 = vop2;
 		vp->id = vp_data->id;
 		vp->regs = vp_data->regs;
+		vp->lut_dma_rid = vp_data->lut_dma_rid;
 		vp->cursor_win_id = -1;
 		primary = NULL;
 		cursor = NULL;
@@ -15931,7 +15934,8 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 		 * zpos of overlay plane is higher than primary
 		 * and lower than cursor
 		 */
-		win->zpos = registered_num_crtcs + j;
+		win->zpos = registered_num_crtcs + overlay_plane_index;
+		overlay_plane_index++;
 
 		possible_crtcs = vop2_win_get_possible_crtcs(vop2, win, enabled_vp_mask);
 		if (vop2->disable_win_move) {

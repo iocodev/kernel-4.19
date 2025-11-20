@@ -8,8 +8,6 @@
  * Copyright (C) 2011 Google, Inc.
  */
 
-#include "page_pool.h"
-
 #include <linux/list.h>
 #include <linux/shrinker.h>
 #include <linux/spinlock.h>
@@ -109,7 +107,7 @@ static struct page *dmabuf_page_pool_fetch(struct dmabuf_page_pool *pool)
 	return page;
 }
 
-struct page *dmabuf_page_pool_alloc(struct dmabuf_page_pool *pool)
+static struct page *dmabuf_page_pool_alloc(struct dmabuf_page_pool *pool)
 {
 	struct page *page = NULL;
 
@@ -122,16 +120,14 @@ struct page *dmabuf_page_pool_alloc(struct dmabuf_page_pool *pool)
 		page = dmabuf_page_pool_alloc_pages(pool);
 	return page;
 }
-EXPORT_SYMBOL_GPL(dmabuf_page_pool_alloc);
 
-void dmabuf_page_pool_free(struct dmabuf_page_pool *pool, struct page *page)
+static void dmabuf_page_pool_free(struct dmabuf_page_pool *pool, struct page *page)
 {
 	if (WARN_ON(pool->order != compound_order(page)))
 		return;
 
 	dmabuf_page_pool_add(pool, page);
 }
-EXPORT_SYMBOL_GPL(dmabuf_page_pool_free);
 
 static int dmabuf_page_pool_total(struct dmabuf_page_pool *pool, bool high)
 {
@@ -143,7 +139,7 @@ static int dmabuf_page_pool_total(struct dmabuf_page_pool *pool, bool high)
 	return count << pool->order;
 }
 
-struct dmabuf_page_pool *dmabuf_page_pool_create(gfp_t gfp_mask, unsigned int order)
+static struct dmabuf_page_pool *dmabuf_page_pool_create(gfp_t gfp_mask, unsigned int order)
 {
 	struct dmabuf_page_pool *pool = kmalloc(sizeof(*pool), GFP_KERNEL);
 	int i;
@@ -165,9 +161,8 @@ struct dmabuf_page_pool *dmabuf_page_pool_create(gfp_t gfp_mask, unsigned int or
 
 	return pool;
 }
-EXPORT_SYMBOL_GPL(dmabuf_page_pool_create);
 
-void dmabuf_page_pool_destroy(struct dmabuf_page_pool *pool)
+static void dmabuf_page_pool_destroy(struct dmabuf_page_pool *pool)
 {
 	struct page *page;
 	int i;
@@ -185,9 +180,8 @@ void dmabuf_page_pool_destroy(struct dmabuf_page_pool *pool)
 
 	kfree(pool);
 }
-EXPORT_SYMBOL_GPL(dmabuf_page_pool_destroy);
 
-unsigned long dmabuf_page_pool_get_size(struct dmabuf_page_pool *pool)
+static unsigned long dmabuf_page_pool_get_size(struct dmabuf_page_pool *pool)
 {
        int i;
        unsigned long num_pages = 0;
@@ -200,7 +194,6 @@ unsigned long dmabuf_page_pool_get_size(struct dmabuf_page_pool *pool)
 
        return num_pages * PAGE_SIZE;
 }
-EXPORT_SYMBOL_GPL(dmabuf_page_pool_get_size);
 
 static int dmabuf_page_pool_do_shrink(struct dmabuf_page_pool *pool, gfp_t gfp_mask,
 				      int nr_to_scan)
@@ -296,5 +289,3 @@ static int dmabuf_page_pool_init_shrinker(void)
 
 	return 0;
 }
-module_init(dmabuf_page_pool_init_shrinker);
-MODULE_LICENSE("GPL v2");

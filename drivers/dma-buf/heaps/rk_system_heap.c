@@ -24,7 +24,7 @@
 #include <linux/vmalloc.h>
 #include <linux/rockchip/rockchip_sip.h>
 
-#include "page_pool.h"
+#include "page_pool.c"
 
 static struct dma_heap *sys_heap;
 static struct dma_heap *sys_dma32_heap;
@@ -741,6 +741,12 @@ static int system_heap_create(void)
 	struct dma_heap_export_info exp_info;
 	int i, err = 0;
 	struct dram_addrmap_info *ddr_map_info;
+
+	err = dmabuf_page_pool_init_shrinker();
+	if (err) {
+		pr_err("failed to init dmabuf page pool shrinker\n");
+		return err;
+	}
 
 	for (i = 0; i < NUM_ORDERS; i++) {
 		pools[i] = dmabuf_page_pool_create(order_flags[i], orders[i]);

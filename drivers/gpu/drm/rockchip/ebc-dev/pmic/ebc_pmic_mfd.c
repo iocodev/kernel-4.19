@@ -101,7 +101,7 @@ static const struct of_device_id pmic_mfd_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, pmic_mfd_i2c_of_match);
 
 static struct i2c_driver eink_pmic_mfd_i2c_driver = {
-	.probe_new = pmic_mfd_i2c_probe,
+	.probe = pmic_mfd_i2c_probe,
 	.driver = {
 		.name = "rockchip-eink-pmic-mfd-i2c",
 		.of_match_table = pmic_mfd_i2c_of_match,

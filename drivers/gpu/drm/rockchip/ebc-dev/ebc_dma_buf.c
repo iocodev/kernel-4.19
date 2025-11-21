@@ -4,6 +4,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/version.h>
 #include "ebc_dma_buf.h"
 
@@ -56,7 +57,6 @@ static void ebc_unmap_dma_buf(struct dma_buf_attachment *attachment, struct sg_t
 	kfree(st);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
 static int ebc_dmabuf_vmap(struct dma_buf *dma_buf, struct iosys_map *map)
 {
 	struct ebc_dmabuf *ebcbuf = to_ebc_dmabuf(dma_buf);
@@ -69,33 +69,12 @@ static int ebc_dmabuf_vmap(struct dma_buf *dma_buf, struct iosys_map *map)
 
 	return 0;
 }
-#else
-static void *ebc_dmabuf_vmap(struct dma_buf *dma_buf)
-{
-	struct ebc_dmabuf *ebcbuf = to_ebc_dmabuf(dma_buf);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
-	return vm_map_ram(ebcbuf->pages, ebcbuf->npages, 0);
-#else
-	return vm_map_ram(ebcbuf->pages, ebcbuf->npages, 0, PAGE_KERNEL);
-#endif
-}
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
 static void ebc_dmabuf_vunmap(struct dma_buf *dma_buf, struct iosys_map *map)
 {
 	vunmap(map->vaddr);
 	iosys_map_clear(map);
 }
-#else
-static void ebc_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
-{
-	struct ebc_dmabuf *ebcbuf = to_ebc_dmabuf(dma_buf);
-
-	vm_unmap_ram(vaddr, ebcbuf->npages);
-}
-#endif
 
 static int ebc_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 {
@@ -105,11 +84,7 @@ static int ebc_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 
 	pfn = ((unsigned long)(ebcbuf->phy_addr) >> PAGE_SHIFT);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
 	vm_flags_set(vma, VM_IO | VM_DONTEXPAND | VM_DONTDUMP);
-#else
-	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
-#endif
 	ret = remap_pfn_range(vma, vma->vm_start, pfn, vma->vm_end - vma->vm_start,
 			      vma->vm_page_prot);
 	if (ret)

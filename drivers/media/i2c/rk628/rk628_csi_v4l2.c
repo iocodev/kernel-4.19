@@ -2336,44 +2336,32 @@ static int rk628_csi_set_fmt(struct v4l2_subdev *sd,
 {
 	struct rk628_csi *csi = to_csi(sd);
 	const struct rk628_csi_mode *mode;
-
-	u32 code = format->format.code; /* is overwritten by get_fmt */
-	int ret = rk628_csi_get_fmt(sd, sd_state, format);
-
-	format->format.code = code;
-
-	if (ret)
-		return ret;
-
-	switch (code) {
-	case MEDIA_BUS_FMT_UYVY8_2X8:
-		if (csi->mbus_fmt_code == MEDIA_BUS_FMT_UYVY8_2X8)
-			break;
-		return -EINVAL;
-	case MEDIA_BUS_FMT_RGB888_1X24:
-		if (csi->mbus_fmt_code == MEDIA_BUS_FMT_RGB888_1X24)
-			break;
-		return -EINVAL;
-	case MEDIA_BUS_FMT_YUYV10_2X10:
-		if (csi->mbus_fmt_code == MEDIA_BUS_FMT_YUYV10_2X10)
-			break;
-		return -EINVAL;
-	default:
-		return -EINVAL;
-	}
+	struct v4l2_mbus_framefmt *mbus_fmt = &format->format;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (csi->plat_data->bus_fmt == MEDIA_BUS_FMT_UYVY8_2X8)
-			return 0;
-
-		*v4l2_subdev_get_try_format(sd, sd_state, format->pad) = format->format;
+		*v4l2_subdev_get_try_format(sd, sd_state, format->pad) = *mbus_fmt;
+		return 0;
 	}
 
-	csi->mbus_fmt_code = format->format.code;
+	switch (mbus_fmt->code) {
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_YUYV10_2X10:
+		break;
+	default:
+		dev_err(sd->dev, "Unsupported media bus format: 0x%x\n", mbus_fmt->code);
+		return -EINVAL;
+	}
+
+	if (mbus_fmt->code != csi->mbus_fmt_code)
+		dev_err(sd->dev, "Format mismatch: requested 0x%x, but CSI supports 0x%x\n",
+			mbus_fmt->code, csi->mbus_fmt_code);
+
 	mode = rk628_csi_find_best_fit(format);
 	csi->cur_mode = mode;
 
-	enable_stream(sd, false);
+	v4l2_dbg(1, debug, sd, "%s: Setting format 0x%x, %dx%d\n",
+		 __func__, mbus_fmt->code, mbus_fmt->width, mbus_fmt->height);
 
 	return 0;
 }
@@ -3596,6 +3584,7 @@ static int rk628_csi_probe(struct i2c_client *client,
 	const struct of_device_id *match;
 	struct v4l2_dv_timings default_timing =
 				V4L2_DV_BT_CEA_640X480P59_94;
+	char device_name[16];
 
 	dev_info(dev, "RK628 I2C driver version: %02x.%02x.%02x",
 		DRIVER_VERSION >> 16,
@@ -3760,11 +3749,16 @@ static int rk628_csi_probe(struct i2c_client *client,
 		goto err_hdl;
 	}
 
+	if (csi->module_index)
+		snprintf(device_name, sizeof(device_name), "rk628-%d", csi->module_index);
+	else
+		strscpy(device_name, "rk628", sizeof(device_name));
+
 	csi->classdev = device_create_with_groups(rk_hdmirx_class(),
 						  dev, MKDEV(0, 0),
 						  csi,
 						  rk628_groups,
-						  "rk628");
+						  "%s", device_name);
 	if (IS_ERR(csi->classdev)) {
 		err = PTR_ERR(csi->classdev);
 		v4l2_err(sd, "create device class failed\n");

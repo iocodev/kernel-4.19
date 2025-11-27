@@ -25,6 +25,7 @@
 
 #include <soc/rockchip/rockchip_grf.h>
 #include <soc/rockchip/rk3399_grf.h>
+#include <soc/rockchip/rk3562_grf.h>
 #include <soc/rockchip/rk3568_grf.h>
 #include <soc/rockchip/rk3576_grf.h>
 #include <soc/rockchip/rk3588_grf.h>
@@ -863,6 +864,61 @@ static int rockchip_dfi_init_clocks(struct rockchip_dfi *dfi)
 	return ret;
 }
 
+static int rockchip_dfi_get_dram_info(struct rockchip_dfi *dfi, u32 dram_os_reg_base)
+{
+	struct regmap *regmap_pmu = dfi->regmap_pmu;
+	u32 reg2, reg3, reg4;
+	int ret;
+	u32 max_channels = dfi->max_channels;
+
+	ret = regmap_read(regmap_pmu, dram_os_reg_base, &reg2);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(regmap_pmu, dram_os_reg_base + 0x4, &reg3);
+	if (ret)
+		return ret;
+
+	if (max_channels > 2) {
+		ret = regmap_read(regmap_pmu, dram_os_reg_base + 0x8, &reg4);
+		if (ret)
+			return ret;
+	}
+
+	dfi->ddr_type = FIELD_GET(GRF_OS_REG2_DRAMTYPE_INFO, reg2);
+
+	/*
+	 * For version three and higher the upper two bits of the DDR type are
+	 * in PMUGRF_OS_REG3
+	 */
+	if (FIELD_GET(GRF_OS_REG3_SYSREG_VERSION, reg3) >= 0x3)
+		dfi->ddr_type |= FIELD_GET(GRF_OS_REG3_DRAMTYPE_INFO_V3, reg3) << 3;
+
+	switch (max_channels) {
+	case 1:
+		dfi->buswidth[0] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg2);
+		dfi->channel_mask = BIT(0);
+		break;
+	case 2:
+		dfi->buswidth[0] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg2);
+		dfi->buswidth[1] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH1, reg2);
+		dfi->channel_mask = FIELD_GET(GRF_OS_REG2_CH_INFO, reg2);
+		break;
+	case 4:
+		dfi->buswidth[0] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg2);
+		dfi->buswidth[1] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH1, reg2);
+		dfi->buswidth[2] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg4);
+		dfi->buswidth[3] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH1, reg4);
+		dfi->channel_mask = FIELD_GET(GRF_OS_REG2_CH_INFO, reg2) |
+				    FIELD_GET(GRF_OS_REG2_CH_INFO, reg4) << 2;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rk3399_dfi_init(struct rockchip_dfi *dfi)
 {
 	struct regmap *regmap_pmu = dfi->regmap_pmu;
@@ -888,28 +944,28 @@ static int rk3399_dfi_init(struct rockchip_dfi *dfi)
 	return rockchip_dfi_init_clocks(dfi);
 };
 
+static int rk3562_dfi_init(struct rockchip_dfi *dfi)
+{
+	dfi->max_channels = 1;
+	if (rockchip_dfi_get_dram_info(dfi, RK3562_PMUGRF_OS_REG2))
+		return -EINVAL;
+
+	dfi->ddrmon_stride = 0x0; /* not relevant, we only have a single channel on this SoC */
+	dfi->ddrmon_ctrl_single = true;
+
+	dfi->count_rate = 2;
+
+	/* no clk management */
+	dfi->num_clks = 0;
+
+	return 0;
+};
+
 static int rk3568_dfi_init(struct rockchip_dfi *dfi)
 {
-	struct regmap *regmap_pmu = dfi->regmap_pmu;
-	u32 reg2, reg3;
-
-	regmap_read(regmap_pmu, RK3568_PMUGRF_OS_REG2, &reg2);
-	regmap_read(regmap_pmu, RK3568_PMUGRF_OS_REG3, &reg3);
-
-	/* lower 3 bits of the DDR type */
-	dfi->ddr_type = FIELD_GET(GRF_OS_REG2_DRAMTYPE_INFO, reg2);
-
-	/*
-	 * For version three and higher the upper two bits of the DDR type are
-	 * in RK3568_PMUGRF_OS_REG3
-	 */
-	if (FIELD_GET(GRF_OS_REG3_SYSREG_VERSION, reg3) >= 0x3)
-		dfi->ddr_type |= FIELD_GET(GRF_OS_REG3_DRAMTYPE_INFO_V3, reg3) << 3;
-
-	dfi->channel_mask = BIT(0);
 	dfi->max_channels = 1;
-
-	dfi->buswidth[0] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg2);
+	if (rockchip_dfi_get_dram_info(dfi, RK3568_PMUGRF_OS_REG2))
+		return -EINVAL;
 
 	dfi->ddrmon_stride = 0x0; /* not relevant, we only have a single channel on this SoC */
 	dfi->ddrmon_ctrl_single = true;
@@ -924,32 +980,11 @@ static int rk3568_dfi_init(struct rockchip_dfi *dfi)
 
 static int rk3588_dfi_init(struct rockchip_dfi *dfi)
 {
-	struct regmap *regmap_pmu = dfi->regmap_pmu;
-	u32 reg2, reg3, reg4;
-
 	dfi->dram_dynamic_info_reg = RK3588_PMUGRF_OS_REG6;
 
-	regmap_read(regmap_pmu, RK3588_PMUGRF_OS_REG2, &reg2);
-	regmap_read(regmap_pmu, RK3588_PMUGRF_OS_REG3, &reg3);
-	regmap_read(regmap_pmu, RK3588_PMUGRF_OS_REG4, &reg4);
-
-	/* lower 3 bits of the DDR type */
-	dfi->ddr_type = FIELD_GET(GRF_OS_REG2_DRAMTYPE_INFO, reg2);
-
-	/*
-	 * For version three and higher the upper two bits of the DDR type are
-	 * in RK3588_PMUGRF_OS_REG3
-	 */
-	if (FIELD_GET(GRF_OS_REG3_SYSREG_VERSION, reg3) >= 0x3)
-		dfi->ddr_type |= FIELD_GET(GRF_OS_REG3_DRAMTYPE_INFO_V3, reg3) << 3;
-
-	dfi->buswidth[0] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg2);
-	dfi->buswidth[1] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH1, reg2);
-	dfi->buswidth[2] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg4);
-	dfi->buswidth[3] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH1, reg4);
-	dfi->channel_mask = FIELD_GET(GRF_OS_REG2_CH_INFO, reg2) |
-			    FIELD_GET(GRF_OS_REG2_CH_INFO, reg4) << 2;
 	dfi->max_channels = 4;
+	if (rockchip_dfi_get_dram_info(dfi, RK3588_PMUGRF_OS_REG2))
+		return -EINVAL;
 
 	dfi->ddrmon_stride = 0x4000;
 
@@ -965,32 +1000,11 @@ static int rk3588_dfi_init(struct rockchip_dfi *dfi)
 
 static int rk3576_dfi_init(struct rockchip_dfi *dfi)
 {
-	struct regmap *regmap_pmu = dfi->regmap_pmu;
-	u32 reg2, reg3, reg4;
-
 	dfi->dram_dynamic_info_reg = RK3576_PMUGRF_OS_REG6;
 
-	regmap_read(regmap_pmu, RK3576_PMUGRF_OS_REG2, &reg2);
-	regmap_read(regmap_pmu, RK3576_PMUGRF_OS_REG3, &reg3);
-	regmap_read(regmap_pmu, RK3576_PMUGRF_OS_REG4, &reg4);
-
-	/* lower 3 bits of the DDR type */
-	dfi->ddr_type = FIELD_GET(GRF_OS_REG2_DRAMTYPE_INFO, reg2);
-
-	/*
-	 * For version three and higher the upper two bits of the DDR type are
-	 * in RK3576_PMUGRF_OS_REG3
-	 */
-	if (FIELD_GET(GRF_OS_REG3_SYSREG_VERSION, reg3) >= 0x3)
-		dfi->ddr_type |= FIELD_GET(GRF_OS_REG3_DRAMTYPE_INFO_V3, reg3) << 3;
-
-	dfi->buswidth[0] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg2);
-	dfi->buswidth[1] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH1, reg2);
-	dfi->buswidth[2] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH0, reg4);
-	dfi->buswidth[3] = 4 >> FIELD_GET(GRF_OS_REG2_BW_CH1, reg4);
-	dfi->channel_mask = FIELD_GET(GRF_OS_REG2_CH_INFO, reg2) |
-			    FIELD_GET(GRF_OS_REG2_CH_INFO, reg4) << 2;
 	dfi->max_channels = 2;
+	if (rockchip_dfi_get_dram_info(dfi, RK3576_PMUGRF_OS_REG2))
+		return -EINVAL;
 
 	dfi->ddrmon_stride = 0x10000;
 
@@ -1006,6 +1020,7 @@ static int rk3576_dfi_init(struct rockchip_dfi *dfi)
 
 static const struct of_device_id rockchip_dfi_id_match[] = {
 	{ .compatible = "rockchip,rk3399-dfi", .data = rk3399_dfi_init },
+	{ .compatible = "rockchip,rk3562-dfi", .data = rk3562_dfi_init },
 	{ .compatible = "rockchip,rk3568-dfi", .data = rk3568_dfi_init },
 	{ .compatible = "rockchip,rk3588-dfi", .data = rk3588_dfi_init },
 	{ .compatible = "rockchip,rk3576-dfi", .data = rk3576_dfi_init },

@@ -47,10 +47,10 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		struct page *page = pages;
 
 		while (nr_clear_pages > 0) {
-			void *vaddr = kmap_atomic(page);
+			void *vaddr = kmap_local_page(page);
 
 			memset(vaddr, 0, PAGE_SIZE);
-			kunmap_atomic(vaddr);
+			kunmap_local(vaddr);
 			page++;
 			nr_clear_pages--;
 		}

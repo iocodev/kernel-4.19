@@ -11,4 +11,4 @@ menuconfig ION
 	  If you're not using Android its probably safe to
 	  say N here.
 
-source "drivers/staging/android/ion/heaps/Kconfig"
+source "drivers/soc/rockchip/ion/heaps/Kconfig"

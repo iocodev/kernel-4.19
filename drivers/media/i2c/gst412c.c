@@ -385,7 +385,7 @@ static int gst412c_get_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		fmt->format =
-		    *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		    *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 #else
 		mutex_unlock(&gst412c->mutex);
 		return -ENOTTY;
@@ -445,6 +445,7 @@ static int gst412c_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int gst412c_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	struct gst412c *gst412c = to_gst412c(sd);
@@ -455,6 +456,7 @@ static int gst412c_g_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int gst412c_s_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_interval *fi)
 {
 	return 0;
@@ -787,7 +789,7 @@ static int gst412c_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct gst412c *gst412c = to_gst412c(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-	    v4l2_subdev_get_try_format(sd, fh->state, 0);
+	    v4l2_subdev_state_get_format(fh->state, 0);
 	const struct gst412c_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&gst412c->mutex);
@@ -843,8 +845,6 @@ static const struct v4l2_subdev_core_ops gst412c_core_ops = {
 
 static const struct v4l2_subdev_video_ops gst412c_video_ops = {
 	.s_stream = gst412c_s_stream,
-	.g_frame_interval = gst412c_g_frame_interval,
-	.s_frame_interval = gst412c_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gst412c_pad_ops = {
@@ -855,6 +855,8 @@ static const struct v4l2_subdev_pad_ops gst412c_pad_ops = {
 	.set_fmt = gst412c_set_fmt,
 	.get_selection = gst412c_get_selection,
 	//.set_selection = gst412c_set_selection,
+	.get_frame_interval = gst412c_g_frame_interval,
+	.set_frame_interval = gst412c_s_frame_interval,
 	.get_mbus_config = gst412c_g_mbus_config,
 };
 
@@ -1142,8 +1144,7 @@ static int gst412c_check_sensor_id(struct gst412c *gst412c,
 	return 0;
 }
 
-static int gst412c_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int gst412c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;

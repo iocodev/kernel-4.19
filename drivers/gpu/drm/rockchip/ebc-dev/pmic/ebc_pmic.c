@@ -11,13 +11,13 @@
 #include <linux/soc/rockchip/rk_vendor_storage.h>
 #include "ebc_pmic.h"
 
-#define EINK_VCOM_MAX 64
+#define EBOOK_VCOM_MAX 64
 static int vcom = 0;
 
 int ebc_pmic_set_vcom(struct ebc_pmic *pmic, int value)
 {
 	int ret;
-	char data[EINK_VCOM_MAX] = { 0 };
+	char data[EBOOK_VCOM_MAX] = { 0 };
 
 	/* check vcom value */
 	if (value <= VCOM_MIN_MV || value > VCOM_MAX_MV) {
@@ -33,7 +33,7 @@ int ebc_pmic_set_vcom(struct ebc_pmic *pmic, int value)
 	snprintf(data, sizeof(data), "%d", value);
 	dev_info(pmic->dev, "store vcom %d to vendor storage\n", value);
 
-	ret = rk_vendor_write(EINK_VCOM_ID, (void *)data, EINK_VCOM_MAX);
+	ret = rk_vendor_write(EBOOK_VCOM_ID, (void *)data, EBOOK_VCOM_MAX);
 	if (ret < 0) {
 		dev_err(pmic->dev, "%s failed to write vendor storage\n", __func__);
 		return ret;
@@ -69,7 +69,7 @@ void ebc_pmic_verity_vcom(struct ebc_pmic *pmic)
 int ebc_regulator_set_vcom(struct regulator *r, int value)
 {
 	int ret;
-	char data[EINK_VCOM_MAX] = { 0 };
+	char data[EBOOK_VCOM_MAX] = { 0 };
 
 	/* check vcom value */
 	if (value <= VCOM_MIN_MV || value > VCOM_MAX_MV) {
@@ -89,7 +89,7 @@ int ebc_regulator_set_vcom(struct regulator *r, int value)
 	snprintf(data, sizeof(data), "%d", value);
 	pr_info("store vcom %d to vendor storage\n", value);
 
-	ret = rk_vendor_write(EINK_VCOM_ID, (void *)data, EINK_VCOM_MAX);
+	ret = rk_vendor_write(EBOOK_VCOM_ID, (void *)data, EBOOK_VCOM_MAX);
 	if (ret < 0) {
 		pr_err("%s failed to write vendor storage\n", __func__);
 		return ret;

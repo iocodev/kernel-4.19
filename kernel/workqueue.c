@@ -1972,6 +1972,9 @@ static struct worker *create_worker(struct worker_pool *pool)
 			param.sched_priority = MAX_RT_PRIO / 2 - 2;
 		sched_setscheduler_nocheck(worker->task, SCHED_RR, &param);
 	}
+
+	/* The hook is placed here because it needs to use the nice value */
+	trace_android_rvh_create_worker(worker->task, pool->attrs);
 	kthread_bind_mask(worker->task, pool->attrs->cpumask);
 
 	/* successful, attach the worker to the pool */

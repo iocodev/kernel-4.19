@@ -596,14 +596,14 @@ static void hidinput_cleanup_battery(struct hid_device *dev)
 }
 
 static bool hidinput_update_battery_charge_status(struct hid_device *dev,
-			                                       unsigned int usage, int value)
+						  unsigned int usage, int value)
 {
 	switch (usage) {
-		case HID_BAT_CHARGING:
-			dev->battery_charge_status = value ?
-					POWER_SUPPLY_STATUS_CHARGING :
-					POWER_SUPPLY_STATUS_DISCHARGING;
-			return true;
+	case HID_BAT_CHARGING:
+		dev->battery_charge_status = value ?
+					     POWER_SUPPLY_STATUS_CHARGING :
+					     POWER_SUPPLY_STATUS_DISCHARGING;
+		return true;
 	}
 
 	return false;
@@ -622,7 +622,10 @@ static void hidinput_update_battery(struct hid_device *dev, unsigned int usage,
 		return;
 	}
 
-	if (value == 0 || value < dev->battery_min || value > dev->battery_max)
+	if ((usage & HID_USAGE_PAGE) == HID_UP_DIGITIZER && value == 0)
+		return;
+
+	if (value < dev->battery_min || value > dev->battery_max)
 		return;
 
 	capacity = hidinput_scale_battery_capacity(dev, value);

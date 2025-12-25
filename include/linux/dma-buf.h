@@ -461,10 +461,8 @@ struct dma_buf {
 	 */
 	struct module *owner;
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
 	/** @list_node: node for dma_buf accounting and debugging. */
 	struct list_head list_node;
-#endif
 
 	/** @priv: exporter specific private data for this buffer object. */
 	void *priv;
@@ -793,4 +791,6 @@ static inline size_t dma_buf_get_peak_size(void) { return 0; }
 static inline size_t dma_buf_get_total_size(void) { return 0; }
 #endif
 
+struct dma_buf *dma_buf_iter_begin(void);
+struct dma_buf *dma_buf_iter_next(struct dma_buf *dmbuf);
 #endif /* __DMA_BUF_H__ */

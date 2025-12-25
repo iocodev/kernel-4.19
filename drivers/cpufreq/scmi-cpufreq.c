@@ -15,6 +15,7 @@
 #include <linux/energy_model.h>
 #include <linux/export.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
 #include <linux/slab.h>
@@ -198,6 +199,7 @@ static int scmi_limit_notify_cb(struct notifier_block *nb, unsigned long event, 
 	if (done)
 		return NOTIFY_OK;
 
+	ret = freq_qos_update_request(&priv->limits_freq_req, limit_freq_khz);
 	if (ret < 0)
 		pr_warn("failed to update freq constraint: %d\n", ret);
 
@@ -304,7 +306,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 
 	latency = perf_ops->transition_latency_get(ph, domain);
 	if (!latency)
-		latency = CPUFREQ_ETERNAL;
+		latency = CPUFREQ_DEFAULT_TRANSITION_LATENCY_NS;
 
 	policy->cpuinfo.transition_latency = latency;
 
@@ -445,6 +447,15 @@ static bool scmi_dev_used_by_cpus(struct device *scmi_dev)
 		if (np == scmi_np)
 			return true;
 	}
+
+	/*
+	 * Older Broadcom STB chips had a "clocks" property for CPU node(s)
+	 * that did not match the SCMI performance protocol node, if we got
+	 * there, it means we had such an older Device Tree, therefore return
+	 * true to preserve backwards compatibility.
+	 */
+	if (of_machine_is_compatible("brcm,brcmstb"))
+		return true;
 
 	return false;
 }

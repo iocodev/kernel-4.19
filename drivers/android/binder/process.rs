@@ -73,6 +73,33 @@ impl Mapping {
 const PROC_DEFER_FLUSH: u8 = 1;
 const PROC_DEFER_RELEASE: u8 = 2;
 
+#[derive(Copy, Clone)]
+pub(crate) enum IsFrozen {
+    Yes,
+    No,
+    InProgress,
+}
+
+impl IsFrozen {
+    /// Whether incoming transactions should be rejected due to freeze.
+    pub(crate) fn is_frozen(self) -> bool {
+        match self {
+            IsFrozen::Yes => true,
+            IsFrozen::No => false,
+            IsFrozen::InProgress => true,
+        }
+    }
+
+    /// Whether freeze notifications consider this process frozen.
+    pub(crate) fn is_fully_frozen(self) -> bool {
+        match self {
+            IsFrozen::Yes => true,
+            IsFrozen::No => false,
+            IsFrozen::InProgress => false,
+        }
+    }
+}
+
 /// The fields of `Process` protected by the spinlock.
 pub(crate) struct ProcessInner {
     is_manager: bool,
@@ -99,7 +126,7 @@ pub(crate) struct ProcessInner {
     /// are woken up.
     outstanding_txns: u32,
     /// Process is frozen and unable to service binder transactions.
-    pub(crate) is_frozen: bool,
+    pub(crate) is_frozen: IsFrozen,
     /// Process received sync transactions since last frozen.
     pub(crate) sync_recv: bool,
     /// Process received async transactions since last frozen.
@@ -125,7 +152,7 @@ impl ProcessInner {
             started_thread_count: 0,
             defer_work: 0,
             outstanding_txns: 0,
-            is_frozen: false,
+            is_frozen: IsFrozen::No,
             sync_recv: false,
             async_recv: false,
             binderfs_file: None,
@@ -612,7 +639,7 @@ impl Process {
 
                 seq_print!(
                     m,
-                    "  ref {}: desc {} {}node {debug_id} s {strong} w {weak}",
+                    "  ref {}: desc {} {}node {debug_id} s {strong} w {weak}\n",
                     r.debug_id,
                     r.handle,
                     if dead { "dead " } else { "" },
@@ -1207,10 +1234,10 @@ impl Process {
             let owner = info.node_ref2().node.owner.clone();
             let mut owner_inner = owner.inner.lock();
             if owner_inner.is_dead {
-                let death = ListArc::from(death);
-                *info.death() = Some(death.clone_arc());
+                let death = Arc::from(death);
+                *info.death() = Some(death.clone());
                 drop(owner_inner);
-                let _ = self.push_work(death);
+                death.set_dead();
             } else {
                 let death = ListArc::from(death);
                 *info.death() = Some(death.clone_arc());
@@ -1280,7 +1307,7 @@ impl Process {
         let is_manager = {
             let mut inner = self.inner.lock();
             inner.is_dead = true;
-            inner.is_frozen = false;
+            inner.is_frozen = IsFrozen::No;
             inner.sync_recv = false;
             inner.async_recv = false;
             inner.is_manager
@@ -1355,8 +1382,12 @@ impl Process {
             work.into_arc().cancel();
         }
 
-        let delivered_deaths = take(&mut self.inner.lock().delivered_deaths);
-        drop(delivered_deaths);
+        // Clear delivered_deaths list.
+        //
+        // Scope ensures that MutexGuard is dropped while executing the body.
+        while let Some(delivered_death) = { self.inner.lock().delivered_deaths.pop_front() } {
+            drop(delivered_death);
+        }
 
         // Free any resources kept alive by allocated buffers.
         let omapping = self.inner.lock().mapping.take();
@@ -1366,10 +1397,6 @@ impl Process {
                 .alloc
                 .take_for_each(|offset, size, debug_id, odata| {
                     let ptr = offset + address;
-                    pr_warn!(
-                        "{}: removing orphan mapping {offset}:{size}\n",
-                        self.pid_in_current_ns()
-                    );
                     let mut alloc =
                         Allocation::new(self.clone(), debug_id, offset, size, ptr, false);
                     if let Some(data) = odata {
@@ -1391,7 +1418,7 @@ impl Process {
                 return;
             }
             inner.outstanding_txns -= 1;
-            inner.is_frozen && inner.outstanding_txns == 0
+            inner.is_frozen.is_frozen() && inner.outstanding_txns == 0
         };
 
         if wake {
@@ -1405,7 +1432,7 @@ impl Process {
             let mut inner = self.inner.lock();
             inner.sync_recv = false;
             inner.async_recv = false;
-            inner.is_frozen = false;
+            inner.is_frozen = IsFrozen::No;
             drop(inner);
             msgs.send_messages();
             return Ok(());
@@ -1414,7 +1441,7 @@ impl Process {
         let mut inner = self.inner.lock();
         inner.sync_recv = false;
         inner.async_recv = false;
-        inner.is_frozen = true;
+        inner.is_frozen = IsFrozen::InProgress;
 
         if info.timeout_ms > 0 {
             let mut jiffies = kernel::time::msecs_to_jiffies(info.timeout_ms);
@@ -1428,7 +1455,7 @@ impl Process {
                     .wait_interruptible_timeout(&mut inner, jiffies)
                 {
                     CondVarTimeoutResult::Signal { .. } => {
-                        inner.is_frozen = false;
+                        inner.is_frozen = IsFrozen::No;
                         return Err(ERESTARTSYS);
                     }
                     CondVarTimeoutResult::Woken { jiffies: remaining } => {
@@ -1442,17 +1469,18 @@ impl Process {
         }
 
         if inner.txns_pending_locked() {
-            inner.is_frozen = false;
+            inner.is_frozen = IsFrozen::No;
             Err(EAGAIN)
         } else {
             drop(inner);
             match self.prepare_freeze_messages() {
                 Ok(batch) => {
+                    self.inner.lock().is_frozen = IsFrozen::Yes;
                     batch.send_messages();
                     Ok(())
                 }
                 Err(kernel::alloc::AllocError) => {
-                    self.inner.lock().is_frozen = false;
+                    self.inner.lock().is_frozen = IsFrozen::No;
                     Err(ENOMEM)
                 }
             }

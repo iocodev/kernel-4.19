@@ -3475,7 +3475,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 			offset /= vsub;
 		offset += ALIGN_DOWN(src->y1 >> 16, tile_size) * fb->pitches[1] / vsub;
 		if (vpstate->ymirror_en && !vpstate->afbc_en)
-			offset += fb->pitches[1] * ((state->src_h >> 16) - 2)  / vsub;
+			offset += fb->pitches[1] * ((state->src_h >> 16) - vsub) / vsub;
 		dma_addr = rockchip_fb_get_dma_addr(fb, 1);
 		dma_addr += offset + fb->offsets[1];
 		vpstate->uv_mst = dma_addr;

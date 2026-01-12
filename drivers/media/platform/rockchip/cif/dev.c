@@ -29,6 +29,7 @@
 #include "../../../../phy/rockchip/phy-rockchip-csi2-dphy-common.h"
 #include <linux/of_reserved_mem.h>
 #include <linux/of_address.h>
+#include "../../../i2c/cam-tb-setup.h"
 
 #define RKCIF_VERNO_LEN		10
 
@@ -2087,6 +2088,85 @@ static int _set_pipeline_default_fmt(struct rkcif_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_SETUP
+static void sditf_select_sensor_setting_for_thunderboot(struct sditf_priv *priv)
+{
+	struct rkcif_device *dev = priv->cif_dev;
+	struct v4l2_subdev_format fmt;
+	struct rk_sensor_setting sensor_setting = {0};
+	struct v4l2_subdev_frame_interval fi = {0};
+	struct rkmodule_hdr_cfg hdr_cfg;
+	int width = 0;
+	int height = 0;
+	int hdr_mode = 0;
+	int max_fps = 0;
+	int ret = 0;
+	bool is_match = false;
+	int cam_idx;
+
+	if (!dev->terminal_sensor.sd)
+		rkcif_update_sensor_info(&dev->stream[0]);
+	if (dev->terminal_sensor.sd) {
+		if (sscanf(dev->terminal_sensor.sd->name, "m%d", &cam_idx) != 1)
+			cam_idx = 0;
+		v4l2_info(&dev->v4l2_dev,
+			  "cam %s, idx %d\n",
+			  dev->terminal_sensor.sd->name, cam_idx);
+		if (cam_idx == 0) {
+			width = get_rk_cam_w();
+			height = get_rk_cam_h();
+			hdr_mode = get_rk_cam_hdr();
+			max_fps = get_rk_cam1_max_fps();
+		} else {
+			width = get_rk_cam2_w();
+			height = get_rk_cam2_h();
+			hdr_mode = get_rk_cam2_hdr();
+			max_fps = get_rk_cam2_max_fps();
+		}
+		fmt.pad = 0;
+		fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		fmt.reserved[0] = 0;
+		fmt.format.field = V4L2_FIELD_NONE;
+		ret = v4l2_subdev_call(dev->terminal_sensor.sd, pad, get_fmt, NULL, &fmt);
+		if (!ret) {
+			if (dev->rdbk_debug)
+				v4l2_info(&dev->v4l2_dev,
+					  "cmdline get %dx%d@%dfps, hdr_mode %d\n",
+					  width, height, max_fps, hdr_mode);
+			sensor_setting.fmt = fmt.format.code;
+			sensor_setting.width = width;
+			sensor_setting.height = height;
+			sensor_setting.mode = hdr_mode;
+			sensor_setting.fps = max_fps;
+			ret = v4l2_subdev_call(dev->terminal_sensor.sd,
+					       core, ioctl,
+					       RKCIS_CMD_SELECT_SETTING,
+					       &sensor_setting);
+			if (!ret)
+				is_match = true;
+		}
+		if (!is_match) {
+			fmt.format.width = width;
+			fmt.format.height = height;
+			v4l2_subdev_call(dev->terminal_sensor.sd, pad, set_fmt, NULL, &fmt);
+			v4l2_subdev_call(dev->terminal_sensor.sd, video, g_frame_interval, &fi);
+			fi.interval.numerator = 1;
+			fi.interval.denominator = max_fps;
+			v4l2_subdev_call(dev->terminal_sensor.sd, video, s_frame_interval, &fi);
+			v4l2_subdev_call(dev->terminal_sensor.sd,
+					 core, ioctl,
+					 RKMODULE_GET_HDR_CFG,
+					 &hdr_cfg);
+			hdr_cfg.hdr_mode = hdr_mode;
+			v4l2_subdev_call(dev->terminal_sensor.sd,
+					 core, ioctl,
+					 RKMODULE_SET_HDR_CFG,
+					 &hdr_cfg);
+		}
+	}
+}
+#endif
+
 static int subdev_asyn_register_itf(struct rkcif_device *dev)
 {
 	struct sditf_priv *sditf = NULL;
@@ -2105,6 +2185,10 @@ static int subdev_asyn_register_itf(struct rkcif_device *dev)
 	if (!dev->is_notifier_isp) {
 		for (i = 0; i < dev->sditf_cnt; i++) {
 			sditf = dev->sditf[i];
+#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_SETUP
+			if (dev->is_thunderboot)
+				sditf_select_sensor_setting_for_thunderboot(sditf);
+#endif
 			if (sditf && (!sditf->is_combine_mode))
 				ret = v4l2_async_register_subdev_sensor(&sditf->sd);
 		}
@@ -2732,7 +2816,12 @@ static void rkcif_exp_work(struct work_struct *exp_work)
 		sditf_event_inc_sof(priv);
 
 	if (stream->frame_idx == 0) {
-		cur_time = priv->cur_time;
+		if (dev->channels[0].capture_info.one_to_multi.exp_mode == RKMODULE_ONE_TO_MULT_EXP_SINGLE &&
+		    dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]) {
+			cur_time = dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]->cur_time;
+		} else {
+			cur_time = priv->cur_time;
+		}
 	} else {
 		effect_frame = stream->frame_idx + dev->exp_delay.time_delay - 1;
 		id = rkcif_get_exp_effect_stream_id(dev, effect_frame);
@@ -2754,7 +2843,12 @@ static void rkcif_exp_work(struct work_struct *exp_work)
 				kfree(time);
 			}
 		} else {
-			cur_time = priv->cur_time;
+			if (dev->channels[0].capture_info.one_to_multi.exp_mode == RKMODULE_ONE_TO_MULT_EXP_SINGLE &&
+			    dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]) {
+				cur_time = dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]->cur_time;
+			} else {
+				cur_time = priv->cur_time;
+			}
 		}
 		if (dev->exp_dbg)
 			dev_info(priv->dev, "exp set id %d, val 0x%x\n",
@@ -2765,7 +2859,12 @@ static void rkcif_exp_work(struct work_struct *exp_work)
 	v4l2_ctrl_s_ctrl(ctrl, cur_time);
 	priv->cur_time = cur_time;
 	if (stream->frame_idx == 0) {
-		cur_gain = priv->cur_gain;
+		if (dev->channels[0].capture_info.one_to_multi.exp_mode == RKMODULE_ONE_TO_MULT_EXP_SINGLE &&
+		    dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]) {
+			cur_gain = dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]->cur_gain;
+		} else {
+			cur_gain = priv->cur_gain;
+		}
 	} else {
 		effect_frame = stream->frame_idx + dev->exp_delay.gain_delay - 1;
 		id = rkcif_get_exp_effect_stream_id(dev, effect_frame);
@@ -2787,7 +2886,12 @@ static void rkcif_exp_work(struct work_struct *exp_work)
 				kfree(gain);
 			}
 		} else {
-			cur_gain = priv->cur_gain;
+			if (dev->channels[0].capture_info.one_to_multi.exp_mode == RKMODULE_ONE_TO_MULT_EXP_SINGLE &&
+			    dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]) {
+				cur_gain = dev->sditf[dev->channels[0].capture_info.one_to_multi.exp_main_id]->cur_gain;
+			} else {
+				cur_gain = priv->cur_gain;
+			}
 		}
 		if (dev->exp_dbg)
 			dev_info(priv->dev, "gain set id %d, val 0x%x\n",
@@ -2904,6 +3008,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->reg_dbg = 0;
 	cif_dev->is_support_get_exp = false;
 	memset(&cif_dev->irfpa_info, 0, sizeof(cif_dev->irfpa_info));
+	cif_dev->prev_id = 0;
 
 	cif_dev->resume_mode = 0;
 	memset(&cif_dev->channels[0].capture_info, 0, sizeof(cif_dev->channels[0].capture_info));

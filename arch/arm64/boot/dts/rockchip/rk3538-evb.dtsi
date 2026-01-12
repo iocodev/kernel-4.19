@@ -139,6 +139,7 @@
 
 &hdmi {
 	status = "okay";
+	cec-enable;
 	rockchip,sda-falling-delay-ns = <360>;
 };
 
@@ -200,6 +201,12 @@
 
 &rng {
 	status = "okay";
+};
+
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
+	rockchip,virtual-poweroff = <1>;
 };
 
 &sai0 {

@@ -313,7 +313,7 @@ void show_regs(struct pt_regs *regs)
 	__show_regs(regs);
 	dump_backtrace(regs, NULL, KERN_DEFAULT);
 
-	if (!user_mode(regs))
+	if (!user_mode(regs) && oops_in_progress)
 		show_extra_register_data(regs, 512);
 }
 EXPORT_SYMBOL_GPL(show_regs);

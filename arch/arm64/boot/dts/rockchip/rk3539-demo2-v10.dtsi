@@ -6,7 +6,7 @@
 
 /dts-v1/;
 
-#include "rk3538.dtsi"
+#include "rk3539.dtsi"
 #include <dt-bindings/input/rk-input.h>
 #include "rk3538-demo.dtsi"
 #include "rk3538-evb-input-keymap.dtsi"
@@ -307,27 +307,6 @@
 &pwm0_4ch_3 {
 	pinctrl-0 = <&pwm0m1_ch3_pins>;
 	status = "okay";
-};
-
-&rockchip_suspend {
-	status = "okay";
-	rockchip,sleep-mode-config = <
-		(0
-		| RKPM_SLP_DEEP1_MODE
-		| RKPM_SLP_PMIC_LP
-		| RKPM_SLP_HW_PLLS_OFF
-		| RKPM_SLP_PMUALIVE_32K
-		| RKPM_SLP_OSC_DIS
-		| RKPM_SLP_32K_INNER
-		)
-	>;
-	rockchip,sleep-pin-config = <
-		(0
-		| RKPM_SLEEP_PIN0_EN
-		)
-		(0
-		)
-	>;
 };
 
 &sai0 {

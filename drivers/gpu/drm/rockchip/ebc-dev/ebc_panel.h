@@ -8,8 +8,6 @@
 #ifndef _EBC_PANEL_H_
 #define _EBC_PANEL_H_
 
-#include <linux/dma-mapping.h>
-
 #define DIRECT_FB_NUM	2
 
 struct panel_buffer {

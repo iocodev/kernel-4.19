@@ -751,6 +751,11 @@ static void tcon_set_line_flag_event(struct ebc_tcon *tcon, u32 line, bool enabl
 		tcon_update_bits(tcon, EBC_INT_STATUS, LINE_FLAG_INT_MASK, LINE_FLAG_INT_MASK);
 }
 
+static int tcon_get_version(struct ebc_tcon *tcon)
+{
+	return tcon->version;
+}
+
 static bool tcon_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -876,6 +881,7 @@ static struct rockchip_ebc_tcon_data rk3568_ebc_data = {
 		.lut_data_set = tcon_lut_data_set,
 		.frame_start = tcon_frame_start,
 		.set_line_flag_event = tcon_set_line_flag_event,
+		.get_version = tcon_get_version,
 	},
 };
 
@@ -893,6 +899,7 @@ static struct rockchip_ebc_tcon_data rk3576_ebc_data = {
 		.frame_start = rk3576_tcon_frame_start,
 		.data_format_set = rk3576_tcon_data_format_set,
 		.set_line_flag_event = tcon_set_line_flag_event,
+		.get_version = tcon_get_version,
 	},
 };
 
@@ -910,6 +917,7 @@ static struct rockchip_ebc_tcon_data rk3572_ebc_data = {
 		.frame_start = rk3576_tcon_frame_start,
 		.data_format_set = rk3576_tcon_data_format_set,
 		.set_line_flag_event = tcon_set_line_flag_event,
+		.get_version = tcon_get_version,
 	},
 };
 

@@ -16,7 +16,7 @@
 #include "../ebc_dev.h"
 #include "epd_lut.h"
 
-static int (*lut_get)(struct epd_lut_data *, enum epd_lut_type, int, int, int, int);
+static int (*lut_get)(struct epd_lut_data *, enum epd_lut_type, int, struct epd_lut_info);
 static int (*lut_get_original)(struct epd_lut_data *, enum epd_lut_type, int, int);
 
 int epd_lut_from_mem_init(void *waveform)
@@ -43,6 +43,18 @@ int epd_lut_from_mem_init(void *waveform)
 		return 0;
 	}
 
+#if IS_ENABLED(CONFIG_EPD_EXTEND_WAVEFORM)
+	ret = extend_wf_input(waveform);
+	if (ret) {
+		printk("[lut]: Failed to input extend waveform\n");
+	} else {
+		printk("[lut]: Extend waveform\n");
+		lut_get = extend_wf_get_lut;
+		lut_get_original = NULL;
+		return 0;
+	}
+#endif
+
 	return ret;
 }
 
@@ -66,6 +78,10 @@ const char *epd_lut_get_wf_version(void)
 		return rkf_wf_get_version();
 	if (pvi_wf_get_version())
 		return pvi_wf_get_version();
+#if IS_ENABLED(CONFIG_EPD_EXTEND_WAVEFORM)
+	if (extend_wf_get_version())
+		return extend_wf_get_version();
+#endif
 	return NULL;
 }
 
@@ -75,12 +91,16 @@ int epd_lut_get_wf_bit(void)
 		return rkf_wf_get_wf_bit();
 	if (pvi_wf_get_wf_bit())
 		return pvi_wf_get_wf_bit();
+#if IS_ENABLED(CONFIG_EPD_EXTEND_WAVEFORM)
+	if (extend_wf_get_wf_bit())
+		return extend_wf_get_wf_bit();
+#endif
 	return 0;
 }
 
-int epd_lut_get(struct epd_lut_data *output, enum epd_lut_type lut_type, int temperature, int pic, int wf_fix, int regal_pix)
+int epd_lut_get(struct epd_lut_data *output, enum epd_lut_type lut_type, int temperature, struct epd_lut_info lut_info)
 {
-	return lut_get(output, lut_type, temperature, pic, wf_fix, regal_pix);
+	return lut_get(output, lut_type, temperature, lut_info);
 }
 
 int epd_lut_get_original(struct epd_lut_data *output, enum epd_lut_type lut_type, int temperature, int pic)
@@ -107,6 +127,13 @@ int epd_gray2_last_repair(u8 *wf_table)
 //return value
 //0 : no modify  1: modify by customer
 int epd_overlay_gray2_repair(u8 *wf_table, int frame_num)
+{
+	return 0;
+}
+
+//return value
+//0 : no modify  1: modify by customer
+int epd_normal_repair(u8 *wf_table, int frame_num)
 {
 	return 0;
 }

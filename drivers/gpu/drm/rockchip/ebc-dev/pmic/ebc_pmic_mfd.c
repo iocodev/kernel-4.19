@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
+#include <linux/version.h>
 
 struct pmic_mfd_data {
 	struct device *dev;
@@ -100,15 +101,15 @@ static const struct of_device_id pmic_mfd_i2c_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, pmic_mfd_i2c_of_match);
 
-static struct i2c_driver eink_pmic_mfd_i2c_driver = {
+static struct i2c_driver ebook_pmic_mfd_i2c_driver = {
 	.probe = pmic_mfd_i2c_probe,
 	.driver = {
-		.name = "rockchip-eink-pmic-mfd-i2c",
+		.name = "rockchip-ebook-pmic-mfd-i2c",
 		.of_match_table = pmic_mfd_i2c_of_match,
 	},
 };
-module_i2c_driver(eink_pmic_mfd_i2c_driver);
+module_i2c_driver(ebook_pmic_mfd_i2c_driver);
 
 
-MODULE_DESCRIPTION("Rockchip EINK PMIC MFD I2C Driver");
+MODULE_DESCRIPTION("Rockchip EBOOK PMIC MFD I2C Driver");
 MODULE_LICENSE("GPL");

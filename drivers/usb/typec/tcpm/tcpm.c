@@ -7263,7 +7263,7 @@ static int tcpm_fw_get_caps(struct tcpm_port *port, struct fwnode_handle *fwnode
 	unsigned int nr_src_pdo, nr_snk_pdo;
 	const char *opmode_str;
 	u32 *src_pdo, *snk_pdo;
-	u32 uw, frs_current, pd_revision;
+	u32 uw, frs_current;
 	int ret = 0, i;
 	int mode;
 
@@ -7293,10 +7293,6 @@ static int tcpm_fw_get_caps(struct tcpm_port *port, struct fwnode_handle *fwnode
 
 	port->port_type = port->typec_caps.type;
 	port->pd_supported = !fwnode_property_read_bool(fwnode, "pd-disable");
-
-	ret = fwnode_property_read_u32(fwnode, "pd-revision", &pd_revision);
-	port->typec_caps.pd_revision = !ret ? pd_revision & 0xffff : 0x0300;
-
 	port->slow_charger_loop = fwnode_property_read_bool(fwnode, "slow-charger-loop");
 	port->self_powered = fwnode_property_read_bool(fwnode, "self-powered");
 

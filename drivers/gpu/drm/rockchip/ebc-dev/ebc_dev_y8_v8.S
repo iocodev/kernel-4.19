@@ -9,7 +9,7 @@
 	.file	"ebc_dev_y8.c"
                                         // Start of file scope inline assembly
 	.section	.initcall6s.init,"a",@progbits
-__initcall__kmod_rkebc__639_5424_ebc_init6s:
+__initcall__kmod_rkebc__639_5430_ebc_init6s:
 .Ltmp0:
 	.word	ebc_init-.Ltmp0
 	.text
@@ -2252,7 +2252,7 @@ ebc_lut_table_init:                     // @ebc_lut_table_init
 	add	x1, x1, :lo12:.L.str.83
 	adrp	x2, .L__func__.ebc_lut_table_init
 	add	x2, x2, :lo12:.L__func__.ebc_lut_table_init
-	mov	w3, #4562                       // =0x11d2
+	mov	w3, #4568                       // =0x11d8
 	bl	_dev_err
 	mov	w0, #-12                        // =0xfffffff4
 	b	.LBB8_9
@@ -2877,8 +2877,8 @@ ebc_task_init:                          // @ebc_task_init
 	mov	x19, x0
 	mov	x29, sp
 	mov	w8, #99                         // =0x63
-	adrp	x0, ebc_auto_tast_function
-	add	x0, x0, :lo12:ebc_auto_tast_function
+	adrp	x0, ebc_auto_task_function
+	add	x0, x0, :lo12:ebc_auto_task_function
 	adrp	x3, .L.str.101
 	add	x3, x3, :lo12:.L.str.101
 	mov	x1, x19
@@ -2934,8 +2934,8 @@ ebc_task_init:                          // @ebc_task_init
 	orr	w8, w9, w8
 	tbnz	w8, #31, .LBB11_24
 .LBB11_6:
-	adrp	x0, ebc_auto_assist_tast_function
-	add	x0, x0, :lo12:ebc_auto_assist_tast_function
+	adrp	x0, ebc_auto_assist_task_function
+	add	x0, x0, :lo12:ebc_auto_assist_task_function
 	adrp	x3, .L.str.103
 	add	x3, x3, :lo12:.L.str.103
 	mov	x1, x19
@@ -3866,43 +3866,42 @@ ebc_buffer_manage_uninit:               // @ebc_buffer_manage_uninit
 .Lfunc_end15:
 	.size	ebc_buffer_manage_uninit, .Lfunc_end15-ebc_buffer_manage_uninit
                                         // -- End function
-	.p2align	2                               // -- Begin function ebc_auto_tast_function
-	.type	ebc_auto_tast_function,@function
+	.p2align	2                               // -- Begin function ebc_auto_task_function
+	.type	ebc_auto_task_function,@function
 	.word	2314953021                      // 0x89fb613d
-ebc_auto_tast_function:                 // @ebc_auto_tast_function
+ebc_auto_task_function:                 // @ebc_auto_task_function
 // %bb.0:
 	str	x30, [x18], #8
 	sub	sp, sp, #112
 	adrp	x8, global_ebc
 	stp	x22, x21, [sp, #80]             // 16-byte Folded Spill
-	mov	w21, #255                       // =0xff
 	ldr	x22, [x8, :lo12:global_ebc]
 	stp	x28, x27, [sp, #32]             // 16-byte Folded Spill
-	adrp	x28, ebc_auto_assist_task
+	mov	w28, #255                       // =0xff
 	stp	x26, x25, [sp, #48]             // 16-byte Folded Spill
+	mov	w25, #1                         // =0x1
+	adrp	x26, ebc_auto_assist_task
 	stp	x24, x23, [sp, #64]             // 16-byte Folded Spill
 	mov	w24, #2                         // =0x2
-	add	x25, x22, #1432
+	add	x27, x22, #1496
 	stp	x20, x19, [sp, #96]             // 16-byte Folded Spill
 	adrp	x19, ebc_auto_thread_sem
 	add	x19, x19, :lo12:ebc_auto_thread_sem
 	adrp	x20, ebc_assist_finished_flag_sem
 	add	x20, x20, :lo12:ebc_assist_finished_flag_sem
-	add	x9, x22, #1968
-	add	x27, x22, #1496
 	add	x8, x22, #136
 	stp	x29, x30, [sp, #16]             // 16-byte Folded Spill
 	add	x29, sp, #16
 	//APP
 	mrs	x23, SP_EL0
 	//NO_APP
-	stp	x8, x9, [sp]                    // 16-byte Folded Spill
+	str	x8, [sp, #8]                    // 8-byte Folded Spill
 	b	.LBB16_3
 .LBB16_1:                               //   in Loop: Header=BB16_3 Depth=1
 	add	x0, x22, #112
 	add	x1, x22, #304
 	bl	flip
-	ldr	x0, [x28, :lo12:ebc_auto_assist_task]
+	ldr	x0, [x26, :lo12:ebc_auto_assist_task]
 	bl	wake_up_process
 	ldrsw	x8, [x22, #184]
 	ldr	x1, [x22, #1032]
@@ -3917,8 +3916,8 @@ ebc_auto_tast_function:                 // @ebc_auto_tast_function
 	bl	up
 	bl	schedule
 .LBB16_3:                               // =>This Loop Header: Depth=1
-                                        //     Child Loop BB16_56 Depth 2
-                                        //       Child Loop BB16_59 Depth 3
+                                        //     Child Loop BB16_86 Depth 2
+                                        //       Child Loop BB16_89 Depth 3
 	mov	x0, x19
 	bl	down
 	mov	x0, x20
@@ -3932,7 +3931,7 @@ ebc_auto_tast_function:                 // @ebc_auto_tast_function
 	b.gt	.LBB16_10
 // %bb.4:                               //   in Loop: Header=BB16_3 Depth=1
 	cmp	w8, #1
-	b.eq	.LBB16_19
+	b.eq	.LBB16_20
 // %bb.5:                               //   in Loop: Header=BB16_3 Depth=1
 	cmp	w8, #3
 	b.ne	.LBB16_16
@@ -3947,7 +3946,7 @@ ebc_auto_tast_function:                 // @ebc_auto_tast_function
 	mov	x0, x20
 	bl	up
 	ldr	w8, [x22, #1916]
-	cbz	w8, .LBB16_53
+	cbz	w8, .LBB16_83
 .LBB16_9:                               //   in Loop: Header=BB16_3 Depth=1
 	ldrsw	x8, [x22, #184]
 	ldr	x1, [x22, #1032]
@@ -3957,16 +3956,16 @@ ebc_auto_tast_function:                 // @ebc_auto_tast_function
 	mov	w5, #1                          // =0x1
 	ldr	x0, [x27, x8, lsl #3]
 	bl	get_auto_data
-	b	.LBB16_52
+	b	.LBB16_82
 .LBB16_10:                              //   in Loop: Header=BB16_3 Depth=1
 	cmp	w8, #5
-	b.eq	.LBB16_22
+	b.eq	.LBB16_24
 // %bb.11:                              //   in Loop: Header=BB16_3 Depth=1
 	cmp	w8, #4
 	b.ne	.LBB16_16
 // %bb.12:                              //   in Loop: Header=BB16_3 Depth=1
 	ldr	w8, [x22, #1436]
-	cbz	w8, .LBB16_43
+	cbz	w8, .LBB16_41
 // %bb.13:                              //   in Loop: Header=BB16_3 Depth=1
 	ldr	w8, [x22, #1420]
 	str	wzr, [x22, #1436]
@@ -3974,12 +3973,12 @@ ebc_auto_tast_function:                 // @ebc_auto_tast_function
 	cbnz	w8, .LBB16_15
 // %bb.14:                              //   in Loop: Header=BB16_3 Depth=1
 	ldr	w8, [x22, #1424]
-	cbz	w8, .LBB16_49
+	cbz	w8, .LBB16_79
 .LBB16_15:                              //   in Loop: Header=BB16_3 Depth=1
 	add	x0, x22, #112
 	add	x1, x22, #304
 	bl	flip
-	ldr	x0, [x28, :lo12:ebc_auto_assist_task]
+	ldr	x0, [x26, :lo12:ebc_auto_assist_task]
 	bl	wake_up_process
 	ldrsw	x8, [x22, #184]
 	ldr	x1, [x22, #1032]
@@ -3992,127 +3991,95 @@ ebc_auto_tast_function:                 // @ebc_auto_tast_function
 	bl	get_overlay_data
 	b	.LBB16_2
 .LBB16_16:                              //   in Loop: Header=BB16_3 Depth=1
-	ldrb	w8, [x22, #1769]
-	tbz	w8, #0, .LBB16_25
+	ldrb	w8, [x22, #1952]
+	cmp	w8, #1
+	b.ne	.LBB16_28
 // %bb.17:                              //   in Loop: Header=BB16_3 Depth=1
-	ldrb	w8, [x22, #1952]
-	tbz	w8, #0, .LBB16_26
+	ldr	w9, [x22, #1980]
+	cmp	w9, #1
+	b.ne	.LBB16_37
 // %bb.18:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	x9, [sp, #8]                    // 8-byte Folded Reload
-	mov	w8, #1                          // =0x1
-	b	.LBB16_27
-.LBB16_19:                              //   in Loop: Header=BB16_3 Depth=1
-	ldrb	w8, [x22, #1769]
-	tbz	w8, #0, .LBB16_33
-// %bb.20:                              //   in Loop: Header=BB16_3 Depth=1
-	ldrb	w8, [x22, #1952]
-	tbz	w8, #0, .LBB16_34
-// %bb.21:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	x9, [sp, #8]                    // 8-byte Folded Reload
-	mov	w8, #1                          // =0x1
-	b	.LBB16_35
-.LBB16_22:                              //   in Loop: Header=BB16_3 Depth=1
-	ldrb	w8, [x22, #1769]
-	tbz	w8, #0, .LBB16_39
-// %bb.23:                              //   in Loop: Header=BB16_3 Depth=1
-	ldrb	w8, [x22, #1952]
-	tbz	w8, #0, .LBB16_40
-// %bb.24:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	x9, [sp, #8]                    // 8-byte Folded Reload
-	mov	w8, #1                          // =0x1
-	b	.LBB16_41
-.LBB16_25:                              //   in Loop: Header=BB16_3 Depth=1
-	strb	wzr, [x22, #1952]
-.LBB16_26:                              //   in Loop: Header=BB16_3 Depth=1
-	mov	w8, #-1                         // =0xffffffff
-	mov	x9, x25
-.LBB16_27:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	w10, [x9]
-	add	x0, x22, #112
-	add	x1, x22, #304
-	add	w8, w10, w8
-	str	w8, [x9]
-	bl	flip
-	ldr	x0, [x28, :lo12:ebc_auto_assist_task]
-	bl	wake_up_process
+	ldr	w9, [x22, #1984]
+	cmp	w9, #1
+	b.ne	.LBB16_37
+// %bb.19:                              //   in Loop: Header=BB16_3 Depth=1
+	str	w25, [x22, #1988]
+	b	.LBB16_55
+.LBB16_20:                              //   in Loop: Header=BB16_3 Depth=1
 	ldrb	w8, [x22, #1952]
 	cmp	w8, #1
 	b.ne	.LBB16_31
-// %bb.28:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	w8, [x22, #1980]
+// %bb.21:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w9, [x22, #1980]
+	cmp	w9, #1
+	b.ne	.LBB16_43
+// %bb.22:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w9, [x22, #1984]
+	cmp	w9, #1
+	b.ne	.LBB16_43
+// %bb.23:                              //   in Loop: Header=BB16_3 Depth=1
+	str	w25, [x22, #1988]
+	b	.LBB16_65
+.LBB16_24:                              //   in Loop: Header=BB16_3 Depth=1
+	ldrb	w8, [x22, #1952]
 	cmp	w8, #1
-	b.ne	.LBB16_30
+	b.ne	.LBB16_34
+// %bb.25:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w9, [x22, #1980]
+	cmp	w9, #1
+	b.ne	.LBB16_47
+// %bb.26:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w9, [x22, #1984]
+	cmp	w9, #1
+	b.ne	.LBB16_47
+// %bb.27:                              //   in Loop: Header=BB16_3 Depth=1
+	str	w25, [x22, #1988]
+	b	.LBB16_77
+.LBB16_28:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1432]
+	cbz	w8, .LBB16_55
 // %bb.29:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	w8, [x22, #1984]
-	cmp	w8, #1
-	b.eq	.LBB16_38
-.LBB16_30:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	w8, [x22, #1988]
-	cbnz	w8, .LBB16_2
-	b	.LBB16_32
+	ldrb	w9, [x22, #1769]
+	tbz	w9, #0, .LBB16_51
+// %bb.30:                              //   in Loop: Header=BB16_3 Depth=1
+	subs	w8, w8, #1
+	b.ge	.LBB16_53
+	b	.LBB16_54
 .LBB16_31:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	w8, [x25]
-	cbz	w8, .LBB16_2
-.LBB16_32:                              //   in Loop: Header=BB16_3 Depth=1
-	ldrsw	x8, [x22, #184]
-	ldr	x9, [x22, #1536]
-	add	x3, x22, #304
-	ldr	x10, [x22, #1528]
-	mov	w4, #2                          // =0x2
-	ldr	x0, [x27, x8, lsl #3]
-	ldr	x1, [x9, #8]
-	ldr	x2, [x10, #8]
-	bl	get_full_data
-	b	.LBB16_2
-.LBB16_33:                              //   in Loop: Header=BB16_3 Depth=1
-	strb	wzr, [x22, #1952]
+	ldr	w8, [x22, #1432]
+	cbz	w8, .LBB16_65
+// %bb.32:                              //   in Loop: Header=BB16_3 Depth=1
+	ldrb	w9, [x22, #1769]
+	tbz	w9, #0, .LBB16_61
+// %bb.33:                              //   in Loop: Header=BB16_3 Depth=1
+	subs	w8, w8, #1
+	b.ge	.LBB16_63
+	b	.LBB16_64
 .LBB16_34:                              //   in Loop: Header=BB16_3 Depth=1
-	mov	w8, #-1                         // =0xffffffff
-	mov	x9, x25
-.LBB16_35:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	w10, [x9]
-	add	x0, x22, #112
-	add	x1, x22, #304
-	add	w8, w10, w8
-	str	w8, [x9]
-	bl	flip
-	ldr	x0, [x28, :lo12:ebc_auto_assist_task]
-	bl	wake_up_process
-	ldrb	w5, [x22, #1952]
-	cmp	w5, #1
-	b.ne	.LBB16_42
+	ldr	w8, [x22, #1432]
+	cbz	w8, .LBB16_77
+// %bb.35:                              //   in Loop: Header=BB16_3 Depth=1
+	ldrb	w9, [x22, #1769]
+	tbz	w9, #0, .LBB16_73
 // %bb.36:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	w8, [x22, #1980]
-	cmp	w8, #1
-	b.ne	.LBB16_45
-// %bb.37:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	w8, [x22, #1984]
-	cmp	w8, #1
-	b.ne	.LBB16_45
-.LBB16_38:                              //   in Loop: Header=BB16_3 Depth=1
-	str	w8, [x22, #1988]
-	b	.LBB16_2
-.LBB16_39:                              //   in Loop: Header=BB16_3 Depth=1
-	strb	wzr, [x22, #1952]
-.LBB16_40:                              //   in Loop: Header=BB16_3 Depth=1
-	mov	w8, #-1                         // =0xffffffff
-	mov	x9, x25
+	subs	w8, w8, #1
+	b.ge	.LBB16_75
+	b	.LBB16_76
+.LBB16_37:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w9, [x22, #1988]
+	cbnz	w9, .LBB16_55
+// %bb.38:                              //   in Loop: Header=BB16_3 Depth=1
+	ldrb	w9, [x22, #1769]
+	tbz	w9, #0, .LBB16_51
+// %bb.39:                              //   in Loop: Header=BB16_3 Depth=1
+	cbz	w8, .LBB16_52
+// %bb.40:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1968]
+	add	w8, w8, #1
+	str	w8, [x22, #1968]
+	b	.LBB16_54
 .LBB16_41:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	w10, [x9]
-	add	x0, x22, #112
-	add	x1, x22, #304
-	add	w8, w10, w8
-	str	w8, [x9]
-	bl	flip
-	ldr	x0, [x28, :lo12:ebc_auto_assist_task]
-	bl	wake_up_process
-	b	.LBB16_2
-.LBB16_42:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	w8, [x25]
-	cbnz	w8, .LBB16_46
-	b	.LBB16_2
-.LBB16_43:                              //   in Loop: Header=BB16_3 Depth=1
-	ldr	w26, [x22, #184]
+	ldr	w21, [x22, #184]
 	mov	x0, x20
 	bl	up
 	ldrsw	x8, [x22, #184]
@@ -4124,30 +4091,131 @@ ebc_auto_tast_function:                 // @ebc_auto_tast_function
 	ldr	x0, [x27, x8, lsl #3]
 	bl	get_roi_overlay_data
 	ldrsw	x8, [x22, #184]
-	mov	w9, #1                          // =0x1
 	ldrsw	x2, [x22, #1392]
-	sub	w9, w9, w8
+	sub	w9, w25, w8
 	ldr	x1, [x27, x8, lsl #3]
 	ldr	x0, [x27, w9, sxtw #3]
 	bl	memcpy
 	ldr	x0, [x22, #112]
 	ldrb	w8, [x0, #796]
 	tbnz	w8, #6, .LBB16_2
-// %bb.44:                              //   in Loop: Header=BB16_3 Depth=1
-	mov	w8, #1                          // =0x1
+// %bb.42:                              //   in Loop: Header=BB16_3 Depth=1
+	sub	w8, w25, w21
 	mov	w10, #24                        // =0x18
-	ldr	x9, [sp]                        // 8-byte Folded Reload
-	sub	w8, w8, w26
+	ldr	x9, [sp, #8]                    // 8-byte Folded Reload
+	smaddl	x8, w8, w10, x9
 	ldrsw	x2, [x22, #1392]
 	mov	w3, #1                          // =0x1
-	smaddl	x8, w8, w10, x9
 	ldr	x1, [x8, #8]
 	bl	__dma_sync_single_for_device
 	b	.LBB16_2
-.LBB16_45:                              //   in Loop: Header=BB16_3 Depth=1
+.LBB16_43:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w9, [x22, #1988]
+	cbnz	w9, .LBB16_65
+// %bb.44:                              //   in Loop: Header=BB16_3 Depth=1
+	ldrb	w9, [x22, #1769]
+	tbz	w9, #0, .LBB16_61
+// %bb.45:                              //   in Loop: Header=BB16_3 Depth=1
+	cbz	w8, .LBB16_62
+// %bb.46:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1968]
+	add	w8, w8, #1
+	str	w8, [x22, #1968]
+	b	.LBB16_64
+.LBB16_47:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w9, [x22, #1988]
+	cbnz	w9, .LBB16_77
+// %bb.48:                              //   in Loop: Header=BB16_3 Depth=1
+	ldrb	w9, [x22, #1769]
+	tbz	w9, #0, .LBB16_73
+// %bb.49:                              //   in Loop: Header=BB16_3 Depth=1
+	cbz	w8, .LBB16_74
+// %bb.50:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1968]
+	add	w8, w8, #1
+	str	w8, [x22, #1968]
+	b	.LBB16_76
+.LBB16_51:                              //   in Loop: Header=BB16_3 Depth=1
+	strb	wzr, [x22, #1952]
+.LBB16_52:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1432]
+	subs	w8, w8, #1
+	b.lt	.LBB16_54
+.LBB16_53:                              //   in Loop: Header=BB16_3 Depth=1
+	str	w8, [x22, #1432]
+.LBB16_54:                              //   in Loop: Header=BB16_3 Depth=1
+	add	x0, x22, #112
+	add	x1, x22, #304
+	bl	flip
+.LBB16_55:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	x0, [x26, :lo12:ebc_auto_assist_task]
+	bl	wake_up_process
+	ldrb	w8, [x22, #1952]
+	cmp	w8, #1
+	b.ne	.LBB16_59
+// %bb.56:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1980]
+	cmp	w8, #1
+	b.ne	.LBB16_58
+// %bb.57:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1984]
+	cmp	w8, #1
+	b.eq	.LBB16_68
+.LBB16_58:                              //   in Loop: Header=BB16_3 Depth=1
 	ldr	w8, [x22, #1988]
 	cbnz	w8, .LBB16_2
-.LBB16_46:                              //   in Loop: Header=BB16_3 Depth=1
+	b	.LBB16_60
+.LBB16_59:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1432]
+	cbz	w8, .LBB16_2
+.LBB16_60:                              //   in Loop: Header=BB16_3 Depth=1
+	ldrsw	x8, [x22, #184]
+	ldr	x9, [x22, #1536]
+	add	x3, x22, #304
+	ldr	x10, [x22, #1528]
+	mov	w4, #2                          // =0x2
+	ldr	x0, [x27, x8, lsl #3]
+	ldr	x1, [x9, #8]
+	ldr	x2, [x10, #8]
+	bl	get_full_data
+	b	.LBB16_2
+.LBB16_61:                              //   in Loop: Header=BB16_3 Depth=1
+	strb	wzr, [x22, #1952]
+.LBB16_62:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1432]
+	subs	w8, w8, #1
+	b.lt	.LBB16_64
+.LBB16_63:                              //   in Loop: Header=BB16_3 Depth=1
+	str	w8, [x22, #1432]
+.LBB16_64:                              //   in Loop: Header=BB16_3 Depth=1
+	add	x0, x22, #112
+	add	x1, x22, #304
+	bl	flip
+.LBB16_65:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	x0, [x26, :lo12:ebc_auto_assist_task]
+	bl	wake_up_process
+	ldrb	w5, [x22, #1952]
+	cmp	w5, #1
+	b.ne	.LBB16_69
+// %bb.66:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1980]
+	cmp	w8, #1
+	b.ne	.LBB16_70
+// %bb.67:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1984]
+	cmp	w8, #1
+	b.ne	.LBB16_70
+.LBB16_68:                              //   in Loop: Header=BB16_3 Depth=1
+	str	w25, [x22, #1988]
+	b	.LBB16_2
+.LBB16_69:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1432]
+	cbnz	w8, .LBB16_71
+	b	.LBB16_2
+.LBB16_70:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1988]
+	cbnz	w8, .LBB16_2
+.LBB16_71:                              //   in Loop: Header=BB16_3 Depth=1
 	adrp	x8, global_ebc
 	ldrsw	x9, [x22, #184]
 	ldr	x10, [x22, #1536]
@@ -4159,19 +4227,35 @@ ebc_auto_tast_function:                 // @ebc_auto_tast_function
 	mov	w4, #2                          // =0x2
 	ldr	w8, [x8, #276]
 	ldr	x2, [x11, #8]
-	cbz	w8, .LBB16_48
-// %bb.47:                              //   in Loop: Header=BB16_3 Depth=1
+	cbz	w8, .LBB16_78
+// %bb.72:                              //   in Loop: Header=BB16_3 Depth=1
 	bl	get_rearrange_panel_data
 	b	.LBB16_2
-.LBB16_48:                              //   in Loop: Header=BB16_3 Depth=1
+.LBB16_73:                              //   in Loop: Header=BB16_3 Depth=1
+	strb	wzr, [x22, #1952]
+.LBB16_74:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	w8, [x22, #1432]
+	subs	w8, w8, #1
+	b.lt	.LBB16_76
+.LBB16_75:                              //   in Loop: Header=BB16_3 Depth=1
+	str	w8, [x22, #1432]
+.LBB16_76:                              //   in Loop: Header=BB16_3 Depth=1
+	add	x0, x22, #112
+	add	x1, x22, #304
+	bl	flip
+.LBB16_77:                              //   in Loop: Header=BB16_3 Depth=1
+	ldr	x0, [x26, :lo12:ebc_auto_assist_task]
+	bl	wake_up_process
+	b	.LBB16_2
+.LBB16_78:                              //   in Loop: Header=BB16_3 Depth=1
 	bl	get_normal_panel_data
 	b	.LBB16_2
-.LBB16_49:                              //   in Loop: Header=BB16_3 Depth=1
+.LBB16_79:                              //   in Loop: Header=BB16_3 Depth=1
 	mov	x0, x20
 	bl	up
 	ldr	w8, [x22, #1916]
-	cbnz	w8, .LBB16_51
-// %bb.50:                              //   in Loop: Header=BB16_3 Depth=1
+	cbnz	w8, .LBB16_81
+// %bb.80:                              //   in Loop: Header=BB16_3 Depth=1
 	ldr	x8, [x22, #1536]
 	ldr	x0, [x22, #1032]
 	add	x6, x22, #304
@@ -4181,7 +4265,7 @@ ebc_auto_tast_function:                 // @ebc_auto_tast_function
 	ldr	x3, [x8, #8]
 	ldr	x5, [x22, #1320]
 	bl	refresh_new_image
-.LBB16_51:                              //   in Loop: Header=BB16_3 Depth=1
+.LBB16_81:                              //   in Loop: Header=BB16_3 Depth=1
 	ldrsw	x8, [x22, #184]
 	ldr	x1, [x22, #1032]
 	add	x5, x22, #304
@@ -4191,16 +4275,15 @@ ebc_auto_tast_function:                 // @ebc_auto_tast_function
 	ldr	x0, [x27, x8, lsl #3]
 	ldr	x4, [x22, #1320]
 	bl	get_overlay_data
-.LBB16_52:                              //   in Loop: Header=BB16_3 Depth=1
-	mov	w8, #1                          // =0x1
-	add	x0, x22, #1856
-	str	w8, [x22, #1428]
+.LBB16_82:                              //   in Loop: Header=BB16_3 Depth=1
+	str	w25, [x22, #1428]
 	adrp	x8, jiffies
+	add	x0, x22, #1856
 	ldr	x8, [x8, :lo12:jiffies]
 	add	x1, x8, #1
 	bl	mod_timer
 	b	.LBB16_2
-.LBB16_53:                              //   in Loop: Header=BB16_3 Depth=1
+.LBB16_83:                              //   in Loop: Header=BB16_3 Depth=1
 	ldr	w8, [x22, #1444]
 	ldr	w9, [x22, #1440]
 	add	w10, w8, #7
@@ -4208,42 +4291,42 @@ ebc_auto_tast_function:                 // @ebc_auto_tast_function
 	csel	w10, w10, w8, lt
 	cmp	w9, #1
 	b.lt	.LBB16_9
-// %bb.54:                              //   in Loop: Header=BB16_3 Depth=1
+// %bb.84:                              //   in Loop: Header=BB16_3 Depth=1
 	ldr	x12, [x22, #1536]
 	asr	w10, w10, #3
 	ldr	x11, [x22, #1248]
 	ldr	x13, [x22, #1032]
 	mov	w14, wzr
 	ldr	x12, [x12, #8]
-	b	.LBB16_56
-.LBB16_55:                              //   in Loop: Header=BB16_56 Depth=2
+	b	.LBB16_86
+.LBB16_85:                              //   in Loop: Header=BB16_86 Depth=2
 	add	w14, w14, #1
 	cmp	w14, w9
 	b.eq	.LBB16_9
-.LBB16_56:                              //   Parent Loop BB16_3 Depth=1
+.LBB16_86:                              //   Parent Loop BB16_3 Depth=1
                                         // =>  This Loop Header: Depth=2
-                                        //       Child Loop BB16_59 Depth 3
+                                        //       Child Loop BB16_89 Depth 3
 	cmp	w8, #8
-	b.lt	.LBB16_55
-// %bb.57:                              //   in Loop: Header=BB16_56 Depth=2
+	b.lt	.LBB16_85
+// %bb.87:                              //   in Loop: Header=BB16_86 Depth=2
 	mov	w15, w10
-	b	.LBB16_59
-.LBB16_58:                              //   in Loop: Header=BB16_59 Depth=3
+	b	.LBB16_89
+.LBB16_88:                              //   in Loop: Header=BB16_89 Depth=3
 	subs	w15, w15, #1
 	add	x11, x11, #8
 	add	x13, x13, #8
-	b.eq	.LBB16_55
-.LBB16_59:                              //   Parent Loop BB16_3 Depth=1
-                                        //     Parent Loop BB16_56 Depth=2
+	b.eq	.LBB16_85
+.LBB16_89:                              //   Parent Loop BB16_3 Depth=1
+                                        //     Parent Loop BB16_86 Depth=2
                                         // =>    This Inner Loop Header: Depth=3
 	ldr	x16, [x12], #8
 	ldr	x17, [x13]
 	cmp	x16, x17
-	b.eq	.LBB16_58
-// %bb.60:                              //   in Loop: Header=BB16_59 Depth=3
+	b.eq	.LBB16_88
+// %bb.90:                              //   in Loop: Header=BB16_89 Depth=3
 	ldr	x0, [x11]
 	tst	x0, #0xff
-	csel	x1, x21, xzr, eq
+	csel	x1, x28, xzr, eq
 	tst	x0, #0xff00
 	orr	x2, x1, #0xff00
 	csel	x1, x2, x1, eq
@@ -4270,14 +4353,14 @@ ebc_auto_tast_function:                 // @ebc_auto_tast_function
 	and	x16, x0, x16
 	orr	x16, x17, x16
 	str	x16, [x13]
-	b	.LBB16_58
+	b	.LBB16_88
 .Lfunc_end16:
-	.size	ebc_auto_tast_function, .Lfunc_end16-ebc_auto_tast_function
+	.size	ebc_auto_task_function, .Lfunc_end16-ebc_auto_task_function
                                         // -- End function
-	.p2align	2                               // -- Begin function ebc_auto_assist_tast_function
-	.type	ebc_auto_assist_tast_function,@function
+	.p2align	2                               // -- Begin function ebc_auto_assist_task_function
+	.type	ebc_auto_assist_task_function,@function
 	.word	2314953021                      // 0x89fb613d
-ebc_auto_assist_tast_function:          // @ebc_auto_assist_tast_function
+ebc_auto_assist_task_function:          // @ebc_auto_assist_task_function
 // %bb.0:
 	str	x30, [x18], #8
 	stp	x29, x30, [sp, #-80]!           // 16-byte Folded Spill
@@ -4419,7 +4502,7 @@ ebc_auto_assist_tast_function:          // @ebc_auto_assist_tast_function
 	bl	get_normal_panel_data
 	b	.LBB17_2
 .Lfunc_end17:
-	.size	ebc_auto_assist_tast_function, .Lfunc_end17-ebc_auto_assist_tast_function
+	.size	ebc_auto_assist_task_function, .Lfunc_end17-ebc_auto_assist_task_function
                                         // -- End function
 	.p2align	2                               // -- Begin function ebc_thread
 	.type	ebc_thread,@function
@@ -9650,7 +9733,7 @@ update_frame_left:                      // @update_frame_left
 	ldrb	w8, [x0, #1648]
 	tbz	w8, #0, .LBB23_41
 // %bb.4:
-	tbz	w1, #0, .LBB23_44
+	tbz	w1, #0, .LBB23_46
 // %bb.5:
 	str	x30, [x18], #8
 	stp	x29, x30, [sp, #-64]!           // 16-byte Folded Spill
@@ -9667,27 +9750,27 @@ update_frame_left:                      // @update_frame_left
 	str	w20, [x0, #1652]
 	str	xzr, [x8]
 	str	wzr, [x0, #1684]
-	cbz	x21, .LBB23_46
+	cbz	x21, .LBB23_48
 // %bb.6:
 	ldr	w22, [x0, #1140]
 	cmp	w22, #1
-	b.lt	.LBB23_46
+	b.lt	.LBB23_48
 // %bb.7:
 	ldr	w23, [x0, #1136]
 	cmp	w23, #1
-	b.lt	.LBB23_46
+	b.lt	.LBB23_48
 // %bb.8:
 	cmp	w20, #1
-	b.lt	.LBB23_46
+	b.lt	.LBB23_48
 // %bb.9:
 	ldr	w8, [x0, #1644]
-	tbz	w8, #31, .LBB23_45
+	tbz	w8, #31, .LBB23_47
 // %bb.10:
 	cmp	w19, #10
-	b.eq	.LBB23_46
+	b.eq	.LBB23_48
 .LBB23_11:
 	and	x8, x23, #0xffff
-	cbz	w8, .LBB23_46
+	cbz	w8, .LBB23_48
 // %bb.12:
 	mul	w10, w20, w20
 	ubfx	w11, w22, #1, #16
@@ -9700,7 +9783,7 @@ update_frame_left:                      // @update_frame_left
 .LBB23_13:                              //   in Loop: Header=BB23_14 Depth=1
 	add	x9, x9, #1
 	cmp	x9, x8
-	b.eq	.LBB23_46
+	b.eq	.LBB23_48
 .LBB23_14:                              // =>This Loop Header: Depth=1
                                         //     Child Loop BB23_18 Depth 2
 	cbz	w11, .LBB23_13
@@ -9821,19 +9904,21 @@ update_frame_left:                      // @update_frame_left
 	tbz	w1, #0, .LBB23_43
 // %bb.42:
 	ldrh	w8, [x0, #1112]
-	str	w8, [x0, #1128]
-	ret
+	b	.LBB23_44
 .LBB23_43:
 	ldr	w8, [x0, #1128]
-	sub	w8, w8, #1
-	str	w8, [x0, #1128]
-	ret
+	subs	w8, w8, #1
+	b.lt	.LBB23_45
 .LBB23_44:
+	str	w8, [x0, #1128]
+.LBB23_45:
+	ret
+.LBB23_46:
 	ldr	w8, [x0, #1664]
 	add	w8, w8, #1
 	str	w8, [x0, #1664]
 	ret
-.LBB23_45:
+.LBB23_47:
 	ldr	x0, [x0, #1152]
 	adrp	x1, .L.str.107
 	add	x1, x1, :lo12:.L.str.107
@@ -9841,7 +9926,7 @@ update_frame_left:                      // @update_frame_left
 	bl	_dev_info
 	cmp	w19, #10
 	b.ne	.LBB23_11
-.LBB23_46:
+.LBB23_48:
 	ldp	x20, x19, [sp, #48]             // 16-byte Folded Reload
 	ldr	x23, [sp, #16]                  // 8-byte Folded Reload
 	ldp	x22, x21, [sp, #32]             // 16-byte Folded Reload
@@ -11639,7 +11724,7 @@ ebc_frame_start:                        // @ebc_frame_start
 	mov	w5, #1                          // =0x1
 	bl	get_auto_data
 	ldr	w8, [x19, #1420]
-	cbz	w8, .LBB31_23
+	cbz	w8, .LBB31_24
 // %bb.4:
 	ldr	x0, [x19, #1504]
 	ldr	x1, [x19, #1032]
@@ -11648,7 +11733,7 @@ ebc_frame_start:                        // @ebc_frame_start
 	ldr	x3, [x19, #1248]
 	mov	w5, #1                          // =0x1
 	bl	get_auto_data
-	b	.LBB31_37
+	b	.LBB31_40
 .LBB31_5:
 	cmp	w8, #5
 	b.eq	.LBB31_16
@@ -11668,7 +11753,7 @@ ebc_frame_start:                        // @ebc_frame_start
 	ldr	x4, [x19, #1320]
 	bl	get_roi_overlay_data
 	ldr	w8, [x19, #1420]
-	cbz	w8, .LBB31_25
+	cbz	w8, .LBB31_26
 // %bb.8:
 	add	x0, x19, #112
 	add	x1, x19, #304
@@ -11685,7 +11770,7 @@ ebc_frame_start:                        // @ebc_frame_start
 	ldr	x3, [x19, #1248]
 	ldr	x4, [x19, #1320]
 	bl	get_roi_overlay_data
-	b	.LBB31_38
+	b	.LBB31_41
 .LBB31_9:
 	add	x0, x19, #304
 	mov	w1, #1                          // =0x1
@@ -11704,9 +11789,10 @@ ebc_frame_start:                        // @ebc_frame_start
 	ldrb	w8, [x19, #1952]
 	tbz	w8, #0, .LBB31_21
 // %bb.11:
-	mov	w8, #1                          // =0x1
-	mov	w9, #1968                       // =0x7b0
-	b	.LBB31_22
+	ldr	w8, [x19, #1968]
+	add	w8, w8, #1
+	str	w8, [x19, #1968]
+	b	.LBB31_23
 .LBB31_12:
 	add	x0, x19, #304
 	mov	w1, #1                          // =0x1
@@ -11722,19 +11808,19 @@ ebc_frame_start:                        // @ebc_frame_start
 	mov	w4, #1                          // =0x1
 	ldr	w8, [x8, #276]
 	ldrb	w5, [x19, #1952]
-	cbz	w8, .LBB31_27
+	cbz	w8, .LBB31_28
 // %bb.13:
 	bl	get_rearrange_panel_data
 	ldrb	w8, [x19, #1769]
-	tbz	w8, #0, .LBB31_28
+	tbz	w8, #0, .LBB31_29
 .LBB31_14:
 	ldrb	w8, [x19, #1952]
-	tbz	w8, #0, .LBB31_29
+	tbz	w8, #0, .LBB31_30
 // %bb.15:
-	mov	w9, #1                          // =0x1
-	mov	w10, #1968                      // =0x7b0
-	mov	w8, #1                          // =0x1
-	b	.LBB31_30
+	ldr	w9, [x19, #1968]
+	add	w9, w9, #1
+	str	w9, [x19, #1968]
+	b	.LBB31_32
 .LBB31_16:
 	add	x0, x19, #304
 	mov	w1, #1                          // =0x1
@@ -11750,119 +11836,120 @@ ebc_frame_start:                        // @ebc_frame_start
 	mov	w4, #1                          // =0x1
 	ldr	w8, [x8, #276]
 	mov	w5, wzr
-	cbz	w8, .LBB31_32
+	cbz	w8, .LBB31_34
 // %bb.17:
 	bl	get_rearrange_panel_data
 	ldrb	w8, [x19, #1769]
-	tbz	w8, #0, .LBB31_33
+	tbz	w8, #0, .LBB31_35
 .LBB31_18:
 	ldrb	w8, [x19, #1952]
-	tbz	w8, #0, .LBB31_34
+	tbz	w8, #0, .LBB31_36
 // %bb.19:
-	mov	w8, #1                          // =0x1
-	mov	w9, #1968                       // =0x7b0
-	b	.LBB31_35
+	ldr	w8, [x19, #1968]
+	add	w8, w8, #1
+	str	w8, [x19, #1968]
+	b	.LBB31_38
 .LBB31_20:
 	strb	wzr, [x19, #1952]
 .LBB31_21:
-	mov	w8, #-1                         // =0xffffffff
-	mov	w9, #1432                       // =0x598
-.LBB31_22:
-	ldr	w10, [x19, x9]
-	add	x3, x19, #304
-	mov	w4, #1                          // =0x1
-	add	w8, w10, w8
-	str	w8, [x19, x9]
+	ldr	w8, [x19, #1432]
+	subs	w8, w8, #1
+	b.lt	.LBB31_23
+// %bb.22:
+	str	w8, [x19, #1432]
+.LBB31_23:
 	ldr	x8, [x19, #1536]
 	ldr	x9, [x19, #1528]
+	add	x3, x19, #304
 	ldr	x0, [x19, #1504]
+	mov	w4, #1                          // =0x1
 	ldr	x1, [x8, #8]
 	ldr	x2, [x9, #8]
 	bl	get_full_data
-	b	.LBB31_37
-.LBB31_23:
+	b	.LBB31_40
+.LBB31_24:
 	ldr	w8, [x19, #1948]
 	cmp	w8, #1
-	b.lt	.LBB31_26
-// %bb.24:
+	b.lt	.LBB31_27
+// %bb.25:
 	ldr	x0, [x19, #1456]
 	adrp	x1, .L.str.143
 	add	x1, x1, :lo12:.L.str.143
-	b	.LBB31_40
-.LBB31_25:
+	b	.LBB31_43
+.LBB31_26:
 	ldr	w8, [x19, #1948]
 	cmp	w8, #1
-	b.ge	.LBB31_39
-.LBB31_26:
-	str	wzr, [x19, #1412]
-	b	.LBB31_38
+	b.ge	.LBB31_42
 .LBB31_27:
+	str	wzr, [x19, #1412]
+	b	.LBB31_41
+.LBB31_28:
 	bl	get_normal_panel_data
 	ldrb	w8, [x19, #1769]
 	tbnz	w8, #0, .LBB31_14
-.LBB31_28:
+.LBB31_29:
 	mov	w8, wzr
 	strb	wzr, [x19, #1952]
-.LBB31_29:
-	mov	w9, #-1                         // =0xffffffff
-	mov	w10, #1432                      // =0x598
 .LBB31_30:
-	ldr	w11, [x19, x10]
-	add	x3, x19, #304
-	and	w5, w8, #0x1
-	mov	w4, #1                          // =0x1
-	add	w9, w11, w9
-	str	w9, [x19, x10]
+	ldr	w9, [x19, #1432]
+	subs	w9, w9, #1
+	b.lt	.LBB31_32
+// %bb.31:
+	str	w9, [x19, #1432]
+.LBB31_32:
 	ldr	x9, [x20, :lo12:global_ebc]
 	ldr	x10, [x19, #1536]
+	add	x3, x19, #304
 	ldr	x11, [x19, #1528]
 	ldr	x0, [x19, #1504]
+	and	w5, w8, #0x1
 	ldr	w9, [x9, #276]
 	ldr	x1, [x10, #8]
+	mov	w4, #1                          // =0x1
 	ldr	x2, [x11, #8]
-	cbz	w9, .LBB31_36
-// %bb.31:
+	cbz	w9, .LBB31_39
+// %bb.33:
 	bl	get_rearrange_panel_data
-	b	.LBB31_37
-.LBB31_32:
+	b	.LBB31_40
+.LBB31_34:
 	bl	get_normal_panel_data
 	ldrb	w8, [x19, #1769]
 	tbnz	w8, #0, .LBB31_18
-.LBB31_33:
-	strb	wzr, [x19, #1952]
-.LBB31_34:
-	mov	w8, #-1                         // =0xffffffff
-	mov	w9, #1432                       // =0x598
 .LBB31_35:
-	ldr	w10, [x19, x9]
-	ldrsw	x2, [x19, #1392]
-	add	w8, w10, w8
-	str	w8, [x19, x9]
+	strb	wzr, [x19, #1952]
+.LBB31_36:
+	ldr	w8, [x19, #1432]
+	subs	w8, w8, #1
+	b.lt	.LBB31_38
+// %bb.37:
+	str	w8, [x19, #1432]
+.LBB31_38:
 	ldr	x0, [x19, #1504]
 	ldr	x1, [x19, #1496]
+	ldrsw	x2, [x19, #1392]
 	bl	memcpy
-	b	.LBB31_37
-.LBB31_36:
+	b	.LBB31_40
+.LBB31_39:
 	bl	get_normal_panel_data
-.LBB31_37:
+.LBB31_40:
 	add	x0, x19, #112
 	add	x1, x19, #304
 	str	wzr, [x19, #184]
 	bl	flip
-.LBB31_38:
+.LBB31_41:
 	ldp	x20, x19, [sp, #16]             // 16-byte Folded Reload
 	ldp	x29, x30, [sp], #32             // 16-byte Folded Reload
 	ldr	x30, [x18, #-8]!
 	ret
-.LBB31_39:
+.LBB31_42:
 	ldr	x0, [x19, #1456]
 	adrp	x1, .L.str.142
 	add	x1, x1, :lo12:.L.str.142
-.LBB31_40:
+.LBB31_43:
 	adrp	x2, .L__func__.ebc_frame_start
 	add	x2, x2, :lo12:.L__func__.ebc_frame_start
 	bl	_dev_info
-	b	.LBB31_26
+	b	.LBB31_27
 .Lfunc_end31:
 	.size	ebc_frame_start, .Lfunc_end31-ebc_frame_start
                                         // -- End function
@@ -16379,7 +16466,7 @@ ebc_driver:
 
 	.type	.L.str.3,@object                // @.str.3
 .L.str.3:
-	.asciz	"9.03_y8"
+	.asciz	"9.04_y8"
 	.size	.L.str.3, 8
 
 	.type	global_ebc,@object              // @global_ebc
@@ -17895,8 +17982,8 @@ dev_attr_record_pix_wf:
 	.addrsig_sym ebc_probe
 	.addrsig_sym ebc_remove
 	.addrsig_sym frame_done_callback
-	.addrsig_sym ebc_auto_tast_function
-	.addrsig_sym ebc_auto_assist_tast_function
+	.addrsig_sym ebc_auto_task_function
+	.addrsig_sym ebc_auto_assist_task_function
 	.addrsig_sym ebc_thread
 	.addrsig_sym ebc_frame_control_timeout
 	.addrsig_sym ebc_overlay_enable_timeout

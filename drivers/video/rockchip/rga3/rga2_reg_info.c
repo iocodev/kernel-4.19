@@ -304,6 +304,9 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_YIN_YOUT_EN)) |
 	       (s_RGA2_MODE_CTRL_SW_YIN_YOUT_EN(msg->yin_yout_en)));
 
+	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_CFA_PROCESS_EN)) |
+	       (s_RGA2_MODE_CTRL_SW_CFA_PROCESS_EN(msg->cfa_enable)));
+
 	if (msg->src.rd_mode == RGA_TILE4x4_MODE)
 		reg = ((reg & (~m_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN)) |
 		       (s_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN(1)));
@@ -346,6 +349,10 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_DATA_8B_PROC)) |
 	       (s_RGA2_MODE_CTRL_SW_DATA_8B_PROC(0)));
 
+	if (msg->src1.rd_mode == RGA_AFBC32x8_MODE)
+		reg = ((reg & (~m_RGA2_MODE_CTRL_SW_FBC_IN1_EN)) |
+		       (s_RGA2_MODE_CTRL_SW_FBC_IN1_EN(1)));
+
 	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_SECURE_ACCESS)) |
 	       (s_RGA2_MODE_CTRL_SW_SECURE_ACCESS(msg->secure_access)));
 
@@ -364,6 +371,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	u32 *bRGA_FBCIN_PAYL_BASE;
 	u32 *bRGA_FBCIN_OFF;
 	u32 *bRGA_FBCIN_HEAD_VIR_INFO;
+	u32 *bRGA_FBCIN_OVERLAP_OFF;
 
 	u8 disable_uv_channel_en = 0;
 
@@ -418,6 +426,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	bRGA_FBCIN_PAYL_BASE = (u32 *) (base + RGA2_FBCIN_PAYL_BASE_OFFSET);
 	bRGA_FBCIN_OFF = (u32 *) (base + RGA2_FBCIN_OFF_OFFSET);
 	bRGA_FBCIN_HEAD_VIR_INFO = (u32 *) (base + RGA2_FBCIN_HEAD_VIR_INFO_OFFSET);
+	bRGA_FBCIN_OVERLAP_OFF = (u32 *) (base + RGA2_FBCIN_OVERLAP_OFF_OFFSET);
 
 	{
 		rotate_mode = msg->rotate_mode & 0x3;
@@ -982,8 +991,20 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		*bRGA_FBCIN_HEAD_BASE = head_base_addr;
 		*bRGA_FBCIN_PAYL_BASE = payload_base_addr;
 		*bRGA_FBCIN_HEAD_VIR_INFO = stride;
-		*bRGA_FBCIN_OFF = msg->src.x_offset | (msg->src.y_offset << 16);
-		*bRGA_SRC_ACT_INFO = (msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16);
+
+		if (msg->src1.rd_mode == RGA_AFBC32x8_MODE &&
+		    msg->alpha_rop_flag & 1) {
+			*bRGA_FBCIN_OFF = ALIGN_DOWN(msg->src.x_offset, 32) |
+					  (ALIGN_DOWN(msg->src.y_offset, 8) << 16);
+			*bRGA_FBCIN_OVERLAP_OFF = (msg->src.x_offset % 32) |
+						  (msg->src.y_offset % 8 << 8);
+			*bRGA_SRC_ACT_INFO =
+				(ALIGN(msg->src.act_w + msg->src.x_offset % 32, 32) - 1) |
+				((ALIGN(msg->src.act_h + msg->src.y_offset % 8, 8) - 1) << 16);
+		} else {
+			*bRGA_FBCIN_OFF = msg->src.x_offset | (msg->src.y_offset << 16);
+			*bRGA_SRC_ACT_INFO = (msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16);
+		}
 	} else {
 		*bRGA_SRC_BASE0 = (u32)(msg->src.yrgb_addr + yrgb_offset);
 		if (disable_uv_channel_en == 1) {
@@ -1001,15 +1022,29 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 			*bRGA_SRC_BASE2 = (u32)(msg->src.v_addr + v_offset);
 		}
 
-		//mask_stride = ((msg->src0_act.width + 31) & ~31) >> 5;
-		mask_stride = msg->rop_mask_stride;
-		*bRGA_SRC_VIR_INFO = (stride >> 2) | (mask_stride << 16);
+		if (msg->cfa_enable &&
+		    msg->cfa_ctrl1 & m_RGA2_CFA_CTRL1_SW_CFA_COMPS_EN) {
+			switch (msg->src1.format) {
+			case RGA_FORMAT_Y1:
+				mask_stride = ALIGN((msg->src1.vir_w >> 3), 16);
+				break;
+			case RGA_FORMAT_Y8:
+				mask_stride = ALIGN((msg->src1.vir_w), 16);
+				break;
+			}
+			*bRGA_MASK_ADDR = (u32) msg->src1.yrgb_addr;
+		} else {
+			//mask_stride = ((msg->src0_act.width + 31) & ~31) >> 5;
+			mask_stride = msg->rop_mask_stride;
+
+			*bRGA_MASK_ADDR = (u32) msg->rop_mask_addr;
+		}
+
+		*bRGA_SRC_VIR_INFO = (stride >> 2) | ((mask_stride >> 2) << 16);
 
 		*bRGA_SRC_ACT_INFO =
 			(msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16) |
 			tile_x_offset << 14 | tile_y_offset << 30;
-
-		*bRGA_MASK_ADDR = (u32) msg->rop_mask_addr;
 	}
 
 	RGA2_reg_get_param(base, msg);
@@ -1027,12 +1062,18 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		*bRGA_SRC_BASE3;
 	u32 *bRGA_TILE4x4_OUT_BASE;
 	u32 *bRGA_DST_VIR_INFO;
+	u32 *bRGA_UV_VIR_INFO;
 	u32 *bRGA_DST_ACT_INFO;
 
 	u32 *RGA_DST_Y4MAP_LUT0;	//Y4 LUT0
 	u32 *RGA_DST_Y4MAP_LUT1;	//Y4 LUT1
 	u32 *RGA_DST_NN_QUANTIZE_SCALE;
 	u32 *RGA_DST_NN_QUANTIZE_OFFSET;
+
+	u32 *bRGA_FBCIN1_HEAD_BASE;
+	u32 *bRGA_FBCIN1_PAYL_BASE;
+	u32 *bRGA_FBCIN1_OFF;
+	u32 *bRGA_SRC1_ACT_SIZE;
 
 	u32 *bRGA_FBCOUT_CTL;
 	u32 *bRGA_FBCOUT_HEAD_BASE;
@@ -1047,6 +1088,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	u8 src1_format = 0;
 	u8 src1_rb_swp = 0;
 	u8 src1_alpha_swp = 0;
+	u8 src1_fbc_fmt = 0;
 
 	u8 dst_format = 0;
 	u8 dst_fbc_fmt = 0;
@@ -1063,14 +1105,17 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	u8 spw, dpw;
 	u8 plane_width = 0;
 	u8 bbp_shift = 0;
-	u32 s_stride = 0, d_stride = 0;
+	u32 s_stride = 0, d_stride = 0, d1_stride = 0;
+	u32 s_yrgb_offset = 0;
+	u32 s_head_base_addr = 0, s_payload_base_addr = 0;
 	u32 x_mirr, y_mirr, rot_90_flag;
-	u32 yrgb_addr, u_addr, v_addr, s_yrgb_addr;
+	u32 yrgb_addr, u_addr, v_addr;
 	u32 d_uv_stride, x_div, y_div;
 	u32 y_lt_addr = 0, y_ld_addr = 0, y_rt_addr = 0, y_rd_addr = 0;
 	u32 u_lt_addr = 0, u_ld_addr = 0, u_rt_addr = 0, u_rd_addr = 0;
 	u32 v_lt_addr = 0, v_ld_addr = 0, v_rt_addr = 0, v_rd_addr = 0;
 	u32 yrgb_offset = 0, uv_offset = 0, v_offset = 0;
+	u32 x_offset, y_offset;
 	u32 tile_x_offset = 0;
 	u32 tile_y_offset = 0;
 	u32 tile_block_size;
@@ -1078,6 +1123,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	u32 dst_head_base_addr;
 	u32 dst_head_stride;
 	u32 dst_head_size;
+	u32 dst_head_offset;
 	u32 dst_payload_base_addr;
 	u32 dst_payload_stride;
 	u32 dst_payload_block_size;
@@ -1102,6 +1148,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	bRGA_SRC_BASE3 = (u32 *) (base + RGA2_SRC_BASE3_OFFSET);
 
 	bRGA_DST_VIR_INFO = (u32 *) (base + RGA2_DST_VIR_INFO_OFFSET);
+	bRGA_UV_VIR_INFO = (u32 *) (base + RGA2_UV_VIR_INFO);
 	bRGA_DST_ACT_INFO = (u32 *) (base + RGA2_DST_ACT_INFO_OFFSET);
 
 	RGA_DST_Y4MAP_LUT0 = (u32 *) (base + RGA2_DST_Y4MAP_LUT0_OFFSET);
@@ -1110,6 +1157,11 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		(u32 *) (base + RGA2_DST_QUANTIZE_SCALE_OFFSET);
 	RGA_DST_NN_QUANTIZE_OFFSET =
 		(u32 *) (base + RGA2_DST_QUANTIZE_OFFSET_OFFSET);
+
+	bRGA_FBCIN1_HEAD_BASE = (u32 *) (base + RGA2_FBCIN1_HEAD_BASE_OFFSET);
+	bRGA_FBCIN1_PAYL_BASE = (u32 *) (base + RGA2_FBCIN1_PAYL_BASE_OFFSET);
+	bRGA_FBCIN1_OFF = (u32 *) (base + RGA2_FBCIN1_OFF_OFFSET);
+	bRGA_SRC1_ACT_SIZE = (u32 *)(base + RGA2_SRC1_ACT_SIZE);
 
 	bRGA_FBCOUT_CTL = (u32 *) (base + RGA2_FBCOUT_CTRL_OFFSET);
 	bRGA_FBCOUT_HEAD_BASE = (u32 *) (base + RGA2_FBCOUT_HEAD_BASE_OFFSET);
@@ -1234,9 +1286,47 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		break;
 	};
 
-	reg =
-		((reg & (~m_RGA2_DST_INFO_SW_SRC1_FMT)) |
-		 (s_RGA2_DST_INFO_SW_SRC1_FMT(src1_format)));
+	switch (msg->src1.rd_mode) {
+	case RGA_RASTER_MODE:
+		s_stride = ALIGN((msg->src1.vir_w * spw >> bbp_shift), 4);
+		s_yrgb_offset = (msg->src1.y_offset * s_stride) +
+				(msg->src1.x_offset * spw >> bbp_shift);
+
+		break;
+	case RGA_AFBC32x8_MODE:
+		switch (msg->src.format) {
+		case RGA_FORMAT_RGBA_8888:
+		case RGA_FORMAT_BGRA_8888:
+		case RGA_FORMAT_ARGB_8888:
+		case RGA_FORMAT_ABGR_8888:
+		case RGA_FORMAT_RGBX_8888:
+		case RGA_FORMAT_BGRX_8888:
+		case RGA_FORMAT_XRGB_8888:
+		case RGA_FORMAT_XBGR_8888:
+			src1_fbc_fmt = 0x0;
+			break;
+		case RGA_FORMAT_RGB_888:
+		case RGA_FORMAT_BGR_888:
+			src1_fbc_fmt = 0x1;
+			break;
+		}
+
+		s_head_base_addr = msg->src1.yrgb_addr;
+		s_payload_base_addr = s_head_base_addr;
+
+		s_stride = ALIGN(msg->src1.vir_w, 32) / 32 * 16;
+		s_yrgb_offset = 0;
+
+		break;
+	}
+
+	if (msg->src1.rd_mode == RGA_AFBC32x8_MODE)
+		reg = ((reg & (~m_RGA2_DST_INFO_SW_FBCIN1_FMT)) |
+		       (s_RGA2_DST_INFO_SW_FBCIN1_FMT(src1_fbc_fmt)));
+	else
+		reg = ((reg & (~m_RGA2_DST_INFO_SW_SRC1_FMT)) |
+		       (s_RGA2_DST_INFO_SW_SRC1_FMT(src1_format)));
+
 	reg =
 		((reg & (~m_RGA2_DST_INFO_SW_SRC1_RB_SWP)) |
 		 (s_RGA2_DST_INFO_SW_SRC1_RB_SWP(src1_rb_swp)));
@@ -1250,6 +1340,16 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 		*bRGA_SRC_FG_COLOR = (msg->rgba5551_alpha.alpha1 & 0xff) << 24;
 		*bRGA_SRC_BG_COLOR = (msg->rgba5551_alpha.alpha0 & 0xff) << 24;
+	}
+
+	if (msg->src1.rd_mode == RGA_AFBC32x8_MODE) {
+		*bRGA_FBCIN1_HEAD_BASE = s_head_base_addr;
+		*bRGA_FBCIN1_PAYL_BASE = s_payload_base_addr;
+		*bRGA_FBCIN1_OFF = msg->src1.x_offset | (msg->src1.y_offset << 16);
+
+		*bRGA_SRC1_ACT_SIZE = (msg->src1.act_w - 1) | ((msg->src1.act_h - 1) << 16);
+	} else {
+		*bRGA_SRC_BASE3 = (u32)msg->src1.yrgb_addr + s_yrgb_offset;
 	}
 
 	switch (msg->dst.format) {
@@ -1430,6 +1530,15 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		y_div = 1;
 		break;
 
+	case RGA_FORMAT_Y1:
+		dst_format = 0x8;
+		dst_fmt_y4_en = 1;
+		dst_fmt_y4_lut_en = 1;
+		dst_fmt_yuv400_en = 1;
+		x_div = 1;
+		y_div = 1;
+		break;
+
 	case RGA_FORMAT_YUYV_422:
 		dst_format = 0xe;
 		dpw = 2;
@@ -1568,27 +1677,43 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 			(msg->gr_color.gr_y_b << 20);
 	}
 
-	s_stride = (((msg->src1.vir_w * spw >> bbp_shift) + 3) & ~3);
-
-	s_yrgb_addr =
-		(u32) msg->src1.yrgb_addr + (msg->src1.y_offset * s_stride) +
-		(msg->src1.x_offset * spw >> bbp_shift);
-	*bRGA_SRC_BASE3 = s_yrgb_addr;
-
 	/* Warning */
 	line_width_real = dst_fmt_y4_en ? ((msg->dst.act_w) >> 1) : msg->dst.act_w;
 
 	switch (msg->dst.rd_mode) {
 	case RGA_RASTER_MODE:
 		d_stride = ALIGN(msg->dst.vir_w * dpw, 4);
-		/* Y4 output will HALF */
-		if (dst_fmt_y4_en)
-			d_stride = ALIGN(d_stride, 2) >> 1;
+
+		switch (msg->dst.format) {
+		case RGA_FORMAT_Y1:
+			d_stride = ALIGN((msg->dst.vir_w >> 3), 16);
+			d1_stride = ALIGN((msg->dst.vir_w >> 3), 16);
+			break;
+		case RGA_FORMAT_Y4:
+			d_stride = ALIGN((msg->dst.vir_w >> 1), 16);
+			d1_stride = ALIGN((msg->dst.vir_w), 16);
+			break;
+		case RGA_FORMAT_Y8:
+			d_stride = ALIGN((msg->dst.vir_w), 16);
+			d1_stride = ALIGN((msg->dst.vir_w), 16);
+			break;
+		}
+
 		d_uv_stride = ALIGN(d_stride / x_div * plane_width, 4);
 
-		yrgb_offset = msg->dst.y_offset * d_stride + msg->dst.x_offset * dpw;
-		uv_offset = (msg->dst.y_offset / y_div) * d_uv_stride +
-			    (msg->dst.x_offset / x_div * plane_width);
+		if (msg->src.rd_mode == RGA_AFBC32x8_MODE &&
+			msg->src1.rd_mode == RGA_AFBC32x8_MODE &&
+		    msg->alpha_rop_flag & 1) {
+			x_offset = ALIGN_DOWN(msg->dst.x_offset, 32);
+			y_offset = ALIGN_DOWN(msg->dst.y_offset, 8);
+		} else {
+			x_offset = msg->dst.x_offset;
+			y_offset = msg->dst.y_offset;
+		}
+
+		yrgb_offset = y_offset * d_stride + x_offset * dpw;
+		uv_offset = (y_offset / y_div) * d_uv_stride +
+			    (x_offset / x_div * plane_width);
 		v_offset = uv_offset;
 
 		yrgb_addr = (u32)msg->dst.yrgb_addr + yrgb_offset;
@@ -1769,8 +1894,17 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		}
 
 		dst_payload_base_addr = dst_head_base_addr + dst_head_size;
-		dst_payload_offset = (msg->dst.y_offset / 8) * dst_payload_stride +
-				     msg->dst.x_offset * dst_payload_block_size;
+
+		/* offset */
+		x_offset = ALIGN_DOWN(msg->dst.x_offset, 32);
+		y_offset = ALIGN_DOWN(msg->dst.y_offset, 8);
+
+		dst_head_offset = (y_offset / 8) * dst_head_stride +
+				      (x_offset / 32) * 16;
+		dst_payload_offset = (y_offset / 8) * dst_payload_stride +
+				     (x_offset / 32) * dst_payload_block_size;
+
+		dst_head_base_addr += dst_head_offset;
 		dst_payload_base_addr += dst_payload_offset;
 
 		dst_fbc_mode = 0x1;
@@ -1844,17 +1978,31 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	*bRGA_DST_INFO = reg;
 
 	*bRGA_DST_VIR_INFO = (d_stride >> 2) | ((s_stride >> 2) << 16);
+	if (msg->cfa_enable &&
+	    ((msg->cfa_ctrl1 & m_RGA2_CFA_CTRL1_SW_CFA_COMPS_EN) ||
+	     (msg->cfa_ctrl1 & m_RGA2_CFA_CTRL1_SW_CFA_PAT_OUT_EN))) {
+		*bRGA_UV_VIR_INFO = (*bRGA_UV_VIR_INFO & 0xffff) | ((d1_stride >> 2) << 16);
+	}
 
-	if ((msg->dst.vir_w % 2 != 0) &&
-	    (msg->dst.act_w == msg->src.act_w) && (msg->dst.act_h == msg->src.act_h) &&
-	    (msg->dst.format == RGA_FORMAT_BGR_888 || msg->dst.format == RGA_FORMAT_RGB_888))
-		*bRGA_DST_ACT_INFO =
-			(msg->dst.act_w) | ((msg->dst.act_h - 1) << 16) |
-			tile_x_offset << 14 | tile_y_offset << 30;
-	else
-		*bRGA_DST_ACT_INFO =
-			(msg->dst.act_w - 1) | ((msg->dst.act_h - 1) << 16) |
-			tile_x_offset << 14 | tile_y_offset << 30;
+	if (msg->src.rd_mode == RGA_AFBC32x8_MODE &&
+	    msg->src1.rd_mode == RGA_AFBC32x8_MODE &&
+	    msg->alpha_rop_flag & 1) {
+		*bRGA_DST_ACT_INFO = (ALIGN(msg->dst.act_w + msg->dst.x_offset % 32, 32) - 1) |
+				     ((ALIGN(msg->dst.act_h + msg->dst.y_offset % 8, 8) - 1) << 16);
+	} else {
+		if ((msg->dst.vir_w % 2 != 0) &&
+		    (msg->dst.act_w == msg->src.act_w) &&
+		    (msg->dst.act_h == msg->src.act_h) &&
+		    (msg->dst.format == RGA_FORMAT_BGR_888 ||
+		     msg->dst.format == RGA_FORMAT_RGB_888))
+			*bRGA_DST_ACT_INFO =
+				(msg->dst.act_w) | ((msg->dst.act_h - 1) << 16) |
+				tile_x_offset << 14 | tile_y_offset << 30;
+		else
+			*bRGA_DST_ACT_INFO =
+				(msg->dst.act_w - 1) | ((msg->dst.act_h - 1) << 16) |
+				tile_x_offset << 14 | tile_y_offset << 30;
+	}
 
 	if (rot_90_flag == 0) {
 		if (y_mirr == 1) {
@@ -1906,7 +2054,11 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	switch (msg->dst.rd_mode) {
 	case RGA_RASTER_MODE:
-		if ((msg->dst.format == RGA_FORMAT_YCbCr_420_P) ||
+		if (msg->cfa_enable &&
+		    (msg->cfa_ctrl1 & m_RGA2_CFA_CTRL1_SW_CFA_PAT_OUT_EN)) {
+			*bRGA_DST_BASE1 = msg->pat.yrgb_addr;
+			*bRGA_DST_BASE2 = 0;
+		} else if ((msg->dst.format == RGA_FORMAT_YCbCr_420_P) ||
 		    (msg->dst.format == RGA_FORMAT_YCrCb_420_P)) {
 			if (dst_cbcr_swp == 0) {
 				*bRGA_DST_BASE1 = (u32) v_addr;
@@ -1927,7 +2079,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		break;
 	case RGA_AFBC32x8_MODE:
 		*bRGA_FBCOUT_HEAD_BASE = dst_head_base_addr;
-		*bRGA_FBCOUT_HEAD_OFF = dst_payload_base_addr - dst_head_base_addr;
+		*bRGA_FBCOUT_HEAD_OFF = dst_payload_base_addr - msg->dst.yrgb_addr;
 
 		*bRGA_FBCOUT_PAYL_BASE = dst_payload_base_addr;
 		*bRGA_FBCOUT_PAYL_VIR_INFO = dst_payload_stride >> 2;
@@ -2412,6 +2564,27 @@ static void RGA2_set_reg_osd(u8 *base, struct rga2_req *msg)
 	}
 }
 
+static void RGA2_set_reg_cfa(u8 *base, struct rga2_req *msg)
+{
+	u32 *bRGA_CFA_CTRL0;
+	u32 *bRGA_CFA_CTRL1;
+	u32 *bRGA_CFA_APATTERN;
+	u32 *bRGA_CFA_COE05;
+	u32 *bRGA_CFA_COE6B;
+
+	bRGA_CFA_CTRL0 = (u32 *) (base + RGA2_CFA_CTRL0_OFFSET);
+	bRGA_CFA_CTRL1 = (u32 *) (base + RGA2_CFA_CTRL1_OFFSET);
+	bRGA_CFA_APATTERN = (u32 *) (base + RGA2_CFA_APATTERN_OFFSET);
+	bRGA_CFA_COE05 = (u32 *) (base + RGA2_CFA_EDCOEF05_OFFSET);
+	bRGA_CFA_COE6B = (u32 *) (base + RGA2_CFA_EDCOEF6B_OFFSET);
+
+	*bRGA_CFA_CTRL0 = msg->cfa_ctrl0;
+	*bRGA_CFA_CTRL1 = msg->cfa_ctrl1;
+	*bRGA_CFA_APATTERN = msg->cfa_apattern;
+	*bRGA_CFA_COE05 = msg->cfa_dither_coe05;
+	*bRGA_CFA_COE6B = msg->cfa_dither_coe6b;
+}
+
 static void RGA2_set_reg_color_palette(u8 *base, struct rga2_req *msg)
 {
 	u32 *bRGA_SRC_BASE0, *bRGA_SRC_INFO, *bRGA_SRC_VIR_INFO,
@@ -2633,8 +2806,6 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 
 	RGA2_set_mode_ctrl(base, msg);
 
-	RGA2_set_pat_info(base, msg);
-
 	switch (msg->render_mode) {
 	case BITBLT_MODE:
 		RGA2_set_reg_src_info(base, msg);
@@ -2642,9 +2813,10 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 		dst_nn_quantize_en = (msg->alpha_rop_flag >> 8) & 0x1;
 		if (dst_nn_quantize_en != 1) {
 			if ((msg->dst.format != RGA_FORMAT_Y4) &&
-			    (msg->dst.format != RGA_FORMAT_Y8)) {
+			    (msg->dst.format != RGA_FORMAT_Y8) &&
+			    (msg->dst.format != RGA_FORMAT_Y1)) {
 				RGA2_set_reg_alpha_info(base, msg);
-				if (msg->rgba5551_alpha.flags != 1)
+				if (msg->rgba5551_alpha.flags != 1 && msg->alpha_rop_flag & 0x2)
 					RGA2_set_reg_rop_info(base, msg);
 			}
 		}
@@ -2657,6 +2829,8 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 			if (ret < 0)
 				return ret;
 		}
+		if (msg->cfa_enable)
+			RGA2_set_reg_cfa(base, msg);
 
 		break;
 	case COLOR_FILL_MODE:
@@ -2681,6 +2855,7 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 		break;
 	case UPDATE_PALETTE_TABLE_MODE:
 		RGA2_set_reg_update_palette_table(base, msg);
+		RGA2_set_pat_info(base, msg);
 		break;
 	case UPDATE_PATTEN_BUF_MODE:
 		RGA2_set_reg_update_patten_buff(base, msg);
@@ -2709,15 +2884,29 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 
 	memcpy(&req->src, &req_rga->src, sizeof(req_rga->src));
 	memcpy(&req->dst, &req_rga->dst, sizeof(req_rga->dst));
-	/* The application will only import pat or src1. */
-	if (req->render_mode == UPDATE_PALETTE_TABLE_MODE)
-		memcpy(&req->pat, &req_rga->pat, sizeof(req_rga->pat));
-	else
-		memcpy(&req->src1, &req_rga->pat, sizeof(req_rga->pat));
+	if (req_rga->cfa_enable) {
+		if (req_rga->cfa_ctrl1 & m_RGA2_CFA_CTRL1_SW_CFA_COMPS_EN) {
+			memcpy(&req->src1, &req_rga->pat, sizeof(req_rga->pat));
+			req->src1.yrgb_addr = req_rga->comps_addr;
 
-	req->src.format = req_rga->src.format;
-	req->dst.format = req_rga->dst.format;
-	req->src1.format = req_rga->pat.format;
+			req->src1.vir_w = req->src.vir_w;
+			req->src1.vir_h = req->src.vir_h;
+			req->src1.format = req->dst.format;
+		}
+
+		if (req_rga->cfa_ctrl1 & m_RGA2_CFA_CTRL1_SW_CFA_PAT_OUT_EN) {
+			memcpy(&req->pat, &req_rga->pat, sizeof(req_rga->pat));
+			req->pat.yrgb_addr = req_rga->pattern_addr;
+
+			req->pat.vir_w = req->dst.vir_w;
+			req->pat.vir_h = req->dst.vir_h;
+			req->pat.format = req_rga->dst.format;
+		}
+	} else if (req->render_mode == UPDATE_PALETTE_TABLE_MODE) {
+		memcpy(&req->pat, &req_rga->pat, sizeof(req_rga->pat));
+	} else {
+		memcpy(&req->src1, &req_rga->pat, sizeof(req_rga->pat));
+	}
 
 	switch (req_rga->rotate_mode & 0x0F) {
 	case 1:
@@ -2925,6 +3114,14 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 
 	req->secure_access = req_rga->secure_access;
 
+	/* cfa */
+	req->cfa_enable = req_rga->cfa_enable;
+	req->cfa_ctrl0 = req_rga->cfa_ctrl0;
+	req->cfa_ctrl1 = req_rga->cfa_ctrl1;
+	req->cfa_apattern = req_rga->cfa_apattern;
+	req->cfa_dither_coe05 = req_rga->cfa_dither_coe05;
+	req->cfa_dither_coe6b = req_rga->cfa_dither_coe6b;
+
 	if (req_rga->mmu_info.mmu_en && (req_rga->mmu_info.mmu_flag & 1) == 1) {
 		req->mmu_info.src0_mmu_flag = 1;
 		req->mmu_info.dst_mmu_flag = 1;
@@ -3016,7 +3213,8 @@ static void rga2_soft_reset_print(struct rga_scheduler_t *scheduler)
 static int rga2_check_param(struct rga_job *job,
 			    const struct rga_hw_data *data, const struct rga2_req *req)
 {
-	if (!((req->render_mode == COLOR_FILL_MODE))) {
+	if (!((req->render_mode == COLOR_FILL_MODE) ||
+	      (req->render_mode == UPDATE_PALETTE_TABLE_MODE))) {
 		if (unlikely(rga_hw_out_of_range(&data->input_range,
 						 req->src.act_w, req->src.act_h))) {
 			rga_job_err(job, "invalid src resolution act_w = %d, act_h = %d\n",
@@ -3038,24 +3236,27 @@ static int rga2_check_param(struct rga_job *job,
 		}
 	}
 
-	if (unlikely(rga_hw_out_of_range(&data->output_range, req->dst.act_w, req->dst.act_h))) {
-		rga_job_err(job, "invalid dst resolution act_w = %d, act_h = %d\n",
-		       req->dst.act_w, req->dst.act_h);
-		return -EINVAL;
-	}
-
-	if (unlikely(req->dst.vir_w * rga_get_pixel_stride_from_format(req->dst.format) >
-		     data->max_byte_stride * 8)) {
-		rga_err("invalid dst stride, stride = %d, max_byte_stride = %d\n",
-		       req->dst.vir_w, data->max_byte_stride);
-		return -EINVAL;
-	}
-
-	if (unlikely(req->dst.vir_w < req->dst.act_w)) {
-		if (req->rotate_mode != 1) {
-			rga_err("invalid dst_vir_w act_h = %d, vir_h = %d\n",
-			       req->dst.act_w, req->dst.vir_w);
+	if (!(req->render_mode == UPDATE_PALETTE_TABLE_MODE)) {
+		if (unlikely(rga_hw_out_of_range(&data->output_range,
+						 req->dst.act_w, req->dst.act_h))) {
+			rga_job_err(job, "invalid dst resolution act_w = %d, act_h = %d\n",
+			       req->dst.act_w, req->dst.act_h);
 			return -EINVAL;
+		}
+
+		if (unlikely(req->dst.vir_w * rga_get_pixel_stride_from_format(req->dst.format) >
+			     data->max_byte_stride * 8)) {
+			rga_err("invalid dst stride, stride = %d, max_byte_stride = %d\n",
+			       req->dst.vir_w, data->max_byte_stride);
+			return -EINVAL;
+		}
+
+		if (unlikely(req->dst.vir_w < req->dst.act_w)) {
+			if (req->rotate_mode != 1) {
+				rga_err("invalid dst_vir_w act_h = %d, vir_h = %d\n",
+				       req->dst.act_w, req->dst.vir_w);
+				return -EINVAL;
+			}
 		}
 	}
 
@@ -3228,17 +3429,17 @@ static void rga2_dump_read_back_sys_reg(struct rga_job *job, struct rga_schedule
 {
 	int i;
 	unsigned long flags;
-	uint32_t sys_reg[24] = {0};
+	uint32_t sys_reg[RGA2_SYS_REG_SIZE] = {0};
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-	for (i = 0; i < 24; i++)
+	for (i = 0; i < ARRAY_SIZE(sys_reg); i++)
 		sys_reg[i] = rga_read(RGA2_SYS_REG_BASE + i * 4, scheduler);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	rga_job_log(job, "SYS_READ_BACK_REG\n");
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < ARRAY_SIZE(sys_reg) / 4; i++)
 		rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
 			RGA2_SYS_REG_BASE + i * 0x10,
 			sys_reg[0 + i * 4], sys_reg[1 + i * 4],
@@ -3249,17 +3450,17 @@ static void rga2_dump_read_back_csc_reg(struct rga_job *job, struct rga_schedule
 {
 	int i;
 	unsigned long flags;
-	uint32_t csc_reg[12] = {0};
+	uint32_t csc_reg[RGA2_CSC_REG_SIZE] = {0};
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-	for (i = 0; i < 12; i++)
+	for (i = 0; i < ARRAY_SIZE(csc_reg); i++)
 		csc_reg[i] = rga_read(RGA2_CSC_REG_BASE + i * 4, scheduler);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	rga_job_log(job, "CSC_READ_BACK_REG\n");
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < ARRAY_SIZE(csc_reg) / 4; i++)
 		rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
 			RGA2_CSC_REG_BASE + i * 0x10,
 			csc_reg[0 + i * 4], csc_reg[1 + i * 4],
@@ -3270,17 +3471,17 @@ static void rga2_dump_read_back_other_reg(struct rga_job *job, struct rga_schedu
 {
 	int i;
 	unsigned long flags;
-	uint32_t other_reg[4] = {0};
+	uint32_t other_reg[RGA2_OTHER_REG_SIZE] = {0};
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < ARRAY_SIZE(other_reg); i++)
 		other_reg[i] = rga_read(RGA2_OTHER_REG_BASE + i * 4, scheduler);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	rga_job_log(job, "OTHER_READ_BACK_REG\n");
-	for (i = 0; i < 1; i++)
+	for (i = 0; i < ARRAY_SIZE(other_reg) / 4; i++)
 		rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
 			RGA2_OTHER_REG_BASE + i * 0x10,
 			other_reg[0 + i * 4], other_reg[1 + i * 4],
@@ -3291,17 +3492,17 @@ static void rga2_dump_read_back_cmd_reg(struct rga_job *job, struct rga_schedule
 {
 	int i;
 	unsigned long flags;
-	uint32_t cmd_reg[32] = {0};
+	uint32_t cmd_reg[RGA2_CMD_REG_SIZE] = {0};
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-	for (i = 0; i < 32; i++)
+	for (i = 0; i < ARRAY_SIZE(cmd_reg); i++)
 		cmd_reg[i] = rga_read(RGA2_CMD_REG_BASE + i * 4, scheduler);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	rga_job_log(job, "CMD_READ_BACK_REG\n");
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < ARRAY_SIZE(cmd_reg) / 4; i++)
 		rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
 			RGA2_CMD_REG_BASE + i * 0x10,
 			cmd_reg[0 + i * 4], cmd_reg[1 + i * 4],
@@ -3312,17 +3513,17 @@ static void rga2_dump_read_back_iommu_reg(struct rga_job *job, struct rga_schedu
 {
 	int i;
 	unsigned long flags;
-	uint32_t cmd_reg[12] = {0};
+	uint32_t cmd_reg[RGA2_IOMMU_REG_SIZE] = {0};
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-	for (i = 0; i < 12; i++)
+	for (i = 0; i < ARRAY_SIZE(cmd_reg); i++)
 		cmd_reg[i] = rga_read(RGA2_IOMMU_REG_BASE + i * 4, scheduler);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	rga_job_log(job, "IOMMU_READ_BACK_REG\n");
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < ARRAY_SIZE(cmd_reg) / 4; i++)
 		rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
 			RGA2_IOMMU_REG_BASE + i * 0x10,
 			cmd_reg[0 + i * 4], cmd_reg[1 + i * 4],
@@ -3422,7 +3623,7 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 			rga2_dump_read_back_other_reg(job, scheduler);
 
 		rga_job_log(job, "CMD_REG\n");
-		for (i = 0; i < 8; i++)
+		for (i = 0; i < ALIGN_DOWN(scheduler->data->cmd_reg_size, 4) / 4; i++)
 			rga_job_log(job, "0x%04x : %.8x %.8x %.8x %.8x\n",
 				RGA2_CMD_REG_BASE + i * 0x10,
 				cmd[0 + i * 4], cmd[1 + i * 4],
@@ -3474,7 +3675,7 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		sys_ctrl |= s_RGA2_SYS_CTRL_CMD_MODE(0) | m_RGA2_SYS_CTRL_CMD_OP_ST_P;
 
 		/* set cmd_reg */
-		for (i = 0; i <= 32; i++)
+		for (i = 0; i < scheduler->data->cmd_reg_size; i++)
 			rga_write(cmd[i], 0x100 + i * 4, scheduler);
 
 		rga_write(sys_ctrl, RGA2_SYS_CTRL, scheduler);
@@ -3553,6 +3754,7 @@ static int rga2_read_status(struct rga_job *job, struct rga_scheduler_t *schedul
 	job->hw_status = rga_read(RGA2_STATUS2, scheduler);
 	job->cmd_status = rga_read(RGA2_STATUS1, scheduler);
 	job->work_cycle = rga_read(RGA2_WORK_CNT, scheduler);
+	job->intr_status2 = rga_read(RGA2_INTR_STATUS2, scheduler);
 
 	return 0;
 }
@@ -3637,6 +3839,17 @@ static int rga2_isr_thread(struct rga_job *job, struct rga_scheduler_t *schedule
 			job->ret = -EACCES;
 		} else if (job->intr_status & m_RGA2_INT_FBCIN_DEC_ERROR) {
 			rga_job_err(job, "FBC decode failed, please check if the source data is FBC data.\n");
+			job->ret = -EACCES;
+		} else if (job->intr_status & m_RGA2_INT_CONFIG_ERR) {
+			rga_job_err(job, "reg config error. status[%#x]\n", job->intr_status2);
+			if (job->intr_status2 & m_RGA2_INTR_STATUS2_SRC_DST_RECT_NOT_EQUAL)
+				rga_job_err(job, "reg config error: src_rect != dst_rect.\n");
+			if (job->intr_status2 & m_RGA2_INTR_STATUS2_SRC1_HORI_BND_ERR)
+				rga_job_err(job, "reg config error: src1 horizontal beyond the boundary in overlay.\n");
+			if (job->intr_status2 & m_RGA2_INTR_STATUS2_SRC1_VERT_BND_ERR)
+				rga_job_err(job, "reg config error: src1 vertical beyond the boundary in overlay.\n");
+			if (job->intr_status2 & m_RGA2_INTR_STATUS2_SRC1_ODD_VIOLATION)
+				rga_job_err(job, "reg config error: src1 odd violation in overlay.\n");
 			job->ret = -EACCES;
 		}
 

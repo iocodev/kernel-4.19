@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3572.dtsi"
+#include "rk3572-evb.dtsi"
+#include "rk3572-rk806.dtsi"
+
+/ {
+	vcc_3v3_s0: vcc-3v3-s0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_s0";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_s3>;
+	};
+
+	vdd2l_0v9_ddr_s3: vdd2l-0v9-ddr-s3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd2l_0v9_ddr_s3";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc5v0_sys_s5>;
+	};
+};
+
+&combphy0_psu {
+	rockchip,dis-u3otg0-port;
+	status = "okay";
+};
+
+&combphy1_psu {
+	status = "okay";
+};
+
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	rockchip,vbus-always-on;
+	rockchip,sel-pipe-phystatus;
+	status = "okay";
+};
+
+&u2phy1 {
+	status = "okay";
+};
+
+&u2phy1_otg {
+	status = "okay";
+};
+
+&usb_drd0_dwc3 {
+	dr_mode = "peripheral";
+	maximum-speed = "high-speed";
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-gadget-lpm-disable;
+	status = "okay";
+};
+
+&usb_drd1_dwc3 {
+	dr_mode = "host";
+	status = "okay";
+};

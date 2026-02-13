@@ -11,10 +11,12 @@
 #include <linux/genalloc.h>
 #include <linux/interrupt.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -34,6 +36,7 @@
 
 #define HIWORD_UPDATE(v, h, l)	(((v) << (l)) | (GENMASK((h), (l)) << 16))
 #define GENMASK_VAL(v, h, l)	(((v) & GENMASK(h, l)) >> l)
+#define RK_DMA_ADDR64(h, l)	((u64)(h) << 32 | (l))
 
 #define RK_DMA_CMN_GROUP_SIZE		0x100
 #define RK_DMA_LCH_GROUP_SIZE		0x40
@@ -193,6 +196,8 @@
 #define LCH_IS_LLI_RD_ERR_IS		BIT(10)
 #define LCH_IS_LLI_INVALID_IS		BIT(11)
 #define LCH_IS_LLI_WAIT_IS		BIT(12)
+#define LCH_IS_ERR_SHIFT		6
+#define LCH_IS_ERR_ALL			GENMASK(11, 6)
 
 /* LCH_IE */
 #define LCH_IE_DMA_DONE_IE_MASK		BIT(0)
@@ -234,6 +239,7 @@
 #define LCH_IE_LLI_WAIT_IE_MASK		BIT(12)
 #define LCH_IE_LLI_WAIT_IE_EN		BIT(12)
 #define LCH_IE_LLI_WAIT_IE_DIS		0
+#define LCH_IE_ERR_ALL			GENMASK(11, 6)
 
 /* LCH_DBGS0 */
 #define LCH_DBGS0_DMA_CS(v)		GENMASK_VAL(v, 3, 0)
@@ -440,6 +446,12 @@ struct rk_dma_lch {
 	u32			id;
 };
 
+struct rk_dma_dev;
+
+struct rk_dma_soc {
+	int (*dma_mux_cfg)(struct rk_dma_dev *d, unsigned int request);
+};
+
 struct rk_dma_dev {
 	struct dma_device	slave;
 	struct list_head	chan_pending;
@@ -448,6 +460,8 @@ struct rk_dma_dev {
 	struct clk_bulk_data	*clks;
 	struct dma_pool		*pool;
 	struct gen_pool		*gpool;
+	struct regmap		*grf;
+	const struct rk_dma_soc	*soc;
 	void __iomem		*base;
 	int			irq;
 	int			num_clks;
@@ -464,8 +478,48 @@ static struct rk_dma_chan *to_rk_chan(struct dma_chan *chan)
 	return container_of(chan, struct rk_dma_chan, vc.chan);
 }
 
+#ifdef RKDMA_DEBUG
+static void rk_dma_lch_dump_reg(struct rk_dma_lch *l, struct rk_dma_dev *d)
+{
+	dev_dbg(d->slave.dev, "LCH%u: CTL0: 0x%08x, CTL1: 0x%08x, TRF_CMD: 0x%08x\n",
+		l->id, readl(RK_DMA_LCH_CTL0), readl(RK_DMA_LCH_CTL1), readl(RK_DMA_LCH_TRF_CMD));
+	dev_dbg(d->slave.dev, "LCH%u: CMDBA: 0x%08x%08x\n",
+		l->id, readl(RK_DMA_LCH_CMDBA_HIGH), readl(RK_DMA_LCH_CMDBA));
+	dev_dbg(d->slave.dev, "LCH%u: IS: 0x%08x, IE: 0x%08x, DBGS0: 0x%08x\n",
+		l->id, readl(RK_DMA_LCH_IS), readl(RK_DMA_LCH_IE), readl(RK_DMA_LCH_DBGS0));
+}
+
+static void rk_dma_lch_dump_lli(struct rk_dma_lch *l, struct rk_dma_dev *d)
+{
+	struct rk_dma_desc_sw *ds = l->ds_run;
+	struct rk_lli *lli;
+	dma_addr_t lli_hw;
+	int i;
+
+	if (!ds)
+		return;
+
+	for (i = 0; i < ds->desc_num; i++) {
+		lli = ds->desc_hw[i].lli;
+		lli_hw = ds->desc_hw[i].lli_hw;
+
+		dev_dbg(d->slave.dev, "LCH%u-%u: LLI: %pad, NXT: 0x%08x%08x\n",
+			l->id, i, &lli_hw, lli->llp_nxt_high, lli->llp_nxt);
+		dev_dbg(d->slave.dev, "LCH%u-%u: CT0: 0x%08x, CT1: 0x%08x, CFG: 0x%08x\n",
+			l->id, i, lli->trf_ctl0, lli->trf_ctl1, lli->trf_cfg);
+		dev_dbg(d->slave.dev, "LCH%u-%u: SAR: 0x%08x%08x, DAR: 0x%08x%08x, LEN: 0x%08x\n",
+			l->id, i, lli->sar_high, lli->sar, lli->dar_high, lli->dar, lli->block_ts);
+	}
+}
+#else
+static inline void rk_dma_lch_dump_reg(struct rk_dma_lch *l, struct rk_dma_dev *d) {}
+static inline void rk_dma_lch_dump_lli(struct rk_dma_lch *l, struct rk_dma_dev *d) {}
+#endif
+
 static void rk_dma_terminate_chan(struct rk_dma_lch *l, struct rk_dma_dev *d)
 {
+	rk_dma_lch_dump_reg(l, d);
+
 	writel(LCH_CTL0_CH_DIS, RK_DMA_LCH_CTL0);
 	writel(0x0, RK_DMA_LCH_IE);
 	writel(readl(RK_DMA_LCH_IS), RK_DMA_LCH_IS);
@@ -474,15 +528,19 @@ static void rk_dma_terminate_chan(struct rk_dma_lch *l, struct rk_dma_dev *d)
 static void rk_dma_set_desc(struct rk_dma_chan *c, struct rk_dma_desc_sw *ds)
 {
 	struct rk_dma_lch *l = c->lch;
+	u32 ie = LCH_IE_ERR_ALL;
 
 	writel(LCH_CTL0_CH_EN, RK_DMA_LCH_CTL0);
 
 	if (c->cyclic)
-		writel(LCH_IE_BLOCK_DONE_IE_EN, RK_DMA_LCH_IE);
+		ie |= LCH_IE_BLOCK_DONE_IE_EN;
 	else
-		writel(LCH_IE_DMA_DONE_IE_EN, RK_DMA_LCH_IE);
+		ie |= LCH_IE_DMA_DONE_IE_EN;
 
-	writel(ds->desc_hw[0].lli_hw, RK_DMA_LCH_CMDBA);
+	writel(ie, RK_DMA_LCH_IE);
+
+	writel(lower_32_bits(ds->desc_hw[0].lli_hw), RK_DMA_LCH_CMDBA);
+	writel(upper_32_bits(ds->desc_hw[0].lli_hw), RK_DMA_LCH_CMDBA_HIGH);
 	writel(LCH_TRF_CMD_DST_MT(DMA_MT_TRANSFER_LINK_LIST) |
 	       LCH_TRF_CMD_SRC_MT(DMA_MT_TRANSFER_LINK_LIST) |
 	       LCH_TRF_CMD_TT_FC(ds->dir) | LCH_TRF_CMD_DMA_START,
@@ -501,7 +559,7 @@ static u32 rk_dma_get_chan_stat(struct rk_dma_lch *l)
 static int rk_dma_init(struct rk_dma_dev *d)
 {
 	struct device *dev = d->slave.dev;
-	int i, lch, pch, buswidth, maxburst, dep, addrwidth;
+	int i, lch, pch, buswidth, maxburst, dep, addrwidth, ret;
 	u32 cap0, cap1, ver;
 
 	writel(CMN_CFG_EN | CMN_CFG_IE_EN, RK_DMA_CMN_CFG);
@@ -536,6 +594,12 @@ static int rk_dma_init(struct rk_dma_dev *d)
 	for (i = 0; i < pch; i++)
 		writel(CMN_PCH_EN(i), RK_DMA_CMN_PCH_EN);
 
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(addrwidth));
+	if (ret) {
+		dev_err(dev, "DMA mask error %d\n", ret);
+		return ret;
+	}
+
 	dev_info(dev, "NR_LCH-%d NR_PCH-%d PCH_BUF-%dx%dBytes AXI_LEN-%d ADDR-%dBits V%lu.%lu\n",
 		 lch, pch, dep, buswidth, maxburst, addrwidth,
 		 CMN_VER_MAJOR(ver), CMN_VER_MINOR(ver));
@@ -543,7 +607,7 @@ static int rk_dma_init(struct rk_dma_dev *d)
 	return 0;
 }
 
-static int rk_dma_start_txd(struct rk_dma_chan *c)
+static int rk_dma_start_txd(struct rk_dma_chan *c, struct rk_dma_dev *d)
 {
 	struct virt_dma_desc *vd = vchan_next_desc(&c->vc);
 
@@ -564,6 +628,7 @@ static int rk_dma_start_txd(struct rk_dma_chan *c)
 		c->lch->ds_done = NULL;
 		/* start dma */
 		rk_dma_set_desc(c, ds);
+		rk_dma_lch_dump_lli(c->lch, d);
 		return 0;
 	}
 
@@ -585,7 +650,7 @@ static void rk_dma_task(struct rk_dma_dev *d)
 	list_for_each_entry_safe(c, cn, &d->slave.channels, vc.chan.device_node) {
 		spin_lock_irqsave(&c->vc.lock, flags);
 		l = c->lch;
-		if (l && l->ds_done && rk_dma_start_txd(c)) {
+		if (l && l->ds_done && rk_dma_start_txd(c, d)) {
 			dev_dbg(d->slave.dev, "lch-%u: free\n", l->id);
 			rk_dma_terminate_chan(l, d);
 			c->lch = NULL;
@@ -616,11 +681,38 @@ static void rk_dma_task(struct rk_dma_dev *d)
 			c = l->vchan;
 			if (c) {
 				spin_lock_irqsave(&c->vc.lock, flags);
-				rk_dma_start_txd(c);
+				rk_dma_start_txd(c, d);
 				spin_unlock_irqrestore(&c->vc.lock, flags);
 			}
 		}
 	}
+}
+
+static const char * const rk_dma_lch_err[] = {
+	"SRC Read Err",
+	"DST Write Err",
+	"CMD Read Err",
+	"CMD Write Err",
+	"LLI Read Err",
+	"LLI Invalid Err",
+};
+
+static int rk_dma_lch_err_handler(struct rk_dma_lch *l, struct rk_dma_dev *d, u32 is)
+{
+	unsigned long err_is;
+	int i;
+
+	if ((is & LCH_IS_ERR_ALL) == 0)
+		return 0;
+
+	rk_dma_terminate_chan(l, d);
+
+	err_is = is >> LCH_IS_ERR_SHIFT;
+
+	for_each_set_bit(i, &err_is, ARRAY_SIZE(rk_dma_lch_err))
+		dev_err(d->slave.dev, "%s\n", rk_dma_lch_err[i]);
+
+	return 0;
 }
 
 static irqreturn_t rk_dma_irq_handler(int irq, void *dev_id)
@@ -629,7 +721,7 @@ static irqreturn_t rk_dma_irq_handler(int irq, void *dev_id)
 	struct rk_dma_lch *l;
 	struct rk_dma_chan *c;
 	u64 is = 0, is_raw = 0;
-	u32 i = 0, task = 0;
+	u32 i = 0, task = 0, l_is;
 
 	is = readq(RK_DMA_CMN_IS0);
 	is_raw = is;
@@ -650,7 +742,9 @@ static irqreturn_t rk_dma_irq_handler(int irq, void *dev_id)
 				}
 			}
 			spin_unlock(&c->vc.lock);
-			writel(readl(RK_DMA_LCH_IS), RK_DMA_LCH_IS);
+			l_is = readl(RK_DMA_LCH_IS);
+			writel(l_is, RK_DMA_LCH_IS);
+			rk_dma_lch_err_handler(l, d, l_is);
 		}
 	}
 
@@ -681,16 +775,22 @@ static void rk_dma_free_chan_resources(struct dma_chan *chan)
 static int rk_dma_lch_get_bytes_xfered(struct rk_dma_lch *l)
 {
 	struct rk_dma_desc_sw *ds = l->ds_run;
+	u64 base, cur;
 	int bytes = 0;
 
 	if (!ds)
 		return 0;
 
 	/* cmd_entry holds the current LLI being processed */
-	if (ds->dir == DMA_MEM_TO_DEV)
-		bytes = ds->desc_hw[0].lli->sar - ds->desc_hw[1].lli->sar;
-	else
-		bytes = ds->desc_hw[0].lli->dar - ds->desc_hw[1].lli->dar;
+	if (ds->dir == DMA_MEM_TO_DEV) {
+		base = RK_DMA_ADDR64(ds->desc_hw[1].lli->sar_high, ds->desc_hw[1].lli->sar);
+		cur  = RK_DMA_ADDR64(ds->desc_hw[0].lli->sar_high, ds->desc_hw[0].lli->sar);
+	} else {
+		base = RK_DMA_ADDR64(ds->desc_hw[1].lli->dar_high, ds->desc_hw[1].lli->dar);
+		cur  = RK_DMA_ADDR64(ds->desc_hw[0].lli->dar_high, ds->desc_hw[0].lli->dar);
+	}
+
+	bytes = cur - base;
 
 	/*
 	 * The transferred bytes are calculated by subtracting first_lli.base from
@@ -777,17 +877,22 @@ static void rk_dma_fill_desc(struct rk_dma_desc_sw *ds, dma_addr_t dst,
 {
 	/* assign llp_nxt for cmd_entry */
 	if (num == 0) {
-		ds->desc_hw[0].lli->llp_nxt = ds->desc_hw[1].lli_hw;
+		ds->desc_hw[0].lli->llp_nxt = lower_32_bits(ds->desc_hw[1].lli_hw);
+		ds->desc_hw[0].lli->llp_nxt_high = upper_32_bits(ds->desc_hw[1].lli_hw);
 		ds->desc_hw[0].lli->trf_cfg = ccfg;
 
 		return;
 	}
 
-	if ((num + 1) < ds->desc_num)
-		ds->desc_hw[num].lli->llp_nxt = ds->desc_hw[num + 1].lli_hw;
+	if ((num + 1) < ds->desc_num) {
+		ds->desc_hw[num].lli->llp_nxt = lower_32_bits(ds->desc_hw[num + 1].lli_hw);
+		ds->desc_hw[num].lli->llp_nxt_high = upper_32_bits(ds->desc_hw[num + 1].lli_hw);
+	}
 
-	ds->desc_hw[num].lli->sar = src;
-	ds->desc_hw[num].lli->dar = dst;
+	ds->desc_hw[num].lli->sar = lower_32_bits(src);
+	ds->desc_hw[num].lli->sar_high = upper_32_bits(src);
+	ds->desc_hw[num].lli->dar = lower_32_bits(dst);
+	ds->desc_hw[num].lli->dar_high = upper_32_bits(dst);
 	ds->desc_hw[num].lli->block_ts = BLOCK_TS(len);
 	ds->desc_hw[num].lli->trf_ctl0 = cc0;
 	ds->desc_hw[num].lli->trf_ctl1 = cc1;
@@ -1006,6 +1111,7 @@ static struct dma_async_tx_descriptor *rk_dma_prep_memcpy(
 	} while (len);
 
 	ds->desc_hw[num - 1].lli->llp_nxt = 0;
+	ds->desc_hw[num - 1].lli->llp_nxt_high = 0;
 	ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_LLI_LAST;
 
 	c->cyclic = 0;
@@ -1069,6 +1175,7 @@ rk_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl, unsigned in
 	}
 
 	ds->desc_hw[num - 1].lli->llp_nxt = 0;	/* end of link */
+	ds->desc_hw[num - 1].lli->llp_nxt_high = 0;	/* end of link */
 	ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_LLI_LAST;
 	ds->size = total;
 	ds->dir = dir;
@@ -1116,7 +1223,8 @@ rk_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr, size_t buf_le
 		buf += period_len;
 	}
 
-	ds->desc_hw[num - 1].lli->llp_nxt = ds->desc_hw[1].lli_hw;
+	ds->desc_hw[num - 1].lli->llp_nxt = lower_32_bits(ds->desc_hw[1].lli_hw);
+	ds->desc_hw[num - 1].lli->llp_nxt_high = upper_32_bits(ds->desc_hw[1].lli_hw);
 	ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_CNT_CLR;
 	ds->size = buf_len;
 	ds->dir = dir;
@@ -1203,7 +1311,8 @@ rk_dma_prep_interleaved_dma(struct dma_chan *chan, struct dma_interleaved_templa
 		dma_addr += full_period_bytes;
 	}
 
-	ds->desc_hw[num - 1].lli->llp_nxt = ds->desc_hw[1].lli_hw;
+	ds->desc_hw[num - 1].lli->llp_nxt = lower_32_bits(ds->desc_hw[1].lli_hw);
+	ds->desc_hw[num - 1].lli->llp_nxt_high = upper_32_bits(ds->desc_hw[1].lli_hw);
 	ds->desc_hw[num - 1].lli->trf_ctl0 |= TRF_CTL0_CNT_CLR;
 	ds->size = full_buffer_bytes;
 	ds->dir = xt->dir;
@@ -1294,11 +1403,123 @@ static void rk_dma_free_desc(struct virt_dma_desc *vd)
 	kfree(ds);
 }
 
-static const struct of_device_id rk_dma_dt_ids[] = {
-	{ .compatible = "rockchip,dma", },
-	{}
+struct dma_id_name {
+	const char *name;
+	int id;
 };
-MODULE_DEVICE_TABLE(of, rk_dma_dt_ids);
+
+static const struct dma_id_name rk3572_id_name[] = {
+	{ "2bfe0000", 0 },
+	{ "2bff0000", 1 },
+	{ "2c000000", 2 },
+	{ "2c010000", 3 },
+};
+
+static int rk3572_dma_get_id_by_name(const char *name)
+{
+	int i, id = -1;
+
+	for (i = 0; i < ARRAY_SIZE(rk3572_id_name); i++) {
+		if (strstr(name, rk3572_id_name[i].name)) {
+			id = rk3572_id_name[i].id;
+			break;
+		}
+	}
+
+	return id;
+}
+
+#define RK3572_DMA_SEL_BASE		0x38
+#define RK3572_DMA_SEL_REG(x)		(RK3572_DMA_SEL_BASE + ((x) * 4))
+#define RK3572_DMA_SEL_VAL(v, h, l)	(((v) << (l)) | (GENMASK((h), (l)) << 16))
+
+#define RK3572_DMA_SAI0_TX		0
+#define RK3572_DMA_SAI5_RX		10
+#define RK3572_DMA_SPDIFTX0		11
+#define RK3572_DMA_PDM			16
+#define RK3572_DMA_ASRC0_RX		17
+#define RK3572_DMA_SPI4_RX		54
+#define RK3572_DMA_CAN0_RX		55
+#define RK3572_DMA_CAN3_RX		58
+#define RK3572_DMA_DSMC_0		59
+#define RK3572_DMA_DSMC_1		60
+#define RK3572_DMA_I3C_RX		61
+#define RK3572_DMA_I3C_TX		63
+
+#define SHIFT(x, base, shift)		(((x - base) >> shift) + 1)
+
+static int rk3572_dma_get_shift_by_request(unsigned int req)
+{
+	int shift = 0;
+
+	switch (req) {
+	case RK3572_DMA_I3C_RX ... RK3572_DMA_I3C_TX:
+		shift++;
+		req = RK3572_DMA_DSMC_1;
+		fallthrough;
+	case RK3572_DMA_DSMC_0 ... RK3572_DMA_DSMC_1:
+		shift += SHIFT(req, RK3572_DMA_DSMC_0, 1);
+		req = RK3572_DMA_CAN3_RX;
+		fallthrough;
+	case RK3572_DMA_CAN0_RX ... RK3572_DMA_CAN3_RX:
+		shift += SHIFT(req, RK3572_DMA_CAN0_RX, 0);
+		req = RK3572_DMA_SPI4_RX;
+		fallthrough;
+	case RK3572_DMA_ASRC0_RX ... RK3572_DMA_SPI4_RX:
+		shift += SHIFT(req, RK3572_DMA_ASRC0_RX, 1);
+		req = RK3572_DMA_PDM;
+		fallthrough;
+	case RK3572_DMA_SPDIFTX0 ... RK3572_DMA_PDM:
+		shift += SHIFT(req, RK3572_DMA_SPDIFTX0, 0);
+		req = RK3572_DMA_SAI5_RX;
+		fallthrough;
+	case RK3572_DMA_SAI0_TX ... RK3572_DMA_SAI5_RX:
+		shift += SHIFT(req, RK3572_DMA_SAI0_TX, 1);
+		break;
+	default:
+		break;
+	}
+
+	return (shift - 1);
+}
+
+static int rk3572_dma_mux_cfg(struct rk_dma_dev *d, unsigned int request)
+{
+	int shift, dmaid, reg, ofs;
+
+	if (!d->grf)
+		return -EINVAL;
+
+	shift = rk3572_dma_get_shift_by_request(request);
+	dmaid = rk3572_dma_get_id_by_name(dev_name(d->slave.dev));
+
+	if (shift < 0 || dmaid < 0) {
+		dev_err(d->slave.dev, "Invalid req-%u\n", request);
+		return -EINVAL;
+	}
+
+	reg = shift / 8;
+	ofs = (shift % 8) * 2;
+
+	regmap_write(d->grf, RK3572_DMA_SEL_REG(reg), RK3572_DMA_SEL_VAL(dmaid, ofs + 1, ofs));
+
+	dev_dbg(d->slave.dev, "req: %u: reg: 0x%x, val: 0x%08lx\n",
+		request, RK3572_DMA_SEL_REG(reg), RK3572_DMA_SEL_VAL(dmaid, ofs + 1, ofs));
+
+	return 0;
+}
+
+static const struct rk_dma_soc rk3572_soc = {
+	.dma_mux_cfg = rk3572_dma_mux_cfg,
+};
+
+static int rk_dma_mux_cfg(struct rk_dma_dev *d, unsigned int request)
+{
+	if (d->soc && d->soc->dma_mux_cfg)
+		return d->soc->dma_mux_cfg(d, request);
+
+	return 0;
+}
 
 static struct dma_chan *rk_of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 					       struct of_dma *ofdma)
@@ -1319,6 +1540,8 @@ static struct dma_chan *rk_of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 
 	c = to_rk_chan(chan);
 	c->id = request;
+
+	rk_dma_mux_cfg(d, request);
 
 	dev_dbg(d->slave.dev, "Xlate lch-%u for req-%u\n", c->id, request);
 
@@ -1341,6 +1564,15 @@ static int rk_dma_pool_create(struct rk_dma_dev *d, struct device *dev)
 	return 0;
 }
 
+static const struct of_device_id rk_dma_dt_ids[] = {
+	{ .compatible = "rockchip,dma", },
+#ifdef CONFIG_CPU_RK3572
+	{ .compatible = "rockchip,rk3572-dma", .data = &rk3572_soc },
+#endif
+	{}
+};
+MODULE_DEVICE_TABLE(of, rk_dma_dt_ids);
+
 static int rk_dma_probe(struct platform_device *pdev)
 {
 	struct rk_dma_dev *d;
@@ -1349,6 +1581,12 @@ static int rk_dma_probe(struct platform_device *pdev)
 	d = devm_kzalloc(&pdev->dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
 		return -ENOMEM;
+
+	d->soc = device_get_match_data(&pdev->dev);
+
+	d->grf = syscon_regmap_lookup_by_phandle_optional(pdev->dev.of_node, "rockchip,grf");
+	if (IS_ERR(d->grf))
+		return PTR_ERR(d->grf);
 
 	d->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(d->base))

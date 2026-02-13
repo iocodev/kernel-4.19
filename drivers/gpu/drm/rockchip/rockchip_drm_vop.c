@@ -1421,6 +1421,7 @@ static int vop_csc_atomic_check(struct drm_crtc *crtc,
 static void vop_enable_debug_irq(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	uint32_t irqs;
 
 	irqs = BUS_ERROR_INTR | WIN0_EMPTY_INTR | WIN1_EMPTY_INTR |
@@ -1434,6 +1435,18 @@ static void vop_enable_debug_irq(struct drm_crtc *crtc)
 	if (vop->version == VOP_VERSION_RK3572_LITE)
 		VOP_INTR_SET_TYPE(vop, clear, POST_BUF_EMPTY_INTR, 0);
 	VOP_INTR_SET_TYPE(vop, enable, irqs, 1);
+	/*
+	 * For rk3572 vop lite, the rdata fifo status detect only by
+	 * the first filed timing config for both first and second filed
+	 * in interlace format timing. The first and second filed real
+	 * timing is different, which will cause report rdata fifo empty
+	 * irq all the time. So the rdata fifo empty irq should be disabled
+	 * for interlace format timing.
+	 */
+	if (vop->version == VOP_VERSION_RK3572_LITE) {
+		if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+			VOP_INTR_SET_TYPE(vop, enable, POST_BUF_EMPTY_INTR, 0);
+	}
 }
 
 static void vop_dsp_hold_valid_irq_enable(struct vop *vop)
@@ -2614,7 +2627,13 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	    (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE))
 		dsp_h = dsp_h / 2;
 
-	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
+	if (vop->version == VOP_VERSION_RK3572_LITE) {
+		actual_h = (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) ?
+			   actual_h / 2 : actual_h;
+		act_info = actual_h << 16 | (actual_w & 0xffff);
+	} else {
+		act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
+	}
 
 	/*
 	 * For y-mirroring we need to move address

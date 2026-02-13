@@ -321,10 +321,9 @@ err:
 	return -ENOMEM;
 }
 
-
-int rkvpss_ofl_buf_add(struct rkvpss_offline_dev *ofl,
-		       int file_id,
-		       struct rkvpss_buf_info *info)
+static int rkvpss_ofl_buf_add(struct rkvpss_offline_dev *ofl,
+			      int file_id,
+			      struct rkvpss_buf_info *info)
 {
 	int ret;
 
@@ -335,9 +334,9 @@ int rkvpss_ofl_buf_add(struct rkvpss_offline_dev *ofl,
 	return ret;
 }
 
-void rkvpss_ofl_buf_del(struct rkvpss_offline_dev *ofl,
-			int file_id,
-			struct rkvpss_buf_info *info)
+static void rkvpss_ofl_buf_del(struct rkvpss_offline_dev *ofl,
+			       int file_id,
+			       struct rkvpss_buf_info *info)
 {
 	int i;
 
@@ -2038,8 +2037,8 @@ static int rkvpss_ofl_run(struct rkvpss_offline_dev *ofl,
 	return ret;
 }
 
-int rkvpss_module_get(struct rkvpss_offline_dev *ofl,
-		      struct rkvpss_module_sel *get)
+static int rkvpss_module_get(struct rkvpss_offline_dev *ofl,
+			     struct rkvpss_module_sel *get)
 {
 	struct rkvpss_hw_dev *hw = ofl->hw;
 	int i, ret = 0;
@@ -2061,8 +2060,8 @@ int rkvpss_module_get(struct rkvpss_offline_dev *ofl,
 	return ret;
 }
 
-int rkvpss_module_sel(struct rkvpss_offline_dev *ofl,
-		      struct rkvpss_module_sel *sel)
+static int rkvpss_module_sel(struct rkvpss_offline_dev *ofl,
+			     struct rkvpss_module_sel *sel)
 {
 	struct rkvpss_hw_dev *hw = ofl->hw;
 	struct rkvpss_device *vpss;
@@ -2096,7 +2095,7 @@ unlock:
 	return ret;
 }
 
-int rkvpss_check_params(struct rkvpss_offline_dev *ofl,
+static int rkvpss_check_params(struct rkvpss_offline_dev *ofl,
 			struct rkvpss_frame_cfg *cfg,
 			bool *unite)
 {
@@ -2542,9 +2541,9 @@ end:
 	return ret;
 }
 
-int rkvpss_prepare_run(struct rkvpss_offline_dev *ofl,
-		       int file_id,
-		       struct rkvpss_frame_cfg *cfg)
+static int rkvpss_prepare_run(struct rkvpss_offline_dev *ofl,
+			      int file_id,
+			      struct rkvpss_frame_cfg *cfg)
 {
 	int ret = 0;
 	bool unite;
@@ -2877,7 +2876,7 @@ int rkvpss_ofl_add_file_id(struct rkvpss_offline_dev *ofl, void *idr_entity)
 	return ret;
 }
 
-void *rkvpss_ofl_del_file_id(struct rkvpss_offline_dev *ofl, struct file *file)
+static void *rkvpss_ofl_del_file_id(struct rkvpss_offline_dev *ofl, struct file *file)
 {
 	void *ret = NULL;
 	void *idr_entity;

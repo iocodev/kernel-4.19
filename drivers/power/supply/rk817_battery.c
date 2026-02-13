@@ -2672,7 +2672,7 @@ static int rk817_battery_get_property(struct power_supply *psy,
 }
 
 static const struct power_supply_desc rk817_bat_desc = {
-	.name		= "battery",
+	.name		= "rk817-battery",
 	.type		= POWER_SUPPLY_TYPE_BATTERY,
 	.properties	= rk817_bat_props,
 	.num_properties	= ARRAY_SIZE(rk817_bat_props),
@@ -2730,7 +2730,7 @@ static int rk809_chg_get_property(struct power_supply *psy,
 }
 
 static const struct power_supply_desc rk809_chg_desc = {
-	.name		= "charger",
+	.name		= "rk809-charger",
 	.type		= POWER_SUPPLY_TYPE_USB,
 	.properties	= rk809_chg_props,
 	.num_properties	= ARRAY_SIZE(rk809_chg_props),
@@ -3209,7 +3209,7 @@ static void rk817_bat_output_info(struct rk817_battery_device *battery)
 	    battery->voltage_avg, battery->expected_voltage, battery->current_avg,
 	    battery->sm_linek, battery->remain_cap, battery->sm_remain_cap);
 	rk817_bat_print_time(battery);
-	if (battery->pdata->ntc_size) {
+	if (battery->pdata->tc_count && battery->pdata->tc_table) {
 		index = battery->charge_index;
 		DBG("Temperature: %d charger current: %dmA, index: %d, charger voltage: %dmV, index: %d, contact_res: %d\n",
 		    battery->temperature,

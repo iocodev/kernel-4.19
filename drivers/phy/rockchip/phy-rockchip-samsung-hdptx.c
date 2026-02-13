@@ -1505,6 +1505,7 @@ static int rk_hdptx_phy_verify_config(struct rk_hdptx_phy *hdptx,
 
 	if (dp->set_lanes) {
 		switch (dp->lanes) {
+		case 0:
 		case 1:
 		case 2:
 		case 4:
@@ -1604,10 +1605,33 @@ static int rk_hdptx_phy_set_rate(struct rk_hdptx_phy *hdptx,
 	return 0;
 }
 
+static void rk_hdptx_phy_disable_lanes(struct rk_hdptx_phy *hdptx)
+{
+	reset_control_assert(hdptx->rsts[RST_LANE].rstc);
+
+	regmap_update_bits(hdptx->regmap, LNTOP_REG(0207), LANE_EN_MASK,
+			   FIELD_PREP(LANE_EN_MASK, 0x0));
+
+	regmap_write(hdptx->grf, GRF_HDPTX_CON0,
+		     HDPTX_I_PLL_EN << 16 | FIELD_PREP(HDPTX_I_PLL_EN, 0x0));
+
+	regmap_update_bits(hdptx->regmap, CMN_REG(0008), OVRD_LCPLL_EN_MASK | LCPLL_EN_MASK,
+			   FIELD_PREP(OVRD_LCPLL_EN_MASK, 0x1) |
+			   FIELD_PREP(LCPLL_EN_MASK, 0x0));
+	regmap_update_bits(hdptx->regmap, CMN_REG(003d), OVRD_ROPLL_EN_MASK | ROPLL_EN_MASK,
+			   FIELD_PREP(OVRD_ROPLL_EN_MASK, 0x1) |
+			   FIELD_PREP(ROPLL_EN_MASK, 0x0));
+}
+
 static int rk_hdptx_phy_set_lanes(struct rk_hdptx_phy *hdptx,
 				  struct phy_configure_opts_dp *dp)
 {
 	hdptx->lanes = dp->lanes;
+
+	if (!hdptx->lanes) {
+		rk_hdptx_phy_disable_lanes(hdptx);
+		return 0;
+	}
 
 	regmap_update_bits(hdptx->regmap, LNTOP_REG(0207), LANE_EN_MASK,
 			   FIELD_PREP(LANE_EN_MASK, GENMASK(hdptx->lanes - 1, 0)));
@@ -2001,6 +2025,13 @@ static const struct dev_pm_ops rk_hdptx_phy_pm_ops = {
 		       rk_hdptx_phy_runtime_resume, NULL)
 };
 
+static const struct rk_hdptx_phy_cfg rk3572_hdptx_phy_cfgs = {
+	.num_phys = 1,
+	.phy_ids = {
+		0x2c310000,
+	},
+};
+
 static const struct rk_hdptx_phy_cfg rk3576_hdptx_phy_cfgs = {
 	.num_phys = 1,
 	.phy_ids = {
@@ -2017,6 +2048,10 @@ static const struct rk_hdptx_phy_cfg rk3588_hdptx_phy_cfgs = {
 };
 
 static const struct of_device_id rk_hdptx_phy_of_match[] = {
+	{
+		.compatible = "rockchip,rk3572-hdptx-phy",
+		.data = &rk3572_hdptx_phy_cfgs
+	},
 	{
 		.compatible = "rockchip,rk3576-hdptx-phy",
 		.data = &rk3576_hdptx_phy_cfgs

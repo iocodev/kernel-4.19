@@ -14,7 +14,7 @@
 #include "clk.h"
 
 #define RK3572_GRF_SOC_STATUS0		0x600
-#define RK3572_PMU0_GRF_OSC_CON0	0x00
+#define RK3572_PMU0_GRF_OSC_CON6	0x18
 
 enum rk3572_plls {
 	bpll, lpll, vpll, aupll, cpll, gpll, ppll,
@@ -107,6 +107,10 @@ static struct rockchip_pll_rate_table rk3572_ppll_rates[] = {
 	/* _mhz, _p, _m, _s, _k */
 	RK3588_PLL_RATE(1300000000, 3, 325, 2, 0),
 	{ /* sentinel */ },
+};
+
+static struct rockchip_pll_rate_table rk3572_aupll_rates[] = {
+	RK3588_PLL_RATE(786000000, 1, 121, 2, 64850),
 };
 
 #define RK3572_ACLK_M_BIGCORE_DIV_MASK		0x1f
@@ -350,7 +354,9 @@ static struct rockchip_cpuclk_rate_table rk3572_cpul1clk_rates[] __initdata = {
 #define DFLAGS CLK_DIVIDER_HIWORD_MASK
 #define GFLAGS (CLK_GATE_HIWORD_MASK | CLK_GATE_SET_TO_DISABLE)
 
-PNAME(mux_pll_p)			= { "xin24m", "clk_32k" };
+PNAME(mux_aupll_ref_p)			= { "xin24m", "aupll_ref_io" };
+PNAME(mux_pll_p)			= { "xin24m", "xin32k" };
+PNAME(mux_aupll_p)			= { "aupll_ref", "xin32k" };
 PNAME(mux_24m_32k_p)			= { "xin24m", "clk_32k" };
 PNAME(gpll_cpll_p)			= { "gpll", "cpll" };
 PNAME(gpll_cpll_24m_p)			= { "gpll", "cpll", "xin24m" };
@@ -420,25 +426,25 @@ PNAME(sclk_apb2asb_p)			= { "sclk_apb2asb_src", "clk_gpll_div6", "clk_cpll_div10
 
 static struct rockchip_pll_clock rk3572_pll_clks[] __initdata = {
 	[bpll] = PLL(pll_rk3588_core, PLL_BPLL, "bpll", mux_pll_p,
-		     CLK_IGNORE_UNUSED, RK3572_PLL_CON(0),
+		     0, RK3572_PLL_CON(0),
 		     RK3572_MODE_CON1, 0, 15, 0, rk3572_pll_rates),
 	[lpll] = PLL(pll_rk3588_core, PLL_LPLL, "lpll", mux_pll_p,
-		     CLK_IGNORE_UNUSED, RK3572_LPLL_CON(16),
+		     0, RK3572_LPLL_CON(16),
 		     RK3572_LPLL_MODE_CON0, 0, 15, 0, rk3572_pll_rates),
 	[vpll] = PLL(pll_rk3588, PLL_VPLL, "vpll", mux_pll_p,
-		     CLK_IGNORE_UNUSED, RK3572_PLL_CON(88),
+		     0, RK3572_PLL_CON(88),
 		     RK3572_MODE_CON0, 4, 15, 0, rk3572_pll_rates),
-	[aupll] = PLL(pll_rk3588, PLL_AUPLL, "aupll", mux_pll_p,
-		     CLK_IGNORE_UNUSED, RK3572_PLL_CON(96),
-		     RK3572_MODE_CON0, 6, 15, 0, rk3572_pll_rates),
+	[aupll] = PLL(pll_rk3588, PLL_AUPLL, "aupll", mux_aupll_p,
+		     0, RK3572_PLL_CON(96),
+		     RK3572_MODE_CON0, 6, 15, 0, rk3572_aupll_rates),
 	[cpll] = PLL(pll_rk3588, PLL_CPLL, "cpll", mux_pll_p,
-		     CLK_IGNORE_UNUSED, RK3572_PLL_CON(104),
+		     0, RK3572_PLL_CON(104),
 		     RK3572_MODE_CON0, 8, 15, 0, rk3572_pll_rates),
 	[gpll] = PLL(pll_rk3588, PLL_GPLL, "gpll", mux_pll_p,
 		     CLK_IGNORE_UNUSED, RK3572_PLL_CON(112),
 		     RK3572_MODE_CON0, 2, 15, 0, rk3572_pll_rates),
 	[ppll] = PLL(pll_rk3588_ddr, PLL_PPLL, "ppll", mux_pll_p,
-		     CLK_IGNORE_UNUSED, RK3572_PPLL_CON(128),
+		     0, RK3572_PPLL_CON(128),
 		     RK3572_PPLL_CON(134), 15, 15, 0, rk3572_ppll_rates),
 };
 
@@ -509,19 +515,19 @@ static struct rockchip_clk_branch rk3572_clk_branches[] __initdata = {
 
 	MUX(CLK_AUDIO_FRAC_0_SRC, "clk_audio_frac_0_src", gpll_cpll_aupll_24m_p, 0,
 			RK3572_CLKSEL_CON(13), 0, 2, MFLAGS),
-	COMPOSITE_FRAC(CLK_AUDIO_FRAC_0, "clk_audio_frac_0", "clk_audio_frac_0_src", 0,
-			RK3572_CLKSEL_CON(12), CLK_FRAC_DIVIDER_NO_LIMIT,
-			RK3572_CLKGATE_CON(1), 11, GFLAGS),
+	COMPOSITE_FRAC_V2(CLK_AUDIO_FRAC_0, "clk_audio_frac_0", "clk_audio_frac_0_src", 0,
+			RK3572_CLKSEL_CON(12), 16, 16,
+			RK3572_FRACDIV_HIGH_AUDIO_0, 8, 8, 0),
 	MUX(CLK_AUDIO_FRAC_1_SRC, "clk_audio_frac_1_src", gpll_cpll_aupll_24m_p, 0,
 			RK3572_CLKSEL_CON(15), 0, 2, MFLAGS),
-	COMPOSITE_FRAC(CLK_AUDIO_FRAC_1, "clk_audio_frac_1", "clk_audio_frac_1_src", 0,
-			RK3572_CLKSEL_CON(14), CLK_FRAC_DIVIDER_NO_LIMIT,
-			RK3572_CLKGATE_CON(1), 12, GFLAGS),
+	COMPOSITE_FRAC_V2(CLK_AUDIO_FRAC_1, "clk_audio_frac_1", "clk_audio_frac_1_src", 0,
+			RK3572_CLKSEL_CON(14), 16, 16,
+			RK3572_FRACDIV_HIGH_AUDIO_1, 8, 8, 0),
 	MUX(CLK_AUDIO_FRAC_2_SRC, "clk_audio_frac_2_src", gpll_cpll_aupll_24m_p, 0,
 			RK3572_CLKSEL_CON(17), 0, 2, MFLAGS),
-	COMPOSITE_FRAC(CLK_AUDIO_FRAC_2, "clk_audio_frac_2", "clk_audio_frac_2_src", 0,
-			RK3572_CLKSEL_CON(16), CLK_FRAC_DIVIDER_NO_LIMIT,
-			RK3572_CLKGATE_CON(1), 13, GFLAGS),
+	COMPOSITE_FRAC_V2(CLK_AUDIO_FRAC_2, "clk_audio_frac_2", "clk_audio_frac_2_src", 0,
+			RK3572_CLKSEL_CON(16), 16, 16,
+			RK3572_FRACDIV_HIGH_AUDIO_2, 8, 8, 0),
 	MUX(CLK_AUDIO_FRAC_3_SRC, "clk_audio_frac_3_src", gpll_cpll_aupll_24m_p, 0,
 			RK3572_CLKSEL_CON(19), 0, 2, MFLAGS),
 	COMPOSITE_FRAC(CLK_AUDIO_FRAC_3, "clk_audio_frac_3", "clk_audio_frac_3_src", 0,
@@ -1720,6 +1726,11 @@ static struct rockchip_clk_branch rk3572_armclkl1 __initdata =
 	COMPOSITE_NOGATE(ARMCLK_L1, "armclk_l1", mux_armclkl1_p, CLK_IS_CRITICAL,
 			RK3572_LITCORE1_CLKSEL_CON(0), 8, 2, MFLAGS, 3, 5, DFLAGS);
 
+static struct rockchip_clk_branch rk3572_aupll_ref_branches[] __initdata = {
+	MUXGRF(AUPLL_REF, "aupll_ref", mux_aupll_ref_p,  CLK_IS_CRITICAL,
+			RK3572_PMU0_GRF_OSC_CON6, 0, 1, MFLAGS),
+};
+
 static void __iomem *rk3572_cru_base;
 
 static void rk3572_dump_cru(void)
@@ -1773,6 +1784,9 @@ static void __init rk3572_clk_init(struct device_node *np)
 		return;
 	}
 	clks = ctx->clk_data.clks;
+
+	rockchip_clk_register_branches(ctx, rk3572_aupll_ref_branches,
+				       ARRAY_SIZE(rk3572_aupll_ref_branches));
 
 	rockchip_clk_register_plls(ctx, rk3572_pll_clks,
 				   ARRAY_SIZE(rk3572_pll_clks),

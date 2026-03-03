@@ -235,6 +235,7 @@ struct rockchip_sfc_powergood {
 
 struct rockchip_sfc_data {
 	struct rockchip_sfc_powergood powergood;
+	bool dma_incr16_invalid;
 };
 
 struct rockchip_sfc {
@@ -386,7 +387,10 @@ static int rockchip_sfc_init(struct rockchip_sfc *sfc)
 
 	if (readl(sfc->regbase + SFC_VER) & SFC_CAP_X8) {
 		sfc->support_octa = true;
-		writel(SFC_DMA_BURST_INCR16, sfc->regbase + SFC_DMA_CTRL);
+		if (sfc->data && sfc->data->dma_incr16_invalid)
+			writel(SFC_DMA_BURST_INCR8, sfc->regbase + SFC_DMA_CTRL);
+		else
+			writel(SFC_DMA_BURST_INCR16, sfc->regbase + SFC_DMA_CTRL);
 	}
 
 	return 0;
@@ -940,8 +944,13 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 		return ret;
 	}
 
-	if (rockchip_sfc_tuning_required(sfc, mem, cs))
+	if (rockchip_sfc_tuning_required(sfc, mem, cs)) {
 		rockchip_sfc_tuning(sfc, mem, op);
+	} else if (mem->spi->max_speed_hz != sfc->speed[cs]) {
+		if (rockchip_sfc_clk_set_rate(sfc, mem->spi->max_speed_hz))
+			goto out;
+		sfc->speed[cs] = mem->spi->max_speed_hz;
+	}
 
 	rockchip_sfc_adjust_op_work((struct spi_mem_op *)op);
 	rockchip_sfc_set_cs_gpio(sfc, cs, true);
@@ -1082,6 +1091,16 @@ static const struct rockchip_sfc_data rk3538_fspi_data = {
 		.grf_offset = 0x170,
 		.bits_mask = BIT(0),
 	},
+	.dma_incr16_invalid = true,
+};
+
+static const struct rockchip_sfc_data rv1103b_fspi_data = {
+	.powergood = {
+		.valid = true,
+		.grf_offset = 0x60030,
+		.bits_mask = BIT(3),
+	},
+	.dma_incr16_invalid = true,
 };
 
 static const struct rockchip_sfc_data rv1126b_fspi_data = {
@@ -1096,6 +1115,7 @@ static const struct of_device_id rockchip_sfc_dt_ids[] = {
 	{ .compatible = "rockchip,fspi",},
 	{ .compatible = "rockchip,rk3506-fspi", .data = &rk3506_fspi_data},
 	{ .compatible = "rockchip,rk3538-fspi", .data = &rk3538_fspi_data},
+	{ .compatible = "rockchip,rv1103b-fspi", .data = &rv1103b_fspi_data},
 	{ .compatible = "rockchip,rv1126b-fspi", .data = &rv1126b_fspi_data},
 	{ .compatible = "rockchip,sfc"},
 	{ /* sentinel */ }

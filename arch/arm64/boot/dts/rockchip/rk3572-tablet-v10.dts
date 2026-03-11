@@ -384,6 +384,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_pins>;
 		vbus-supply = <&vbus5v0_typec>;
+		io-channels = <&saradc 7>;
+		io-channel-names = "vsafe0v-detect";
 		status = "okay";
 
 		usb_con: connector {
@@ -545,6 +547,14 @@
 			rockchip,pins =
 				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_down>,
 				<0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	pmic {
+		soc_slppin_slp: soc_slppin_slp {
+			rockchip,pins =
+				/* pwr_ctrl1 */
+				<0 RK_PA3 9 &pcfg_pull_none>;
 		};
 	};
 

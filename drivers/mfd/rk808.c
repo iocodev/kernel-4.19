@@ -1282,14 +1282,14 @@ static void rk808_pm_power_off_dummy(void)
 		;
 }
 
-static ssize_t rk8xx_dbg_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+#ifdef CONFIG_MFD_RK808_SYSFS
+static ssize_t rk8xx_dbg_store_common(struct rk808 *rk808,
+				      const char *buf,
+				      size_t count)
 {
 	int ret;
 	char cmd;
 	u32 input[2], addr, data;
-	struct rk808 *rk808 = dev_get_drvdata(dev);
 
 	ret = sscanf(buf, "%c ", &cmd);
 	if (ret != 1) {
@@ -1329,6 +1329,26 @@ static ssize_t rk8xx_dbg_store(struct device *dev,
 out:
 	return count;
 }
+
+static ssize_t rk8xx_dbg_store_per_device(struct kobject *kobj,
+					  struct kobj_attribute *attr,
+					  const char *buf, size_t count)
+{
+	/* 1. Get the rk808 struct from the device_attribute using container_of */
+	struct rk808 *rk808 = container_of(attr, struct rk808, dbg_attr);
+
+	if (!rk808 || !rk808->regmap || !rk808->i2c) {
+		pr_err("rk8xx_dbg_store: Invalid rk808 context retrieved!\n");
+		if (rk808)
+			pr_err("rk808->regmap=%p, rk808->i2c=%p\n", rk808->regmap, rk808->i2c);
+
+		return -EINVAL;
+	}
+	/* 2. rk808 now points to the device instance for this sysfs file */
+	/* 3. Call the common implementation */
+	return rk8xx_dbg_store_common(rk808, buf, count);
+}
+#endif
 
 static void rk805_of_property_prepare(struct rk808 *rk808, struct device *dev)
 {
@@ -1780,6 +1800,73 @@ static void rk817_of_property_prepare(struct rk808 *rk808, struct device *dev)
 	dev_info(dev, "support pmic reset mode:%d,%d\n", ret, func);
 }
 
+/*
+ * rk8xx_pinctrl_parse_dt - Parse pinctrl states from Device Tree for RK8xx PMIC
+ * @rk808: Pointer to the main RK808 PMIC data structure
+ *
+ * This function attempts to obtain and configure the pinctrl states for the PMIC.
+ * It is designed to be resilient: failure to obtain the pinctrl handle or any
+ * specific state is treated as a non-fatal condition (the feature is simply disabled),
+ * with appropriate debug messages logged.
+ *
+ * Return: 0 on success (or if pinctrl is not available/fully configured),
+ *         or a negative error code on critical resource allocation failure.
+ */
+static int rk8xx_pinctrl_parse_dt(struct rk808 *rk808)
+{
+	struct device *dev = &rk808->i2c->dev;
+	struct pinctrl_state *default_st;
+	int ret;
+
+	/* 1. Allocate the pin info structure */
+	rk808->pins = devm_kzalloc(dev, sizeof(struct rk808_pin_info), GFP_KERNEL);
+	if (!rk808->pins)
+		return -ENOMEM;
+
+	/* 2. Obtain the pinctrl handle */
+	rk808->pins->p = devm_pinctrl_get(dev);
+	if (IS_ERR(rk808->pins->p)) {
+		/* pinctrl is an optional feature for this driver.
+		 * If not available, free the allocated structure and continue.
+		 */
+		dev_info(dev, "no pinctrl handle available\n");
+		devm_kfree(dev, rk808->pins);
+		rk808->pins = NULL;
+		return 0;
+	}
+
+	/* 3. Look up and activate the default state (if it exists) */
+	default_st = pinctrl_lookup_state(rk808->pins->p, PINCTRL_STATE_DEFAULT);
+	if (!IS_ERR(default_st)) {
+		ret = pinctrl_select_state(rk808->pins->p, default_st);
+		if (ret)
+			dev_info(dev, "failed to activate default pinctrl state\n");
+	} else {
+		dev_info(dev, "no default pinctrl state\n");
+	}
+
+	/* 4. Look up optional, PMIC-specific states */
+	rk808->pins->power_off = pinctrl_lookup_state(rk808->pins->p, "pmic-power-off");
+	if (IS_ERR(rk808->pins->power_off)) {
+		rk808->pins->power_off = NULL;
+		dev_info(dev, "no power-off pinctrl state\n");
+	}
+
+	rk808->pins->sleep = pinctrl_lookup_state(rk808->pins->p, "pmic-sleep");
+	if (IS_ERR(rk808->pins->sleep)) {
+		rk808->pins->sleep = NULL;
+		dev_info(dev, "no sleep pinctrl state\n");
+	}
+
+	rk808->pins->reset = pinctrl_lookup_state(rk808->pins->p, "pmic-reset");
+	if (IS_ERR(rk808->pins->reset)) {
+		rk808->pins->reset = NULL;
+		dev_info(dev, "no reset pinctrl state\n");
+	}
+
+	return 0;
+}
+
 static int rk8xx_parse_dt(struct rk808 *rk808)
 {
 	struct device *dev = &rk808->i2c->dev;
@@ -1834,12 +1921,12 @@ static int rk8xx_parse_dt(struct rk808 *rk808)
 		}
 	}
 
+	ret = rk8xx_pinctrl_parse_dt(rk808);
+	if (ret)
+		return ret;
+
 	return 0;
 }
-
-static struct kobject *rk8xx_kobj;
-static struct device_attribute rk8xx_attrs =
-		__ATTR(rk8xx_dbg, 0200, NULL, rk8xx_dbg_store);
 
 static const struct of_device_id rk808_of_match[] = {
 	{ .compatible = "rockchip,rk801" },
@@ -2113,12 +2200,32 @@ static int rk808_probe(struct i2c_client *client)
 	if (ret)
 		dev_err(&client->dev, "Failed to register reboot notifier: %d\n", ret);
 
-	rk8xx_kobj = kobject_create_and_add(np->name, NULL);
-	if (rk8xx_kobj) {
-		ret = sysfs_create_file(rk8xx_kobj, &rk8xx_attrs.attr);
-		if (ret)
-			dev_err(&client->dev, "create rk8xx sysfs error\n");
+#ifdef CONFIG_MFD_RK808_SYSFS
+	snprintf(rk808->sysfs_dir_name, sizeof(rk808->sysfs_dir_name),
+		 "%s_%d_%04x", np->name, client->adapter->nr, client->addr);
+
+	rk808->sysfs_kobj = kobject_create_and_add(rk808->sysfs_dir_name, NULL);
+	if (!rk808->sysfs_kobj) {
+		dev_warn(&client->dev, "failed to create sysfs kobject at /sys/%s/\n",
+			 rk808->sysfs_dir_name);
+	} else {
+		/* Initialize device-specific attribute */
+		sysfs_attr_init(&rk808->dbg_attr.attr);
+		rk808->dbg_attr.attr.name = "rk8xx_dbg";
+		rk808->dbg_attr.attr.mode = 0200; /* Write-only */
+		rk808->dbg_attr.store = rk8xx_dbg_store_per_device;
+
+		ret = sysfs_create_file(rk808->sysfs_kobj, &rk808->dbg_attr.attr);
+		if (ret) {
+			dev_err(&client->dev, "failed to create debug sysfs file, ret=%d\n", ret);
+			kobject_put(rk808->sysfs_kobj);
+			rk808->sysfs_kobj = NULL;
+		} else {
+			dev_info(&client->dev, "debug sysfs node at /sys/%s/rk8xx_dbg\n",
+			rk808->sysfs_dir_name);
+		}
 	}
+#endif
 
 	if (!pm_power_off)
 		pm_power_off = rk808_pm_power_off_dummy;
@@ -2155,6 +2262,14 @@ static void rk808_remove(struct i2c_client *client)
 
 		rk808->pmic_entry = NULL;
 	}
+
+#ifdef CONFIG_MFD_RK808_SYSFS
+	if (rk808->sysfs_kobj) {
+		sysfs_remove_file(rk808->sysfs_kobj, &rk808->dbg_attr.attr);
+		kobject_put(rk808->sysfs_kobj);
+		rk808->sysfs_kobj = NULL;
+	}
+#endif
 	/**
 	 * pm_power_off may points to a function from another module.
 	 * Check if the pointer is set by us and only then overwrite it.

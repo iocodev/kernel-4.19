@@ -6140,10 +6140,21 @@ static u32 vop2_get_hdmi_tmds_rate(struct rockchip_crtc_state *vcstate, u32 rate
  * hdmi must use frl mode, and the parent clock of dclk cannot use
  * hdmi phy pll, but must use the cru pll.
  */
-static bool vop2_is_dclk_switch_to_cru_pll(struct rockchip_crtc_state *vcstate,
-						  u32 dclk_rate)
+static bool vop2_is_dclk_switch_to_cru_pll(struct vop2 *vop2, struct rockchip_crtc_state *vcstate,
+					   u32 dclk_rate)
 {
 	if (dclk_rate > VOP2_MAX_DCLK_RATE)
+		return true;
+
+	/*
+	 * On the RK3572, when the HDMI outputs 4K60 YUV420, clock
+	 * frequency provided by HDMI PHY PLL to VOP is only 297 MHz.
+	 * However, the required DCLK frequency for VOP in this scenario
+	 * is 594 MHz, which HDMI PHY PLL cannot meet. Therefore,
+	 * the DCLK clock source must be switched to CRU PLL.
+	 */
+	if (vop2->version == VOP_VERSION_RK3572 &&
+	    vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420)
 		return true;
 
 	if (vop2_get_hdmi_tmds_rate(vcstate, dclk_rate) <= VOP2_MAX_DCLK_RATE)
@@ -6189,7 +6200,9 @@ static int vop2_extend_clk_init(struct vop2 *vop2)
 
 	INIT_LIST_HEAD(&vop2->extend_clk_list_head);
 
-	if (vop2->version != VOP_VERSION_RK3588 && vop2->version != VOP_VERSION_RK3576)
+	if (vop2->version != VOP_VERSION_RK3588 &&
+	    vop2->version != VOP_VERSION_RK3576 &&
+	    vop2->version != VOP_VERSION_RK3572)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(extend_clk_name); i++) {
@@ -6337,7 +6350,8 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 				return -EBUSY;
 			}
 
-			if (vop2_is_dclk_switch_to_cru_pll(vcstate, adjusted_mode->crtc_clock))
+			if (vop2_is_dclk_switch_to_cru_pll(vop2, vcstate,
+							   adjusted_mode->crtc_clock))
 				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
 			else
 				vop2_clk_set_parent(vp->dclk, hdmi0_phy_pll->clk);
@@ -6364,7 +6378,8 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 				}
 			}
 
-			if (vop2_is_dclk_switch_to_cru_pll(vcstate, adjusted_mode->crtc_clock))
+			if (vop2_is_dclk_switch_to_cru_pll(vop2, vcstate,
+							   adjusted_mode->crtc_clock))
 				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
 			else
 				vop2_clk_set_parent(vp->dclk, hdmi0_phy_pll->clk);
@@ -6390,7 +6405,8 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 				}
 			}
 
-			if (vop2_is_dclk_switch_to_cru_pll(vcstate, adjusted_mode->crtc_clock))
+			if (vop2_is_dclk_switch_to_cru_pll(vop2, vcstate,
+							   adjusted_mode->crtc_clock))
 				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
 			else
 				vop2_clk_set_parent(vp->dclk, hdmi1_phy_pll->clk);

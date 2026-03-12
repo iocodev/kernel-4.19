@@ -314,6 +314,7 @@
 		assigned-clock-rates = <12288000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sai1m0_mclk_pins>;
+		rockchip,force-bias-on;
 	};
 };
 
@@ -519,6 +520,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1_bus4_pins &sdmmc1_clk_pins &sdmmc1_cmd_pins>;
 	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&uart4 {
 	status = "okay";
 };
 

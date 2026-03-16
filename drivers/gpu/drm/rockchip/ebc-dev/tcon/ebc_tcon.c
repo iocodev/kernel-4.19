@@ -5,6 +5,9 @@
  * Author: Zorro Liu <zorro.liu@rock-chips.com>
  */
 
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/clk/clk-conf.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/kernel.h>
@@ -253,6 +256,9 @@
 
 #define RK3572_LUT_DATA_ADDR		0x2000
 
+#define EBC_PLL_LIMIT_FREQ		594000000
+#define EBC_PLL_MIN_FREQ		40000000
+
 enum ebc_win_data_format {
 	Y_DATA_4BPP = 0,
 	Y_DATA_8BPP = 1,
@@ -473,10 +479,10 @@ static void rk3576_tcon_dsp_mode_set(struct ebc_tcon *tcon, int update_mode,
 
 	if (panel && display_mode != tcon->display_mode) {
 		if (display_mode == DIRECT_MODE && panel->panel_16bit)
-			ret = clk_set_rate(tcon->dclk, panel->sdck);
+			ret = tcon->clk_set_rate(tcon->dclk, panel->sdck);
 		else
-			ret = clk_set_rate(tcon->dclk,
-					   panel->sdck * ((panel->panel_16bit ? 7 : 3) + 1));
+			ret = tcon->clk_set_rate(tcon->dclk,
+						 panel->sdck * ((panel->panel_16bit ? 7 : 3) + 1));
 		if (ret)
 			dev_err(tcon->dev, "Failed to set dclk:%d\n", ret);
 	}
@@ -514,7 +520,7 @@ static void rk3572_tcon_dsp_mode_set(struct ebc_tcon *tcon, int update_mode,
 	u32 val;
 	int ret;
 
-	ret = clk_set_rate(tcon->dclk, panel->sdck * ((panel->panel_16bit ? 1 : 0) + 1));
+	ret = tcon->clk_set_rate(tcon->dclk, panel->sdck * ((panel->panel_16bit ? 1 : 0) + 1));
 	if (ret)
 		dev_err(tcon->dev, "Failed to set dclk:%d\n", ret);
 
@@ -751,6 +757,65 @@ static void tcon_set_line_flag_event(struct ebc_tcon *tcon, u32 line, bool enabl
 		tcon_update_bits(tcon, EBC_INT_STATUS, LINE_FLAG_INT_MASK, LINE_FLAG_INT_MASK);
 }
 
+/*
+ * The rk3572 ebc setting clk rule.
+ * The dclk_ebc can select dclk_ebc_frac_src, use digital decimal divider,
+ * the recommended frequency is less than 60M.
+ * The dclk_ebc can select dclk_ebc_int_src.
+ * The dclk_ebc_int_src can select gpll or cpll, can only choose the nearest
+ * frequency division(gpll:1188M,cpll:1000M),
+ * and can't support accurate frequency setting.
+ * The dclk_ebc_int_src can select vpll, the vpll is ebc exclusive.
+ *
+ */
+static int rk3572_ebc_dclk_set_rate(struct clk *dclk, unsigned long rate)
+{
+	struct clk_hw *hw;
+	struct clk_hw *p_hw;
+	unsigned long pll_rate;
+	const char *name;
+	int div = 0;
+
+	hw = __clk_get_hw(dclk);
+	if (!hw)
+		return -EINVAL;
+
+	p_hw = clk_hw_get_parent(hw);
+	if (!p_hw)
+		return -EINVAL;
+
+	name = clk_hw_get_name(p_hw);
+	if (!strcmp(name, "dclk_ebc_frac_src")) {
+		clk_set_rate(p_hw->clk, rate);
+		clk_set_rate(dclk, rate);
+	} else {
+		p_hw = clk_hw_get_parent(p_hw);
+		if (!p_hw)
+			return -EINVAL;
+		p_hw = clk_hw_get_parent(p_hw);
+		if (!p_hw)
+			return -EINVAL;
+
+		name = clk_hw_get_name(p_hw);
+		if (!strcmp(name, "vpll")) {
+			pll_rate = clk_hw_get_rate(p_hw);
+			if (pll_rate >= EBC_PLL_LIMIT_FREQ && pll_rate % rate == 0) {
+				clk_set_rate(dclk, rate);
+			} else {
+				div = DIV_ROUND_UP(EBC_PLL_LIMIT_FREQ, rate);
+				if (div % 2)
+					div += 1;
+				clk_set_rate(p_hw->clk, rate * div);
+				clk_set_rate(dclk, rate);
+			}
+		} else {
+			clk_set_rate(dclk, rate);
+		}
+	}
+
+	return 0;
+}
+
 static int tcon_get_version(struct ebc_tcon *tcon)
 {
 	return tcon->version;
@@ -882,6 +947,7 @@ static struct rockchip_ebc_tcon_data rk3568_ebc_data = {
 		.frame_start = tcon_frame_start,
 		.set_line_flag_event = tcon_set_line_flag_event,
 		.get_version = tcon_get_version,
+		.clk_set_rate = clk_set_rate,
 	},
 };
 
@@ -900,6 +966,7 @@ static struct rockchip_ebc_tcon_data rk3576_ebc_data = {
 		.data_format_set = rk3576_tcon_data_format_set,
 		.set_line_flag_event = tcon_set_line_flag_event,
 		.get_version = tcon_get_version,
+		.clk_set_rate = clk_set_rate,
 	},
 };
 
@@ -918,6 +985,7 @@ static struct rockchip_ebc_tcon_data rk3572_ebc_data = {
 		.data_format_set = rk3576_tcon_data_format_set,
 		.set_line_flag_event = tcon_set_line_flag_event,
 		.get_version = tcon_get_version,
+		.clk_set_rate = rk3572_ebc_dclk_set_rate,
 	},
 };
 

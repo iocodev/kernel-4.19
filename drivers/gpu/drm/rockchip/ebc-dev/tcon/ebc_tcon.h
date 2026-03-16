@@ -81,6 +81,7 @@ struct ebc_tcon {
 	void (*set_line_flag_event)(struct ebc_tcon *tcon, u32 line, bool enable);
 	void (*line_flag_callback)(void);
 	int (*get_version)(struct ebc_tcon *tcon);
+	int (*clk_set_rate)(struct clk *clk, unsigned long rate);
 };
 
 static inline int ebc_tcon_get_version(struct ebc_tcon *tcon)

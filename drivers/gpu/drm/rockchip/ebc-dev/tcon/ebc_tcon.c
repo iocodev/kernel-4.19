@@ -400,6 +400,10 @@ static int rk3576_tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 		tcon_write(tcon, RK3576_EBC_WIN2_CTRL, RK3576_WIN_RID(3) |
 			   RK3572_WIN2_FIFO_LEVEL(0xa));
 
+	tcon_write(tcon, RK3576_EBC_SYS_CTRL,
+		   RK3576_SW_AXI_RD_URGENCY_EN | RK3576_SW_NOC_HURRY_THRESHOLD(12) |
+		   RK3576_SW_NOC_HURRY_VALUE(3) | RK3576_SW_NOC_HURRY_EN |
+		   RK3576_SW_NOC_QOS_VALUE(3) | RK3576_SW_NOC_QOS_EN);
 	/*
 	 * RK3576_EBC_EPD_CTRL info:
 	 * DSP_GD_END : GCLK falling edge point(SCLK), which count from the rising edge of hsync

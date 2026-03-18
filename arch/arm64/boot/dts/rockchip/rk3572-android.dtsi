@@ -28,6 +28,12 @@
 			method = "smc";
 		};
 	};
+
+	vendor_storage: vendor-storage {
+		compatible = "rockchip,ram-vendor-storage";
+		memory-region = <&vendor_storage_rm>;
+		status = "okay";
+	};
 };
 
 &display_subsystem {
@@ -44,6 +50,11 @@
 
 	drm_cubic_lut: drm-cubic-lut@0 {
 		compatible = "rockchip,drm-cubic-lut";
+		reg = <0x0 0x0 0x0 0x0>;
+	};
+
+	vendor_storage_rm: vendor-storage-rm@0 {
+		compatible = "rockchip,vendor-storage-rm";
 		reg = <0x0 0x0 0x0 0x0>;
 	};
 

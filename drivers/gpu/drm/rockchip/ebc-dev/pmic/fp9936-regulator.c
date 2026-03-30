@@ -138,9 +138,9 @@ static void fp9936_powerup_sequence(struct fp9936_data *data)
 static void fp9936_poweroff_sequence(struct fp9936_data *data)
 {
 	disable_irq(data->pgood_irq);
-	gpiod_set_value_cansleep(data->enable_gpio, 1);
+	gpiod_set_value_cansleep(data->enable_gpio, 0);
 	msleep(50);
-	gpiod_set_value_cansleep(data->vdd_gpio, 1);
+	gpiod_set_value_cansleep(data->vdd_gpio, 0);
 }
 
 

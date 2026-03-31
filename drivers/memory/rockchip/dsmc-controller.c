@@ -253,9 +253,16 @@ static int dsmc_ctrller_cfg_for_lb(struct rockchip_dsmc *dsmc, uint32_t cs)
 {
 	uint32_t value = 0, i;
 	struct regions_config *slv_rgn;
+	struct device *dev = dsmc->dev;
 	struct dsmc_config_cs *cfg = &dsmc->cfg.cs_cfg[cs];
 
 	writel(dsmc->cfg.clk_mode, dsmc->regs + DSMC_CLK_MD);
+	if (dsmc->cfg.version >= DSMC_VERSION_4_0) {
+		if ((!cfg->rcshi) || (!cfg->wcshi)) {
+			dev_err(dev, "mtr.rcshi or mtr.wcshi cannot set 0!\n");
+			return -EINVAL;
+		}
+	}
 	writel(MTR_CFG(cfg->rcshi, cfg->wcshi, cfg->rcss, cfg->wcss,
 		       cfg->rcsh, cfg->wcsh,
 		       calc_ltcy_value(cfg->rd_latency),
@@ -273,10 +280,10 @@ static int dsmc_ctrller_cfg_for_lb(struct rockchip_dsmc *dsmc, uint32_t cs)
 		if (!slv_rgn->status)
 			continue;
 
-		if (slv_rgn->dummy_clk_num == 1)
+		if (slv_rgn->dummy_clk_num == 2)
 			value = (0x1 << RGNX_ATTR_DUM_CLK_EN_SHIFT) |
 				(0x1 << RGNX_ATTR_DUM_CLK_NUM_SHIFT);
-		else if (slv_rgn->dummy_clk_num == 0)
+		else if (slv_rgn->dummy_clk_num == 1)
 			value = (0x1 << RGNX_ATTR_DUM_CLK_EN_SHIFT) |
 				(0x0 << RGNX_ATTR_DUM_CLK_NUM_SHIFT);
 		else
@@ -409,16 +416,19 @@ static int dsmc_lb_cmn_config(struct rockchip_dsmc *dsmc, uint32_t cs)
 			       (MCR_CRT_CR_SPACE << MCR_CRT_SHIFT));
 	}
 
-	for (i = 0; i < DSMC_LB_MAX_RGN; i++) {
+	for (i = 0; i < DSMC_LB_MAX_RGN && (!ret); i++) {
 		slv_rgn = &cfg->slv_rgn[i];
 		if (!slv_rgn->status)
 			continue;
 		ret = dsmc_slv_cmn_rgn_config(dsmc, slv_rgn, i, cs);
-		if (ret)
+	}
+
+	for (i = 0; i < DSMC_LB_MAX_RGN && (!ret); i++) {
+		slv_rgn = &cfg->slv_rgn[i];
+		if (slv_rgn->status) {
+			ret = dsmc_slv_cmn_config(dsmc, slv_rgn, i, cs);
 			break;
-		ret = dsmc_slv_cmn_config(dsmc, slv_rgn, i, cs);
-		if (ret)
-			break;
+		}
 	}
 
 	for (i = 0; i < DSMC_MAX_SLAVE_NUM; i++)
@@ -1152,7 +1162,9 @@ int rockchip_dsmc_lb_init(struct rockchip_dsmc *dsmc, uint32_t cs)
 {
 	int ret = 0;
 
-	dsmc_ctrller_cfg_for_lb(dsmc, cs);
+	ret = dsmc_ctrller_cfg_for_lb(dsmc, cs);
+	if (ret)
+		return ret;
 	ret = dsmc_lb_cmn_config(dsmc, cs);
 	if (ret)
 		return ret;

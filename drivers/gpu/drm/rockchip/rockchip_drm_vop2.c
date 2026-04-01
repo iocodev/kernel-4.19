@@ -5485,6 +5485,7 @@ static void vop2_initial(struct drm_crtc *crtc)
 	if (vp_data->feature & VOP_FEATURE_POST_SHARP && !vp->sharp_disabled &&
 	    (vop2->version == VOP_VERSION_RK3576))
 		writel(0x1, vop2->sharp_res.regs);
+	VOP_MODULE_SET(vop2, vp, post_buf_empty_dsp_vcnt_en, 1);
 
 	vop2->enable_count++;
 
@@ -11374,7 +11375,7 @@ static int vop2_calc_dsc_clk(struct drm_crtc *crtc)
 	return 0;
 }
 
-static int rk3576_calc_cru_cfg(struct drm_crtc *crtc)
+static int rk3576_calc_cru_cfg(struct drm_crtc *crtc, int conn_id)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
@@ -11407,13 +11408,13 @@ static int rk3576_calc_cru_cfg(struct drm_crtc *crtc)
 		post_dclk_out_sel = 1;
 	}
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_RGB) {
+	if (conn_id & VOP_OUTPUT_IF_RGB) {
 		interface_dclk_sel = pix_half_rate == 1 ? 1 : 0;
 		/* RGB interface_pix_clk_sel will auto config according to rgb_en/bt1120_en/bt656_en */
-	} else if (vcstate->output_if & VOP_OUTPUT_IF_eDP0) {
+	} else if (conn_id & VOP_OUTPUT_IF_eDP0) {
 		interface_dclk_sel = pix_half_rate == 1 ? 1 : 0;
 		interface_pix_clk_sel = port_pix_rate == 2 ? 1 : 0;
-	} else if (vcstate->output_if & VOP_OUTPUT_IF_HDMI0) {
+	} else if (conn_id & VOP_OUTPUT_IF_HDMI0) {
 		if (vop2->version != VOP_VERSION_RK3576) {
 			if (double_pixel)
 				pix_half_rate = 1;
@@ -11429,35 +11430,35 @@ static int rk3576_calc_cru_cfg(struct drm_crtc *crtc)
 	VOP_MODULE_SET(vop2, vp, core_dclk_div, post_dclk_core_sel);/* dclk_core */
 	VOP_MODULE_SET(vop2, vp, dclk_div2, post_dclk_out_sel);/* dclk_out */
 
-	if (output_if_is_dpi(vcstate->output_if))
+	if (output_if_is_dpi(conn_id))
 		VOP_CTRL_SET(vop2, rgb_dclk_sel, interface_dclk_sel);/* 0: dclk_core, 1: dclk_out */
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_MIPI0) {
+	if (conn_id & VOP_OUTPUT_IF_MIPI0) {
 		VOP_CTRL_SET(vop2, mipi0_dclk_sel, interface_dclk_sel);
 		VOP_CTRL_SET(vop2, mipi0_pixclk_div, interface_pix_clk_sel);/* 0: div2, 1: div4 */
 	}
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_eDP0) {
+	if (conn_id & VOP_OUTPUT_IF_eDP0) {
 		VOP_CTRL_SET(vop2, edp0_dclk_sel, interface_dclk_sel);
 		VOP_CTRL_SET(vop2, edp0_pixclk_div, interface_pix_clk_sel);/* 0: dclk, 1: port0_dclk */
 	}
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_HDMI0) {
+	if (conn_id & VOP_OUTPUT_IF_HDMI0) {
 		VOP_CTRL_SET(vop2, hdmi0_dclk_sel, interface_dclk_sel);
 		VOP_CTRL_SET(vop2, hdmi0_pixclk_div, interface_pix_clk_sel);/* 0: div2, 1: div4 */
 	}
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_DP0) {
+	if (conn_id & VOP_OUTPUT_IF_DP0) {
 		VOP_CTRL_SET(vop2, dp0_dclk_sel, interface_dclk_sel);
 		VOP_CTRL_SET(vop2, dp0_pixclk_div, interface_pix_clk_sel);/* 0: no div, 1: div2 */
 	}
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_DP1) {
+	if (conn_id & VOP_OUTPUT_IF_DP1) {
 		VOP_CTRL_SET(vop2, dp1_dclk_sel, interface_dclk_sel);
 		VOP_CTRL_SET(vop2, dp1_pixclk_div, interface_pix_clk_sel);/* 0: no div, 1: div2 */
 	}
 
-	if (vcstate->output_if & VOP_OUTPUT_IF_DP2) {
+	if (conn_id & VOP_OUTPUT_IF_DP2) {
 		VOP_CTRL_SET(vop2, dp2_dclk_sel, interface_dclk_sel);
 		VOP_CTRL_SET(vop2, dp2_pixclk_div, interface_pix_clk_sel);/* 0: no div, 1: div2 */
 	}
@@ -11497,7 +11498,7 @@ static int vop2_calc_cru_cfg(struct drm_crtc *crtc, int conn_id,
 	} else if (vop2->version == VOP_VERSION_RK3538 ||
 		   vop2->version == VOP_VERSION_RK3572 ||
 		   vop2->version == VOP_VERSION_RK3576) {
-		rk3576_calc_cru_cfg(crtc);
+		rk3576_calc_cru_cfg(crtc, conn_id);
 
 		return 0;
 	}
@@ -12156,6 +12157,15 @@ static bool vop2_is_left_right_or_odd_even_mode(struct rockchip_crtc_state *vcst
 	return true;
 }
 
+static void vop2_toggle_dclk(struct vop2_video_port *vp)
+{
+	clk_prepare_enable(vp->dclk);
+	if (!clk_get_rate(vp->dclk))
+		clk_set_rate(vp->dclk, 148500000);
+	udelay(20);
+	clk_disable_unprepare(vp->dclk);
+}
+
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -12665,23 +12675,32 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	 * In RK3588 VOP, HDMI1/eDP1 MUX1 module's reset signal should be released
 	 * when PD_VOP turn on. If this reset signal is not be released, the HDMI1
 	 * or eDP1 output interface can't work normally.
-	 * However, If the deassert signal want to transfer to HDMI1/eDP1 MUX1 and
+	 * However, If the deassert signal want to transfer to HDMI/eDP MUX0/1 and
 	 * take effect, it need the video port0 dclk's source clk work a few moment.
 	 * In some cases, the video port0 dclk's source clk is disabled(now only the
 	 * hdmi0/1 phy pll as the dclk source parent will appear) after PD_VOP turn
 	 * on, for example, vidoe port0 dclk source select hdmi phy pll. To fix
 	 * this issue, enable video port0 dclk for a few monent when active a video
-	 * port which attach to eDP1/HDMI1.
+	 * port which attach to eDP/HDMI.
+	 * The hdmiedp0_pix_clk_div and hdmiedp0_dclk_div module attach reset signal to
+	 * dclk_vp0_reset. The hdmiedp1_pix_clk_div and hdmiedp1_dclk_div module attach
+	 * reset signal to dclk_vp1_reset. If the hdmiedp1_pix_clk_div and
+	 * hdmiedp1_dclk_div module is used. The dclk_vp1 should enable a few moment to
+	 * release the dclk_vp1_reset. If the hdmiedp0_pixel_clk_div and
+	 * hdmiedp0_dclk_div module is used. The dclk_vp0 should do the same work.
 	 */
 	if (vop2->version == VOP_VERSION_RK3588) {
-		if (vp->id != 0 && (vp->output_if & (VOP_OUTPUT_IF_eDP1 | VOP_OUTPUT_IF_HDMI1))) {
+		if (vp->id != 0 && (vp->output_if & (VOP_OUTPUT_IF_eDP0 | VOP_OUTPUT_IF_HDMI0 |
+						     VOP_OUTPUT_IF_eDP1 | VOP_OUTPUT_IF_HDMI1))) {
 			struct vop2_video_port *vp0 = &vop2->vps[0];
 
-			clk_prepare_enable(vp0->dclk);
-			if (!clk_get_rate(vp0->dclk))
-				clk_set_rate(vp0->dclk, 148500000);
-			udelay(20);
-			clk_disable_unprepare(vp0->dclk);
+			vop2_toggle_dclk(vp0);
+		}
+
+		if (vp->id != 1 && (vp->output_if & (VOP_OUTPUT_IF_eDP1 | VOP_OUTPUT_IF_HDMI1))) {
+			struct vop2_video_port *vp1 = &vop2->vps[1];
+
+			vop2_toggle_dclk(vp1);
 		}
 	}
 out:
@@ -17329,8 +17348,11 @@ static irqreturn_t vop2_isr(int irq, void *data)
 		}
 
 		if (active_irqs & POST_BUF_EMPTY_INTR) {
+			u32 post_buf_empty_line = vop2_read_vcnt(vp);
+
 			vop2_handle_post_buf_empty(crtc);
-			DRM_DEV_ERROR_RATELIMITED(vop2->dev, "POST_BUF_EMPTY irq err at vp%d\n", vp->id);
+			DRM_DEV_ERROR_RATELIMITED(vop2->dev, "POST_BUF_EMPTY irq err at vp%u line %u\n",
+						  vp->id, post_buf_empty_line);
 			active_irqs &= ~POST_BUF_EMPTY_INTR;
 			ret = IRQ_HANDLED;
 		}
@@ -17549,7 +17571,16 @@ static irqreturn_t vop3_vp_isr(int irq, void *data)
 	}
 
 	if (active_irqs & POST_BUF_EMPTY_INTR) {
-		DRM_DEV_ERROR_RATELIMITED(vop2->dev, "POST_BUF_EMPTY_INTR irq err at vp%d\n", vp->id);
+		u32 post_buf_empty_line;
+
+		if (vp->regs->post_buf_empty_dsp_vcnt.mask) {
+			post_buf_empty_line = VOP_MODULE_GET(vop2, vp, post_buf_empty_dsp_vcnt);
+			VOP_MODULE_SET(vop2, vp, post_buf_empty_dsp_vcnt_clr, 1);
+		} else {
+			post_buf_empty_line = vop2_read_vcnt(vp);
+		}
+		DRM_DEV_ERROR_RATELIMITED(vop2->dev, "POST_BUF_EMPTY_INTR irq err at vp%u line %u\n",
+					  vp->id, post_buf_empty_line);
 		active_irqs &= ~POST_BUF_EMPTY_INTR;
 		ret = IRQ_HANDLED;
 	}

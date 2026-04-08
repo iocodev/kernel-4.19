@@ -37,7 +37,11 @@ void sditf_event_inc_sof(struct sditf_priv *priv)
 			.u.frame_sync.frame_sequence =
 				atomic_inc_return(&priv->frm_sync_seq) - 1,
 		};
-		v4l2_event_queue(priv->sd.devnode, &event);
+		if (priv->cif_dev->channels[0].capture_info.mode != RKMODULE_QUADBAYER_TO_DUAL_PIPE ||
+		    (priv->connect_id > VICAP_OUT_PATH_FULL_ID3 &&
+		     priv->cif_dev->stream[0].cur_stream_mode & RKCIF_STREAM_MODE_TOSCALE) ||
+		    priv->cif_dev->stream[priv->connect_id].dma_en)
+			v4l2_event_queue(priv->sd.devnode, &event);
 		if (priv->cif_dev->exp_dbg)
 			dev_info(priv->dev, "sof %d\n", atomic_read(&priv->frm_sync_seq) - 1);
 	}
@@ -99,7 +103,6 @@ static void sditf_buffree_work(struct work_struct *work)
 			rkcif_free_reserved_mem_buf(priv->cif_dev, rx_buf);
 			rkcif_free_reserved_mem(rx_buf->shmem.shm_start, rx_buf->shmem.shm_size);
 			memset(rx_buf, 0, sizeof(*rx_buf));
-			rx_buf->dummy.is_free = true;
 		}
 	}
 	spin_unlock_irqrestore(&priv->cif_dev->buffree_lock, flags);
@@ -231,11 +234,9 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 				break;
 			}
 		}
-		priv->cap_info.width = fmt->format.width;
-		priv->cap_info.height = fmt->format.height;
 		pixm.pixelformat = rkcif_mbus_pixelcode_to_v4l2(fmt->format.code);
-		pixm.width = priv->cap_info.width;
-		pixm.height = priv->cap_info.height;
+		pixm.width = fmt->format.width;
+		pixm.height = fmt->format.height;
 
 		out_fmt = rkcif_find_output_fmt(NULL, pixm.pixelformat);
 		if (priv->toisp_inf.link_mode == TOISP_UNITE &&
@@ -263,6 +264,14 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 			}
 			rkcif_set_fmt(&cif_dev->stream[i], &pixm, false);
 		}
+		if (priv->connect_id == VICAP_OUT_PATH_SCL0 ||
+		    priv->connect_id == VICAP_OUT_PATH_SCL1 ||
+		    priv->connect_id == VICAP_OUT_PATH_SCL2) {
+			fmt->format.width /= 2;
+			fmt->format.height /= 2;
+		}
+		priv->cap_info.width = fmt->format.width;
+		priv->cap_info.height = fmt->format.height;
 	} else {
 		if (priv->sensor_sd) {
 			fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
@@ -1045,6 +1054,7 @@ void sditf_change_to_online(struct sditf_priv *priv)
 {
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct rkcif_stream *cur_stream = NULL;
+	 int stream_cnt, i;
 
 	priv->mode = priv->mode_src;
 	if (priv->mode.rdbk_mode != RKISP_VICAP_ONLINE_UNITE &&
@@ -1054,17 +1064,17 @@ void sditf_change_to_online(struct sditf_priv *priv)
 	if (cif_dev->is_thunderboot) {
 		if (priv->hdr_cfg.hdr_mode == HDR_X2) {
 			cur_stream = &cif_dev->stream[1];
-			cif_dev->stream[0].is_line_wake_up = false;
-			cif_dev->stream[1].is_line_wake_up = false;
+			stream_cnt = 2;
 		} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
 			cur_stream = &cif_dev->stream[2];
-			cif_dev->stream[0].is_line_wake_up = false;
-			cif_dev->stream[1].is_line_wake_up = false;
-			cif_dev->stream[2].is_line_wake_up = false;
+			stream_cnt = 3;
 		} else {
 			cur_stream = &cif_dev->stream[0];
-			cif_dev->stream[0].is_line_wake_up = false;
+			stream_cnt = 1;
 		}
+
+		priv->is_free_thunderboot_buf = true;
+		priv->free_buf_delay_cnt = SDITF_FREE_BUF_DELAY;
 
 		if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE)
 			cur_stream->is_m_online_fb_res = true;
@@ -1075,6 +1085,11 @@ void sditf_change_to_online(struct sditf_priv *priv)
 
 		if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE)
 			rkcif_reinit_right_half_config(cur_stream);
+
+		for (i = 0; i < stream_cnt; i++) {
+			cur_stream = &cif_dev->stream[i];
+			cur_stream->cur_stream_mode = RKCIF_STREAM_MODE_TOISP;
+		}
 	}
 }
 
@@ -1372,8 +1387,12 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 		is_free = true;
 	}
 
-	if (!is_free && (!dbufs->is_switch) && stream->state == RKCIF_STATE_STREAMING &&
+	if (!is_free &&
+	    (!dbufs->is_switch || (dbufs->is_switch && dbufs->type != BUF_SHORT)) &&
+	    stream->state == RKCIF_STATE_STREAMING &&
 	    sditf_check_toolbuf_return(stream, rx_buf)) {
+		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev, "+%d+ stream[%d] add 0x%x to list %p\n",
+			 __LINE__, stream->id, (u32)rx_buf->dummy.dma_addr, &stream->rx_buf_head);
 		list_add_tail(&rx_buf->list, &buf_stream->rx_buf_head);
 		rkcif_assign_check_buffer_update_toisp(stream);
 		if (cif_dev->resume_mode != RKISP_RTT_MODE_ONE_FRAME &&
@@ -1441,6 +1460,10 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	if (dbufs->runtime_us && cif_dev->early_line == 0) {
 		if (!cif_dev->sensor_linetime)
 			cif_dev->sensor_linetime = rkcif_get_linetime(stream);
+		if (cif_dev->hdr.hdr_mode == HDR_X2 && cif_dev->exp_mode == EXP_HDR2_STA)
+			cif_dev->sensor_linetime *= 2;
+		else if (cif_dev->hdr.hdr_mode == HDR_X3 && cif_dev->exp_mode == EXP_HDR3_STA)
+			cif_dev->sensor_linetime *= 3;
 		cif_dev->isp_runtime_max = dbufs->runtime_us;
 		if (cif_dev->is_thunderboot)
 			diff_time = 200000;
@@ -1820,6 +1843,7 @@ static int rkcif_subdev_probe(struct platform_device *pdev)
 	struct sditf_priv *priv;
 	struct device_node *node = dev->of_node;
 	int ret;
+	int connect_id;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -1848,6 +1872,11 @@ static int rkcif_subdev_probe(struct platform_device *pdev)
 	} else {
 		priv->is_combine_mode = true;
 	}
+	ret = of_property_read_u32(node,
+				   "rockchip,connect-id",
+				   &connect_id);
+	if (!ret)
+		priv->connect_id = connect_id;
 	ret = rkcif_subdev_media_init(priv);
 	if (ret < 0)
 		return ret;

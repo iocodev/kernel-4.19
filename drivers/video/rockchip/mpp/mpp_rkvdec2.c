@@ -16,7 +16,6 @@
 #include "hack/mpp_rkvdec2_hack_rk3568.c"
 
 #include <linux/devfreq_cooling.h>
-#include <linux/of.h>
 #include <soc/rockchip/rockchip_ipa.h>
 #include <soc/rockchip/rockchip_dmc.h>
 #include <soc/rockchip/rockchip_opp_select.h>
@@ -228,7 +227,6 @@ void *rkvdec2_alloc_task(struct mpp_session *session,
 	struct mpp_task *mpp_task = NULL;
 	struct rkvdec2_task *task = NULL;
 	struct mpp_dev *mpp = session->mpp;
-	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
 	mpp_debug_enter();
 
@@ -244,13 +242,6 @@ void *rkvdec2_alloc_task(struct mpp_session *session,
 	ret = rkvdec2_extract_task_msg(session, task, msgs);
 	if (ret)
 		goto fail;
-
-	if (dec->hack_3528_vp9) {
-		u32 fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_FORMAT_INDEX]);
-
-		if (fmt == RKVDEC_FMT_VP9D)
-			goto fail;
-	}
 
 	/* process fd in register */
 	if (!(msgs->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
@@ -1408,9 +1399,6 @@ static int rkvdec2_probe(struct platform_device *pdev)
 		dev_err(dev, "register interrupter runtime failed\n");
 		return -EINVAL;
 	}
-
-	if (of_machine_is_compatible("rockchip,rk3528"))
-		dec->hack_3528_vp9 = 1;
 
 	mpp->session_max_buffers = RKVDEC_SESSION_MAX_BUFFERS;
 	rkvdec2_procfs_init(mpp);

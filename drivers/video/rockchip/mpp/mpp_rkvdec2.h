@@ -209,7 +209,6 @@ struct rkvdec2_dev {
 	struct mpp_dma_buffer *fix;
 
 	u32 err_ref_hack;
-	u32 hack_3528_vp9;
 };
 
 void *rkvdec2_alloc_task(struct mpp_session *session,

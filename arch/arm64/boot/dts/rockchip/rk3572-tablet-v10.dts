@@ -89,16 +89,16 @@
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,name = "rockchip,bt";
 		simple-audio-card,cpu {
-				sound-dai = <&sai2>;
+			sound-dai = <&sai2>;
 		};
 		simple-audio-card,codec {
-				sound-dai = <&bt_sco>;
+			sound-dai = <&bt_sco 1>;
 		};
 	};
 
 	bt_sco: bt-sco {
 		compatible = "delta,dfbmcs320";
-		#sound-dai-cells = <0>;
+		#sound-dai-cells = <1>;
 		status = "okay";
 	};
 
@@ -205,17 +205,7 @@
 	cpu-supply = <&vdd_cpu_big_s0>;
 };
 
-&dfi {
-	status = "okay";
-};
-
 &display_subsystem {
-	status = "okay";
-};
-
-&dmc {
-	center-supply = <&vdd_ddr_s0>;
-	mem-supply = <&vdd_logic_s0>;
 	status = "okay";
 };
 

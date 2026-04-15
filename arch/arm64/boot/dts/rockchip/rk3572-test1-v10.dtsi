@@ -187,6 +187,30 @@
 	status = "okay";
 };
 
+&gmac1 {
+	phy-mode = "rgmii-rxid";
+	clock_in_out = "output";
+
+	snps,reset-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	/* Reset time is 20ms, 100ms for rtl8211f */
+	snps,reset-delays-us = <0 20000 100000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&eth1m0_miim_pins
+		     &eth1m0_tx_bus2_pins
+		     &eth1m0_rx_bus2_pins
+		     &eth1m0_rgmii_clk_pins
+		     &eth1m0_rgmii_bus_pins
+		     &ethm0_clk1_25m_out_pins>;
+
+	tx_delay = <0x1f>;
+	/* rx_delay = <0x3f>; */
+
+	phy-handle = <&rgmii_phy>;
+	status = "okay";
+};
+
 &hdptxphy {
 	status = "okay";
 };
@@ -222,10 +246,69 @@
 	};
 };
 
+&mdio1 {
+	rgmii_phy: phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x1>;
+		clocks = <&cru REFCLKO25M_GMAC1_OUT>;
+	};
+};
+
+&i2c2 {
+	status = "okay";
+
+	gsl3673@40 {
+		compatible = "GSL,GSL3673";
+		reg = <0x40>;
+		screen_max_x = <1536>;
+		screen_max_y = <2048>;
+		irq-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_LOW>;
+		rst-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+	};
+
+	hynitron: hynitron@5a {
+		status = "okay";
+		compatible = "hyn,3240";
+		reg = <0x5a>;
+
+		pinctrl-names = "ts_active","ts_suspend";
+		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+
+		reset-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+		irq-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_LOW>;
+
+		power-supply = <&vcc3v3_lcd>;
+		max-touch-number = <5>;
+		display-coords = <0 0 1080 1920>;
+		pos-swap = <0>;
+		posx-reverse = <0>;
+		posy-reverse = <0>;
+	};
+};
+
 &pinctrl {
 	display {
 		edp_panel_reset: edp-panel-reset {
 			rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	touch {
+		ts_int_active: ts_int_active {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		ts_reset_active: ts_reset_active {
+			rockchip,pins = <0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		ts_int_suspend: ts_int_suspend {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		ts_reset_suspend: ts_reset_suspend {
+			rockchip,pins = <0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 

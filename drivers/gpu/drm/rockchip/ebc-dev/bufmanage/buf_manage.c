@@ -78,11 +78,11 @@ int ebc_drop_one_dsp_buf(void)
 	return BUF_ERROR;
 }
 
-int ebc_add_to_dsp_buf_list(struct ebc_buf_s *dsp_buf)
+static int ebc_add_to_dsp_buf_list(struct ebc_buf_s *dsp_buf, int pos)
 {
 	mutex_lock(&ebc_buf_info.dsp_buf_lock);
 	if (ebc_buf_info.dsp_buf_list) {
-		if (-1 == buf_list_add(ebc_buf_info.dsp_buf_list, (int *)dsp_buf, -1)) {
+		if (-1 == buf_list_add(ebc_buf_info.dsp_buf_list, (int *)dsp_buf, pos)) {
 			ebc_buf_release(dsp_buf);
 			mutex_unlock(&ebc_buf_info.dsp_buf_lock);
 			return BUF_ERROR;
@@ -96,13 +96,23 @@ int ebc_add_to_dsp_buf_list(struct ebc_buf_s *dsp_buf)
 	return BUF_SUCCESS;
 }
 
-int ebc_add_to_osd_buf_list(struct ebc_buf_s *dsp_buf)
+int ebc_add_to_dsp_buf_list_tail(struct ebc_buf_s *dsp_buf)
+{
+	return ebc_add_to_dsp_buf_list(dsp_buf, -1);
+}
+
+int ebc_add_to_dsp_buf_list_head(struct ebc_buf_s *dsp_buf)
+{
+	return ebc_add_to_dsp_buf_list(dsp_buf, 0);
+}
+
+static int ebc_add_to_osd_buf_list(struct ebc_buf_s *dsp_buf, int pos)
 {
 	int ret = BUF_SUCCESS;
 
 	mutex_lock(&ebc_buf_info.osd_buf_lock);
 	if (ebc_buf_info.osd_buf_list) {
-		if (-1 == buf_list_add(ebc_buf_info.osd_buf_list, (int *)dsp_buf, -1)) {
+		if (-1 == buf_list_add(ebc_buf_info.osd_buf_list, (int *)dsp_buf, pos)) {
 			ebc_buf_release(dsp_buf);
 			ret = BUF_ERROR;
 		}
@@ -111,7 +121,30 @@ int ebc_add_to_osd_buf_list(struct ebc_buf_s *dsp_buf)
 	return ret;
 }
 
+int ebc_add_to_osd_buf_list_tail(struct ebc_buf_s *dsp_buf)
+{
+	return ebc_add_to_osd_buf_list(dsp_buf, -1);
+}
+
+int ebc_add_to_osd_buf_list_head(struct ebc_buf_s *dsp_buf)
+{
+	return ebc_add_to_osd_buf_list(dsp_buf, 0);
+}
+
 struct ebc_buf_s *ebc_osd_buf_get(void)
+{
+	struct ebc_buf_s *buf = NULL;
+
+	mutex_lock(&ebc_buf_info.osd_buf_lock);
+	if (ebc_buf_info.osd_buf_list && (ebc_buf_info.osd_buf_list->nb_elt > 0)) {
+		buf = (struct ebc_buf_s *)buf_list_get(ebc_buf_info.osd_buf_list, 0);
+	}
+	mutex_unlock(&ebc_buf_info.osd_buf_lock);
+
+	return buf;
+}
+
+struct ebc_buf_s *ebc_osd_buf_pop_get(void)
 {
 	struct ebc_buf_s *buf = NULL;
 
@@ -153,6 +186,19 @@ struct ebc_buf_s *ebc_find_buf_by_id(int id)
 }
 
 struct ebc_buf_s *ebc_dsp_buf_get(void)
+{
+	struct ebc_buf_s *buf = NULL;
+
+	mutex_lock(&ebc_buf_info.dsp_buf_lock);
+	if (ebc_buf_info.dsp_buf_list && (ebc_buf_info.dsp_buf_list->nb_elt > 0)) {
+		buf = (struct ebc_buf_s *)buf_list_get(ebc_buf_info.dsp_buf_list, 0);
+	}
+	mutex_unlock(&ebc_buf_info.dsp_buf_lock);
+
+	return buf;
+}
+
+struct ebc_buf_s *ebc_dsp_buf_pop_get(void)
 {
 	struct ebc_buf_s *buf = NULL;
 

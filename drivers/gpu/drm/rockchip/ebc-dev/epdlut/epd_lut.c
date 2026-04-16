@@ -16,7 +16,7 @@
 #include "../ebc_dev.h"
 #include "epd_lut.h"
 
-static int (*lut_get)(struct epd_lut_data *, enum epd_lut_type, int, struct epd_lut_info);
+static int (*lut_get)(struct epd_lut_data *, enum epd_lut_type, u16, struct epd_lut_info);
 static int (*lut_get_original)(struct epd_lut_data *, enum epd_lut_type, int, int);
 
 int epd_lut_from_mem_init(void *waveform)
@@ -98,7 +98,7 @@ int epd_lut_get_wf_bit(void)
 	return 0;
 }
 
-int epd_lut_get(struct epd_lut_data *output, enum epd_lut_type lut_type, int temperature, struct epd_lut_info lut_info)
+int epd_lut_get(struct epd_lut_data *output, enum epd_lut_type lut_type, u16 temperature, struct epd_lut_info lut_info)
 {
 	return lut_get(output, lut_type, temperature, lut_info);
 }

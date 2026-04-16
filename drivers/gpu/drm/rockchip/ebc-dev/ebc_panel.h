@@ -44,12 +44,12 @@ struct ebc_panel {
 	u32 panel_16bit;
 	u32 panel_color;
 	u32 mirror;
-	u32 disable_logo;
 	u32 rearrange;
 	u32 gate_dummy_start;
 	u32 gate_dummy_lenth;
 	u32 sdoe_mode;
 	u32 sdce_width;
+	u32 lel_keep_clk;
 	bool pmic_early_power_on;
 };
 #endif

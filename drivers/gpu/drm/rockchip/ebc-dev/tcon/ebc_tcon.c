@@ -28,6 +28,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include <linux/version.h>
 
 #include "ebc_tcon.h"
 
@@ -334,9 +335,9 @@ static int rk3576_tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 	tcon_write(tcon, RK3576_EBC_DSP_HTIMING0,
 		   RK3576_DSP_HTOTAL(panel->lsl + panel->lbl + panel->ldl + panel->lel) |
 		   RK3576_DSP_HS_END(panel->lsl));
+	val = panel->lsl + panel->lbl + panel->ldl + (panel->lel_keep_clk ? panel->lel : 0);
 	tcon_write(tcon, RK3576_EBC_DSP_HTIMING1,
-		   RK3576_DSP_HACT_END(panel->lsl + panel->lbl + panel->ldl) |
-		   RK3576_DSP_HACT_ST(panel->lsl + panel->lbl - 1));
+		   RK3576_DSP_HACT_END(val) | RK3576_DSP_HACT_ST(panel->lsl + panel->lbl - 1));
 	tcon_write(tcon, RK3576_EBC_DSP_VTIMING0,
 		   RK3576_DSP_VTOTAL(panel->fsl + panel->fbl + panel->fdl + panel->fel) |
 		   RK3576_DSP_VS_END(panel->fsl));
@@ -569,7 +570,7 @@ static void rk3576_tcon_frame_start(struct ebc_tcon *tcon, int frame_total)
 
 static int tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 {
-	u32 width, height, vir_width, vir_height, div = 0;
+	u32 width, height, vir_width, vir_height, val, div = 0;
 	unsigned long dclk_rate;
 
 	clk_prepare_enable(tcon->hclk);
@@ -596,8 +597,9 @@ static int tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 	/* panel timing and win info config */
 	tcon_write(tcon, EBC_DSP_HTIMING0,
 				DSP_HTOTAL(panel->lsl + panel->lbl + panel->ldl + panel->lel) | DSP_HS_END(panel->lsl));
+	val = panel->lsl + panel->lbl + panel->ldl + (panel->lel_keep_clk ? panel->lel : 0);
 	tcon_write(tcon, EBC_DSP_HTIMING1,
-				DSP_HACT_END(panel->lsl + panel->lbl + panel->ldl) | DSP_HACT_ST(panel->lsl + panel->lbl - 1));
+				DSP_HACT_END(val) | DSP_HACT_ST(panel->lsl + panel->lbl - 1));
 	tcon_write(tcon, EBC_DSP_VTIMING0,
 				DSP_VTOTAL(panel->fsl + panel->fbl + panel->fdl + panel->fel) | DSP_VS_END(panel->fsl));
 	tcon_write(tcon, EBC_DSP_VTIMING1,

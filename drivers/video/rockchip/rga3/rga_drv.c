@@ -109,7 +109,7 @@ static void rga_mpi_scale_protect(struct rga_req *msg)
 	sw = msg->src.act_w;
 	sh = msg->src.act_h;
 
-	if ((rotate_mode == 1) | (rotate_mode == 3)) {
+	if ((rotate_mode == 1) || (rotate_mode == 3)) {
 		dw = msg->dst.act_h;
 		dh = msg->dst.act_w;
 	} else {
@@ -132,6 +132,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	struct rga_req *cached_cmd;
 	struct rga_req mpi_cmd;
 	unsigned long flags;
+	bool need_swap_act = false;
 
 	request_manager = rga_drvdata->pend_request_manager;
 
@@ -168,6 +169,12 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	cached_cmd = request->task_list;
 	memcpy(&mpi_cmd, cached_cmd, sizeof(mpi_cmd));
 
+	/* rotate 90/270, driver requires that act_w/h be swapped. */
+	if (((mpi_cmd.rotate_mode & 0xf) == 1) &&
+	    ((mpi_cmd.sina == 65536 && mpi_cmd.cosa == 0) ||
+	     (mpi_cmd.sina == -65536 && mpi_cmd.cosa == 0)))
+		need_swap_act = true;
+
 	spin_unlock_irqrestore(&request->lock, flags);
 
 	/* set channel info */
@@ -192,10 +199,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 					 &mpi_cmd.dst,
 					 &cached_cmd->dst);
 
-		/* rotate 90/270 */
-		if (((mpi_cmd.rotate_mode & 0xf) == 1) &&
-		    ((mpi_cmd.sina == 65536 && mpi_cmd.cosa == 0) ||
-		     (mpi_cmd.sina == -65536 && mpi_cmd.cosa == 0))) {
+		if (need_swap_act) {
 			swap(mpi_cmd.dst.act_w, mpi_cmd.dst.act_h);
 
 			if (request->flags & RGA_CONTEXT_DST_CACHE_INFO)
@@ -266,6 +270,10 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 		mpi_job->output->vir_h = mpi_cmd.dst.vir_h;
 		mpi_job->output->rd_mode = mpi_cmd.dst.rd_mode;
 		mpi_job->output->format = mpi_cmd.dst.format;
+
+		/* restore data that has been swapped */
+		if (need_swap_act)
+			swap(mpi_job->output->width, mpi_job->output->height);
 	}
 
 err_put_request:

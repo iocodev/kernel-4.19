@@ -152,18 +152,30 @@
 #define s_RGA2_SYS_CTRL_HOLD_MODE_EN(x)			((x & 0x1) << 9)
 #define s_RGA2_SYS_CTRL_CMD_MODE(x)			((x & 0x1) << 1)
 
+#define v_RGA2_SYS_CTRL_CMD_MODE(x)			(((x) >> 1) & 0x1)
+
 /* RGA_CMD_CTRL */
+#define m_RGA2_MAX_RD_OUTSTANDING			(0x3f << 14)
 #define m_RGA2_CMD_CTRL_INCR_NUM			(0x3ff << 3)
 #define m_RGA2_CMD_CTRL_STOP				(0x1 << 2)
 #define m_RGA2_CMD_CTRL_INCR_VALID_P			(0x1 << 1)
 #define m_RGA2_CMD_CTRL_CMD_LINE_ST_P			(0x1 << 0)
 
-#define s_RGA2_CMD_CTRL_INCR_NUM(x)			((x & 0x3ff) << 3)
+#define s_RGA2_MAX_RD_OUTSTANDING(x)			(((x) & 0x3f) << 14)
+#define s_RGA2_CMD_CTRL_INCR_NUM(x)			(((x) & 0x3ff) << 3)
+#define s_RGA2_CMD_CTRL_STOP(x)				(((x) & 0x1) << 2)
+
+#define v_RGA2_MAX_RD_OUTSTANDING(x)			(((x) >> 14) & 0x3f)
+#define v_RGA2_CMD_CTRL_INCR_NUM(x)			(((x) >> 3) & 0x3ff)
+#define v_RGA2_CMD_CTRL_STOP(x)				(((x) >> 2) & 0x1)
 
 /* RGA_STATUS1 */
-#define m_RGA2_STATUS1_SW_CMD_TOTAL_NUM			(0xfff << 8)
+#define m_RGA2_STATUS1_SW_CMD_TOTAL_NUM			(0xfff << 20)
 #define m_RGA2_STATUS1_SW_CMD_CUR_NUM			(0xfff << 8)
 #define m_RGA2_STATUS1_SW_RGA_STA			(0x1 << 0)
+
+#define v_RGA2_STATUS1_SW_CMD_TOTAL_NUM(x)		(((x) >> 20) & 0xfff)
+#define v_RGA2_STATUS1_SW_CMD_CUR_NUM(x)		(((x) >> 8) & 0xfff)
 
 /*RGA_INT*/
 #define m_RGA2_INT_CONFIG_ERR_CLEAR			(1 << 27)
@@ -257,6 +269,22 @@
 
 #define s_RGA2_WRITE_LINE_SW_INTR_LINE_WR_START(x)	((x & 0x1fff) << 0)
 #define s_RGA2_WRITE_LINE_SW_INTR_LINE_WR_STEP(x)	((x & 0x1fff) << 16)
+
+/* RGA_FULL_CSC COEF */
+#define m_RGA2_FULL_CSC_COEF				(0x1fff << 0)
+#define m_RGA2_FULL_CSC_CLIP_MAX			(0xff << 16)
+#define m_RGA2_FULL_CSC_CLIP_MIN			(0xff << 24)
+#define m_RGA2_FULL_CSC_10BIT_CLIP			(0x3ff << 16) // repeat with CLIP_MAX/CLIP_MIN
+
+#define s_RGA2_FULL_CSC_COEF(x)				((x) & 0x1fff << 0)
+#define s_RGA2_FULL_CSC_CLIP_MAX(x)			(((x) & 0xff) << 16)
+#define s_RGA2_FULL_CSC_CLIP_MIN(x)			(((x) & 0xff) << 24)
+#define s_RGA2_FULL_CSC_10BIT_CLIP(x)			(((x) & 0x3ff) << 16) // repeat with CLIP_MAX/CLIP_MIN
+
+/* RGA_FULL_CSC OFFSET */
+#define m_RGA2_FULL_CSC_OFFSET				(0x1fffff << 0)
+
+#define s_RGA2_FULL_CSC_OFFSET(x)			(((x) & 0x1fffff) << 0)
 
 /* RGA BACKDOOR0 */
 #define m_RGA2_HSDBIL_VSP_FIX_DIS			(0x1 << 0)
@@ -646,6 +674,8 @@
 #define RGA2_IOMMU_PREFETCH_ALIGN_DOWN(x)		((x) & ~RGA2_IOMMU_PREFETCH_MASK)
 #define RGA2_IOMMU_PREFETCH_THRESHOLD_MIN		RGA2_IOMMU_PREFETCH_SIZE
 #define RGA2_IOMMU_PREFETCH_THRESHOLD_MAX		(0x100000000ULL - RGA2_IOMMU_PREFETCH_SIZE)
+
+#define RGA2_MAX_RD_OUTSTANDING				0x3f
 
 union rga2_color_ctrl {
 	uint32_t value;

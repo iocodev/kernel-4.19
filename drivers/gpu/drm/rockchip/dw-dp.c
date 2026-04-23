@@ -4965,14 +4965,19 @@ out:
 			drm_dp_mst_topology_mgr_set_mst(&dp->mst_mgr, dp->is_mst);
 			phy_power_off(dp->phy);
 		}
-	} else {
-		if (dp->link.sink_support_mst && dp->mst_mgr.cbs) {
+	} else if (dp->mst_mgr.cbs) {
+		if (dp->link.sink_support_mst) {
 			dev_info(dp->dev, "MST device appeared\n");
 			if (!dp->is_mst)
 				phy_power_on(dp->phy);
 			dp->is_mst = true;
 			drm_dp_mst_topology_mgr_set_mst(&dp->mst_mgr, dp->is_mst);
 			status = connector_status_disconnected;
+		} else if (dp->is_mst) {
+			dev_info(dp->dev, "SST device appeared\n");
+			dp->is_mst = false;
+			drm_dp_mst_topology_mgr_set_mst(&dp->mst_mgr, dp->is_mst);
+			phy_power_off(dp->phy);
 		}
 	}
 
@@ -5213,6 +5218,7 @@ static const struct drm_bridge_funcs dw_dp_bridge_funcs = {
 static int dw_dp_link_retrain(struct dw_dp *dp)
 {
 	struct drm_device *dev = dp->bridge.dev;
+	struct drm_bridge *bridge = &dp->bridge;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
@@ -5230,7 +5236,12 @@ static int dw_dp_link_retrain(struct dw_dp *dp)
 		drm_modeset_backoff(&ctx);
 	}
 
+	if (bridge->encoder->crtc)
+		dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, dp->id, false);
 	ret = dw_dp_link_train(dp);
+	if (bridge->encoder->crtc)
+		dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, dp->id, true);
+
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 

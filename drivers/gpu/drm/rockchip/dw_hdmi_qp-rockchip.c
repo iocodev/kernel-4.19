@@ -17,12 +17,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drm_of.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/display/drm_dsc.h>
-#include <drm/drm_edid.h>
-#include <drm/display/drm_hdcp_helper.h>
 #include <drm/bridge/dw_hdmi.h>
+#include <drm/display/drm_dsc.h>
+#include <drm/display/drm_hdcp_helper.h>
+#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
@@ -75,7 +73,7 @@
 #define RK3576_IOC_MISC_CON0		0xa400
 #define RK3576_HDMITX_HPD_INT_MSK	BIT(2)
 #define RK3576_HDMITX_HPD_INT_CLR	BIT(1)
-#define RK3576_IOC_MISC_CON1		0Xa404
+#define RK3576_IOC_MISC_CON1		0xa404
 #define RK3576_SET_DLY_EN_MASK		(0x3f << 8)
 #define RK3576_SET_DLY_EN		BIT(8)
 #define RK3576_SET_LNUM_MS_MASK		0xff
@@ -164,13 +162,12 @@
 #define RK3588_SPDIF_SEL_MASK		BIT(14)
 #define RK3588_GRF_VO1_CON4		0x0010
 #define RK3588_HDMI21_MASK		BIT(0)
+#define RK3588_HDMI_HDCP14_MEM_EN	BIT(15)
 #define RK3588_GRF_VO1_CON9		0x0024
 #define RK3588_HDMI0_GRANT_SEL		BIT(10)
 #define RK3588_HDMI0_GRANT_SW		BIT(11)
 #define RK3588_HDMI1_GRANT_SEL		BIT(12)
 #define RK3588_HDMI1_GRANT_SW		BIT(13)
-#define RK3588_GRF_VO1_CON4		0x0010
-#define RK3588_HDMI_HDCP14_MEM_EN	BIT(15)
 #define RK3588_GRF_VO1_CON6		0x0018
 #define RK3588_GRF_VO1_CON7		0x001c
 
@@ -280,6 +277,7 @@ struct rockchip_dw_hdmi_qp {
 	bool force_disable_dsc;
 	bool cec_wakeup_supported;
 	bool dynamic_hdr_en;
+	bool ycc_quant_range_selectable;
 
 	unsigned long bus_format;
 	unsigned long output_bus_format;
@@ -323,6 +321,7 @@ struct rockchip_dw_hdmi_qp {
 	unsigned int colordepth;
 	unsigned int colorimetry;
 	unsigned int hdmi_quant_range;
+	unsigned int quant_range_val;
 	unsigned int phy_bus_width;
 	unsigned int enable_allm;
 	unsigned int enable_gaming_vrr;
@@ -1711,7 +1710,7 @@ dw_hdmi_rockchip_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 		if (drm_mode_is_420(&connector->display_info, mode) &&
 		    max_tmds_clock < (mode->clock / 2) && is_hdmi2_mode(mode))
 			return MODE_BAD;
-	};
+	}
 
 	if (encoder->crtc) {
 		s = to_rockchip_crtc_state(encoder->crtc->state);
@@ -2593,12 +2592,22 @@ static void rockchip_hdmi_qms_vrr_state(struct rockchip_dw_hdmi_qp *hdmi,
 	}
 }
 
+static enum hdmi_quantization_range
+dw_hdmi_qp_get_default_quant_range(struct drm_display_mode *mode)
+{
+	if (drm_match_cea_mode(mode) > 1)
+		return HDMI_QUANTIZATION_RANGE_LIMITED;
+
+	return HDMI_QUANTIZATION_RANGE_FULL;
+}
+
 static int dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 						 struct drm_crtc_state *crtc_state,
 						 struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct rockchip_dw_hdmi_qp *hdmi = to_rockchip_hdmi(encoder);
+	struct drm_display_info *info = &conn_state->connector->display_info;
 	unsigned int colorformat, bus_width, tmdsclk;
 	struct drm_display_mode mode = {};
 	unsigned int output_mode;
@@ -2731,12 +2740,53 @@ secondary:
 
 	s->color_encoding = hdmi->colorimetry;
 
-	if (colorformat == RK_IF_FORMAT_RGB)
-		s->color_range = hdmi->hdmi_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED ?
-					DRM_COLOR_YCBCR_LIMITED_RANGE : DRM_COLOR_YCBCR_FULL_RANGE;
-	else
-		s->color_range = hdmi->hdmi_quant_range == HDMI_QUANTIZATION_RANGE_FULL ?
-					DRM_COLOR_YCBCR_FULL_RANGE : DRM_COLOR_YCBCR_LIMITED_RANGE;
+	/*
+	 * Per the CEA-861 specification, when the EDID does not declare support
+	 * for selectable quantization range, CEA video resolutions shall default to
+	 * Limited Range, while non-CEA (IT) resolutions shall default to Full Range.
+	 * Note that 640x480p (VIC 1) must be treated as a non-CEA resolutions.
+	 */
+	if (colorformat == RK_IF_FORMAT_RGB) {
+		/*
+		 * When edid supports selectable quantization range and userspace
+		 * did not specify the output range, RGB output prefer
+		 * set to Full Range. This aligns with typical RGB workloads (e.g., UI),
+		 * which generally expect Full Range quantization.
+		 */
+		if (info->rgb_quant_range_selectable) {
+			if (hdmi->quant_range_val == HDMI_QUANTIZATION_RANGE_DEFAULT)
+				hdmi->hdmi_quant_range = HDMI_QUANTIZATION_RANGE_FULL;
+			else
+				hdmi->hdmi_quant_range = hdmi->quant_range_val;
+		} else {
+			if (hdmi->quant_range_val != HDMI_QUANTIZATION_RANGE_DEFAULT)
+				DRM_WARN("sink can't support rgb range select\n");
+
+			hdmi->hdmi_quant_range = dw_hdmi_qp_get_default_quant_range(&mode);
+		}
+	} else {
+		/*
+		 * When edid supports selectable quantization range and userspace
+		 * not specify the output range, YUV output prefer set to Limited Range.
+		 * This aligns with typical YUV workloads (e.g., video playback), source
+		 * material are predominantly mastered in Limited Range.
+		 */
+		if (hdmi->ycc_quant_range_selectable) {
+			if (hdmi->quant_range_val == HDMI_QUANTIZATION_RANGE_DEFAULT)
+				hdmi->hdmi_quant_range = HDMI_QUANTIZATION_RANGE_LIMITED;
+			else
+				hdmi->hdmi_quant_range = hdmi->quant_range_val;
+		} else {
+			if (hdmi->quant_range_val != HDMI_QUANTIZATION_RANGE_DEFAULT)
+				DRM_WARN("sink can't support yuv range select\n");
+
+			hdmi->hdmi_quant_range = dw_hdmi_qp_get_default_quant_range(&mode);
+		}
+	}
+
+	s->color_range = hdmi->hdmi_quant_range ==
+		HDMI_QUANTIZATION_RANGE_FULL ? DRM_COLOR_YCBCR_FULL_RANGE :
+		DRM_COLOR_YCBCR_LIMITED_RANGE;
 
 	if (hdmi->plat_data->split_mode && !secondary) {
 		hdmi = rockchip_hdmi_find_by_id(hdmi->dev->driver, !hdmi->id);
@@ -3536,14 +3586,14 @@ dw_hdmi_rockchip_get_hdrvivid_vsdb(void *data, const struct edid *edid,
 					     &connector->base, property);
 
 	return ret;
-};
+}
 
 static bool dw_hdmi_rockchip_get_emp_status(void *data)
 {
 	struct rockchip_dw_hdmi_qp *hdmi = (struct rockchip_dw_hdmi_qp *)data;
 
 	return hdmi->dynamic_hdr_en;
-};
+}
 
 static void dw_hdmi_rockchip_set_emp_bypass(void *data, bool enable)
 {
@@ -3551,7 +3601,16 @@ static void dw_hdmi_rockchip_set_emp_bypass(void *data, bool enable)
 
 	if (hdmi->chip_data->ops->set_emp_bypass_enable)
 		hdmi->chip_data->ops->set_emp_bypass_enable(hdmi, enable);
-};
+}
+
+static void dw_hdmi_qp_get_ycc_quant_range_selectable(void *data, const struct edid *edid,
+						      int ext_block_num)
+{
+	struct rockchip_dw_hdmi_qp *hdmi = (struct rockchip_dw_hdmi_qp *)data;
+
+	hdmi->ycc_quant_range_selectable =
+		rockchip_drm_yuv_range_sel_supported(edid, ext_block_num);
+}
 
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
@@ -3860,11 +3919,6 @@ static void dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		hdmi->hdr_panel_metadata_property = NULL;
 	}
 
-	if (hdmi->hdr_panel_dovi_vsdb) {
-		drm_property_destroy(connector->dev, hdmi->hdr_panel_dovi_vsdb);
-		hdmi->hdr_panel_dovi_vsdb = NULL;
-	}
-
 	if (hdmi->output_hdmi_dvi) {
 		drm_property_destroy(connector->dev, hdmi->output_hdmi_dvi);
 		hdmi->output_hdmi_dvi = NULL;
@@ -3960,11 +4014,7 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector, struct drm_connec
 		hdmi->hdmi_output = val;
 		return 0;
 	} else if (property == hdmi->quant_range) {
-		u64 quant_range = hdmi->hdmi_quant_range;
-
-		hdmi->hdmi_quant_range = val;
-		if (quant_range != hdmi->hdmi_quant_range)
-			dw_hdmi_qp_set_quant_range(hdmi->hdmi_qp, connector);
+		hdmi->quant_range_val = val;
 		return 0;
 	} else if (property == config->hdr_output_metadata_property) {
 		return 0;
@@ -4070,7 +4120,7 @@ static int dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 			*val |= BIT(RK_IF_FORMAT_YCBCR420);
 		return 0;
 	} else if (property == hdmi->quant_range) {
-		*val = hdmi->hdmi_quant_range;
+		*val = hdmi->quant_range_val;
 		return 0;
 	} else if (property == config->hdr_output_metadata_property) {
 		*val = state->hdr_output_metadata ? state->hdr_output_metadata->base.id : 0;
@@ -4774,6 +4824,7 @@ static int dw_hdmi_qp_rockchip_bind(struct device *dev, struct device *master,
 	plat_data->wait_vblank = dw_hdmi_wait_vblank;
 	plat_data->get_emp_status = dw_hdmi_rockchip_get_emp_status;
 	plat_data->set_emp_bypass = dw_hdmi_rockchip_set_emp_bypass;
+	plat_data->get_ycc_quant_range_selectable = dw_hdmi_qp_get_ycc_quant_range_selectable;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	secondary = rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);
@@ -4854,13 +4905,10 @@ static int dw_hdmi_qp_rockchip_bind(struct device *dev, struct device *master,
 
 	hdmi->phy = devm_phy_optional_get(dev, "hdmi");
 	if (IS_ERR(hdmi->phy)) {
-		hdmi->phy = devm_phy_optional_get(dev, "hdmi_phy");
-		if (IS_ERR(hdmi->phy)) {
-			ret = PTR_ERR(hdmi->phy);
-			if (ret != -EPROBE_DEFER)
-				DRM_DEV_ERROR(hdmi->dev, "failed to get phy\n");
-			return ret;
-		}
+		ret = PTR_ERR(hdmi->phy);
+		if (ret != -EPROBE_DEFER)
+			DRM_DEV_ERROR(hdmi->dev, "failed to get phy\n");
+		return ret;
 	}
 
 	hdmi->hdmi_qp = dw_hdmi_qp_bind(pdev, &hdmi->encoder, plat_data);

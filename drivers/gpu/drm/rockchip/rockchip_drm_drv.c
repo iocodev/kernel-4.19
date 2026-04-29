@@ -716,7 +716,7 @@ int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
 	if (!crtc)
 		return -ENODEV;
 
-	if (mstimeout <= 0)
+	if (!mstimeout)
 		return -EINVAL;
 
 	priv = crtc->dev->dev_private;
@@ -1141,6 +1141,15 @@ static bool cea_db_is_hdmi_hdrvivid_block(const u8 *db)
 	return oui == HDRVIVID_VSVDB_OUI;
 }
 
+#define CTA_EXT_DB_VIDEO_CAP		0
+#define EDID_CEA_VCDB_QY		BIT(7)
+
+static bool cea_db_is_vcdb(const u8 *db)
+{
+	return cea_db_is_extended_tag(db, CTA_EXT_DB_VIDEO_CAP) &&
+		cea_db_payload_len(db) == 2;
+}
+
 static int
 cea_db_offsets(const u8 *cea, int *start, int *end)
 {
@@ -1186,7 +1195,6 @@ cea_db_offsets(const u8 *cea, int *start, int *end)
 static
 u8 *find_edid_extension(const struct edid *edid, int ext_id, int ext_block_num, int *ext_index)
 {
-	struct edid;
 	u8 *edid_ext = NULL;
 	int i;
 
@@ -1350,6 +1358,38 @@ int rockchip_drm_parse_hdrvivid(void *sink_data, const struct edid *edid, int ex
 	return 0;
 }
 EXPORT_SYMBOL(rockchip_drm_parse_hdrvivid);
+
+bool rockchip_drm_yuv_range_sel_supported(const struct edid *edid, int ext_block_num)
+{
+	const u8 *edid_ext;
+	int i, start, end, ext_index;
+
+	if (!edid) {
+		DRM_ERROR("check ycc_quant_range_selectable failed, edid is null\n");
+		return false;
+	}
+
+	for (ext_index = 0; ext_index <= ext_block_num; ext_index++) {
+		edid_ext = find_cea_extension(edid, ext_block_num, ext_index);
+		if (!edid_ext)
+			continue;
+
+		if (cea_db_offsets(edid_ext, &start, &end))
+			return false;
+
+		for_each_cea_db(edid_ext, i, start, end) {
+			const u8 *db = &edid_ext[i];
+
+			if (cea_db_is_vcdb(db)) {
+				if (db[2] & EDID_CEA_VCDB_QY)
+					return true;
+			}
+		}
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(rockchip_drm_yuv_range_sel_supported);
 
 static
 void get_max_frl_rate(int max_frl_rate, u8 *max_lanes, u8 *max_rate_per_lane)
@@ -1802,7 +1842,7 @@ void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 
 u16 rockchip_hdmi_vrr_tfr_match_to_vrefresh(u8 tfr)
 {
-	if (tfr < 0 || tfr >= TFR_MAX) {
+	if (tfr >= TFR_MAX) {
 		DRM_ERROR("qms-vrr tfr is out of range\n");
 		return 0;
 	}

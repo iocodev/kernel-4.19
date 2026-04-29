@@ -279,7 +279,7 @@
 &wireless_bluetooth {
 	uart_rts_gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default", "rts_gpio";
-	pinctrl-0 = <&uart1m1_rtsn>;
+	pinctrl-0 = <&uart1m1_rtsn>, <&bt_irq_gpio>;
 	pinctrl-1 = <&uart1_gpios>;
 	BT,reset_gpio    = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
 	BT,wake_gpio     = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
@@ -325,6 +325,10 @@
 	wireless-bluetooth {
 		uart1_gpios: uart1-gpios {
 			rockchip,pins = <4 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_irq_gpio: bt-irq-gpio {
+			rockchip,pins = <4 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

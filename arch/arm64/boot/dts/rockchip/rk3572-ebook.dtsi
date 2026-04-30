@@ -113,7 +113,6 @@
 			};
 
 			vdd_npu_gpu_s0: DCDC_REG2 {
-				regulator-always-on;
 				regulator-boot-on;
 				regulator-init-microvolt = <750000>;
 				regulator-min-microvolt = <550000>;
@@ -381,6 +380,15 @@
 	display_reserved: framebuffer@50900000 {
 		reg = <0x0 0x50900000 0x0 0x3800000>;
 	};
+};
+
+&rknpu {
+	rknpu-supply = <&vdd_npu_gpu_s0>;
+	status = "okay";
+};
+
+&rknpu_mmu {
+	status = "okay";
 };
 
 &rockchip_suspend {

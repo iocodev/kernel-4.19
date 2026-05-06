@@ -98,35 +98,35 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	cbz	x8, .LBB1_15
 // %bb.5:
 	adrp	x22, pvi_wf_get_lut.sftemp
-	mov	w10, #21846                     // =0x5556
-	mov	w11, #43691                     // =0xaaab
+	mov	w10, #43691                     // =0xaaab
+	ubfx	w11, w2, #8, #8
 	ldr	w9, [x22, :lo12:pvi_wf_get_lut.sftemp]
-	movk	w10, #21845, lsl #16
+	movk	w10, #43690, lsl #16
+	mov	w12, #43692                     // =0xaaac
 	asr	w9, w9, #8
-	smull	x9, w9, w10
-	and	w10, w2, #0xffff
-	mul	w10, w10, w11
-	lsr	x11, x9, #63
-	lsr	x9, x9, #32
-	add	w9, w9, w11
-	cmp	w9, w10, lsr #25
+	add	w9, w9, #2
+	umull	x9, w9, w10
+	mov	w10, #21846                     // =0x5556
+	madd	w10, w11, w10, w12
+	lsr	x9, x9, #33
+	cmp	w9, w10, lsr #16
 	b.eq	.LBB1_15
 // %bb.6:
 	adrp	x24, waveformdata
-	mov	w23, w2
+	and	w23, w2, #0xffff
 	str	x8, [x24, :lo12:waveformdata]
 	bl	epd_overlay_lut
-	ldr	x10, [x20, :lo12:global_waveform]
+	ldr	x11, [x20, :lo12:global_waveform]
 	mov	w21, w0
-	ldrb	w8, [x10, #38]
+	ldrb	w8, [x11, #38]
 	cbz	w8, .LBB1_34
 // %bb.7:
+	lsr	w10, w23, #8
 	mov	x9, xzr
-	add	x10, x10, #48
-	mov	w11, w23
+	add	x11, x11, #48
 .LBB1_8:                                // =>This Inner Loop Header: Depth=1
-	ldrb	w12, [x10, x9]
-	cmp	w12, w11, uxth
+	ldrb	w12, [x11, x9]
+	cmp	w12, w10
 	b.hs	.LBB1_38
 // %bb.9:                               //   in Loop: Header=BB1_8 Depth=1
 	add	x9, x9, #1
@@ -141,15 +141,16 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	b	.LBB1_73
 .LBB1_12:
 	and	w22, w2, #0xff
-	mov	w9, #171                        // =0xab
+	mov	w9, #21846                      // =0x5556
 	adrp	x10, pvi_wf_get_lut.sftemp
-	mul	w11, w22, w9
+	mov	w11, #43692                     // =0xaaac
+	madd	w12, w22, w9, w11
 	ldrb	w10, [x10, :lo12:pvi_wf_get_lut.sftemp]
 	adrp	x24, pvi_wf_get_lut.stype
 	adrp	x23, pvi_wf_get_lut.normal_repair
-	mul	w9, w10, w9
-	lsr	w10, w11, #9
-	cmp	w10, w9, lsr #9
+	madd	w9, w10, w9, w11
+	lsr	w10, w12, #16
+	cmp	w10, w9, lsr #16
 	b.ne	.LBB1_16
 // %bb.13:
 	ldr	w9, [x24, :lo12:pvi_wf_get_lut.stype]
@@ -175,7 +176,7 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	add	x8, x8, #48
 .LBB1_18:                               // =>This Inner Loop Header: Depth=1
 	ldrb	w11, [x8, x10]
-	cmp	w11, w2, uxth
+	cmp	w11, w2, uxtb
 	b.hs	.LBB1_23
 // %bb.19:                              //   in Loop: Header=BB1_18 Depth=1
 	add	x10, x10, #1

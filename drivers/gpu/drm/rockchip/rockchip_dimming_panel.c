@@ -60,7 +60,7 @@ struct rockchip_dimming_panel {
 	 *        send init command sequence after reset deassert
 	 * @vsync_hold: the time (in microseconds) that it takes for the panel to
 	 *              hold the vsync signal high
-	 * @vysnc_back: the time (in microseconds) that it takes for the panel to
+	 * @vsync_back: the time (in microseconds) that it takes for the panel to
 	 *              delay the vsync signal
 	 */
 	struct {
@@ -355,7 +355,7 @@ out:
 	kthread_queue_delayed_work(dimming_panel->dimming_worker,
 				   &dimming_panel->dimming_delayed_work,
 				   msecs_to_jiffies(delay_ms));
-};
+}
 
 static int rockchip_dimming_panel_regulator_enable(struct rockchip_dimming_panel *dimming_panel)
 {
@@ -695,25 +695,27 @@ static int rockchip_dimming_panel_of_get_data(struct rockchip_dimming_panel *dim
 
 	dimming_panel->cmd_element_size = dimming_panel->zone_max;
 	data = of_get_property(np, "command-header", &len);
-	if (data) {
-		dimming_panel->cmd_header = devm_kzalloc(dev, len, GFP_KERNEL);
-		if (!dimming_panel->cmd_header)
-			return -ENOMEM;
+	if (!data)
+		return dev_err_probe(dev, -EINVAL, "failed to get command header\n");
 
-		memcpy(dimming_panel->cmd_header, data, len);
-		dimming_panel->cmd_header_len = len;
-	}
+	dimming_panel->cmd_header = devm_kzalloc(dev, len, GFP_KERNEL);
+	if (!dimming_panel->cmd_header)
+		return -ENOMEM;
+
+	memcpy(dimming_panel->cmd_header, data, len);
+	dimming_panel->cmd_header_len = len;
 	dimming_panel->cmd_element_size += dimming_panel->cmd_header_len / element_bytes;
 
 	data = of_get_property(np, "command-tail", &len);
-	if (data) {
-		dimming_panel->cmd_tail = devm_kzalloc(dev, len, GFP_KERNEL);
-		if (!dimming_panel->cmd_tail)
-			return -ENOMEM;
+	if (!data)
+		return dev_err_probe(dev, -EINVAL, "failed to get command tail\n");
 
-		memcpy(dimming_panel->cmd_tail, data, len);
-		dimming_panel->cmd_tail_len = len;
-	}
+	dimming_panel->cmd_tail = devm_kzalloc(dev, len, GFP_KERNEL);
+	if (!dimming_panel->cmd_tail)
+		return -ENOMEM;
+
+	memcpy(dimming_panel->cmd_tail, data, len);
+	dimming_panel->cmd_tail_len = len;
 	dimming_panel->cmd_element_size += dimming_panel->cmd_tail_len / element_bytes;
 
 	return 0;
@@ -783,7 +785,7 @@ static int rockchip_dimming_panel_probe(struct spi_device *spi)
 
 	dimming_panel->sub_dev.of_node = dev->of_node;
 	dimming_panel->sub_dev.loader_protect = rockchip_dimming_panel_loader_protect;
-	rockchip_drm_register_sub_dev(&dimming_panel->sub_dev);
+	devm_rockchip_drm_register_sub_dev(dev, &dimming_panel->sub_dev);
 
 	return 0;
 
@@ -802,8 +804,6 @@ static void rockchip_dimming_panel_remove(struct spi_device *spi)
 {
 	struct rockchip_dimming_panel *dimming_panel = dev_get_drvdata(&spi->dev);
 	struct device *dimming_dev = dimming_panel->dimming_dev;
-
-	rockchip_drm_unregister_sub_dev(&dimming_panel->sub_dev);
 
 	kthread_destroy_worker(dimming_panel->dimming_worker);
 

@@ -1140,6 +1140,12 @@ static bool dw_dp_bandwidth_ok(struct dw_dp *dp,
 {
 	u32 max_bw, req_bw;
 
+	if (!rate || !lanes || !mode->clock) {
+		dev_err_ratelimited(dp->dev, "invalid parameters: rate=%u, lanes=%u, clock=%u\n",
+			rate, lanes, mode->clock);
+		return false;
+	}
+
 	req_bw = mode->clock * bpp / 8;
 	max_bw = lanes * rate;
 	/*
@@ -3861,7 +3867,7 @@ dw_dp_mst_connector_atomic_best_encoder(struct drm_connector *connector,
 	struct drm_connector_state *conn_state = drm_atomic_get_new_connector_state(state,
 										    connector);
 
-	if (!conn_state->crtc)
+	if (!conn_state || !conn_state->crtc)
 		return NULL;
 
 	dw_dp_mst_assigned_encoder(dp, state, conn_state->crtc);
@@ -4224,7 +4230,7 @@ static void dw_dp_link_disable(struct dw_dp *dp)
 	link->train.channel_equalized = false;
 }
 
-static void dw_dp_sdp_disalbe(struct dw_dp *dp, int stream_id)
+static void dw_dp_sdp_disable(struct dw_dp *dp, int stream_id)
 {
 	regmap_write(dp->regmap, DPTX_SDP_VERTICAL_CTRL_N(stream_id), 0);
 	regmap_write(dp->regmap, DPTX_SDP_HORIZONTAL_CTRL_N(stream_id), 0);
@@ -4284,7 +4290,7 @@ static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 	drm_dp_send_power_updown_phy(&dp->mst_mgr, mst_conn->port, false);
 
 	dw_dp_video_disable(dp, mst_enc->stream_id);
-	dw_dp_sdp_disalbe(dp, mst_enc->stream_id);
+	dw_dp_sdp_disable(dp, mst_enc->stream_id);
 	if (!dp->active_mst_links)
 		dw_dp_link_disable(dp);
 
@@ -4889,7 +4895,7 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 	dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, dp->id, false);
 	dw_dp_hdcp_disable(dp);
 	dw_dp_video_disable(dp, 0);
-	dw_dp_sdp_disalbe(dp, 0);
+	dw_dp_sdp_disable(dp, 0);
 	dw_dp_link_disable(dp);
 	bitmap_zero(dp->sdp_reg_bank, SDP_REG_BANK_SIZE);
 
@@ -5161,7 +5167,7 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 			*num_output_fmts = j;
 		else
 			dev_warn(dp->dev,
-				 "Not support color format:%d, auto select color formatt\n",
+				 "Not support color format:%d, auto select color format\n",
 				 dp_state->color_format);
 	}
 
@@ -5859,9 +5865,9 @@ static int dw_dp_single_audio_init(struct dw_dp *dp, struct dw_dp_audio *audio)
 	int ret;
 
 	audio->extcon = devm_extcon_dev_allocate(dp->dev, dw_dp_cable);
-		if (IS_ERR(audio->extcon))
-			return dev_err_probe(dp->dev, PTR_ERR(audio->extcon),
-			       "failed to allocate extcon device\n");
+	if (IS_ERR(audio->extcon))
+		return dev_err_probe(dp->dev, PTR_ERR(audio->extcon),
+				     "failed to allocate extcon device\n");
 
 	ret = devm_extcon_dev_register(dp->dev, audio->extcon);
 	if (ret)

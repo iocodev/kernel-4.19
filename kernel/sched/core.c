@@ -3961,6 +3961,17 @@ static void do_activate_blocked_waiter(struct rq *target_rq, struct task_struct 
 		}
 		proxy_set_task_cpu(p, target_cpu);
 		rq_lock_irqsave(target_rq, &rf);
+		/*
+		 * proxy_enqueue_on_owner() called block_task() which
+		 * increments nr_uninterruptible/nr_iowait, so we need
+		 * to reverse that when we activate the blocked waiter
+		 */
+		if (p->sched_contributes_to_load)
+			target_rq->nr_uninterruptible--;
+		if (p->in_iowait) {
+			delayacct_blkio_end(p);
+			atomic_dec(&task_rq(p)->nr_iowait);
+		}
 		update_rq_clock(target_rq);
 		activate_task(target_rq, p, en_flags);
 		resched_curr(target_rq);
@@ -4183,6 +4194,7 @@ static inline void activate_blocked_waiters(struct rq *target_rq,
 #endif /* CONFIG_SCHED_PROXY_EXEC */
 
 #ifdef CONFIG_SMP
+static inline struct task_struct *proxy_resched_idle(struct rq *rq);
 /*
  * Checks to see if task p has been proxy-migrated to another rq
  * and needs to be returned. If so, we deactivate the task here
@@ -4192,26 +4204,34 @@ static inline void activate_blocked_waiters(struct rq *target_rq,
  */
 static inline bool proxy_needs_return(struct rq *rq, struct task_struct *p)
 {
-	bool ret = false;
-
 	if (!sched_proxy_exec())
 		return false;
 
-	raw_spin_lock(&p->blocked_lock);
-	if (__get_task_blocked_on(p) && p->blocked_on_state == BO_WAKING) {
-		if (!task_current(rq, p) && (p->wake_cpu != cpu_of(rq))) {
-			if (task_current_donor(rq, p)) {
-				put_prev_task(rq, p);
-				rq_set_donor(rq, rq->idle);
-			}
-			deactivate_task(rq, p, DEQUEUE_NOCLOCK);
-			ret = true;
-		}
-		__set_blocked_on_runnable(p);
+	guard(raw_spinlock)(&p->blocked_lock);
+
+	/* If task isn't BO_WAKING, we don't need to do return migration */
+	if (p->blocked_on_state != BO_WAKING)
+		return false;
+
+	__set_blocked_on_runnable(p);
+
+	/* If already current, don't need to return migrate */
+	if (task_current(rq, p))
+		return false;
+
+	/* If wake_cpu is targeting this cpu, don't bother return migrating */
+	if (p->wake_cpu == cpu_of(rq)) {
 		resched_curr(rq);
+		return false;
 	}
-	raw_spin_unlock(&p->blocked_lock);
-	return ret;
+
+	/* If we're return migrating the rq->donor, switch it out for idle */
+	if (task_current_donor(rq, p))
+		proxy_resched_idle(rq);
+
+	/* (ab)Use DEQUEUE_SPECIAL to ensure task is always blocked here. */
+	block_task(rq, p, DEQUEUE_NOCLOCK | DEQUEUE_SPECIAL);
+	return true;
 }
 
 static inline void _trace_sched_pe_return_migration(struct task_struct *p)
@@ -4733,6 +4753,7 @@ int try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 
 	wake_flags |= WF_TTWU;
 
+	trace_android_rvh_try_to_wake_up_begin(p, state, &wake_flags);
 	if (p == current) {
 		/*
 		 * We're waking current, this means 'p->on_rq' and 'task_cpu(p)
@@ -5331,6 +5352,7 @@ int sched_fork(unsigned long clone_flags, struct task_struct *p)
 
 	scx_pre_fork(p);
 
+	trace_android_vh_setscheduler_class(NULL, &should_scx, p, p->policy, p->prio);
 	trace_android_vh_task_should_scx(&should_scx, p->policy, p->prio);
 	if (rt_prio(p->prio) && !should_scx) {
 		p->sched_class = &rt_sched_class;
@@ -6655,8 +6677,6 @@ __pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 		if (unlikely(p == RETRY_TASK))
 			goto restart;
 
-		trace_android_vh_chk_task(&p, rq);
-
 		/* Assume the next prioritized class is idle_sched_class */
 		if (!p) {
 			p = pick_task_idle(rq);
@@ -6672,12 +6692,10 @@ restart:
 	for_each_active_class(class) {
 		if (class->pick_next_task) {
 			p = class->pick_next_task(rq, prev);
-			trace_android_vh_chk_task(&p, rq);
 			if (p)
 				return p;
 		} else {
 			p = class->pick_task(rq);
-			trace_android_vh_chk_task(&p, rq);
 			if (p) {
 				put_prev_set_next_task(rq, prev, p);
 				return p;
@@ -7619,6 +7637,7 @@ needs_return:
 	return NULL;
 }
 #else /* SCHED_PROXY_EXEC */
+static inline struct task_struct *proxy_resched_idle(struct rq *rq) { return NULL; }
 static struct task_struct *
 find_proxy_task(struct rq *rq, struct task_struct *donor, struct rq_flags *rf)
 {
@@ -7782,6 +7801,7 @@ pick_again:
 picked:
 	clear_tsk_need_resched(prev);
 	clear_preempt_need_resched();
+	trace_android_vh_clear_curr_lazy(prev);
 keep_resched:
 #ifdef CONFIG_SCHED_DEBUG
 	rq->last_seen_need_resched_ns = 0;
@@ -8313,10 +8333,12 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 
 	prev_class = p->sched_class;
 	next_class = __setscheduler_class(p->policy, prio);
+	trace_android_vh_setscheduler_class(&next_class, NULL, p, p->policy, prio);
 
 	if (prev_class != next_class && p->se.sched_delayed)
 		dequeue_task(rq, p, DEQUEUE_SLEEP | DEQUEUE_DELAYED | DEQUEUE_NOCLOCK);
 
+	trace_android_vh_scx_restore_flags(prev_class, next_class, &queue_flag);
 	queued = task_on_rq_queued(p);
 	running = task_current_donor(rq, p);
 	if (queued)
@@ -9465,10 +9487,12 @@ int sched_cpu_dying(unsigned int cpu)
 	sched_tick_stop(cpu);
 
 	rq_lock_irqsave(rq, &rf);
+	update_rq_clock(rq);
 	if (rq->nr_running != 1 || rq_has_pinned_tasks(rq)) {
 		WARN(true, "Dying CPU not properly vacated!");
 		dump_rq_tasks(rq, KERN_WARNING);
 	}
+	dl_server_stop(&rq->fair_server);
 	rq_unlock_irqrestore(rq, &rf);
 
 	trace_android_rvh_sched_cpu_dying(cpu);

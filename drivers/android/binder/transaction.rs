@@ -115,14 +115,14 @@ impl Transaction {
                     prio: from.task.normal_prio(),
                 }
             } else {
-                from.process.default_priority
+                to.default_priority
             };
 
         Ok(DTRWrap::arc_pin_init(pin_init!(Transaction {
             debug_id,
             target_node: Some(target_node),
             from_parent,
-            sender_euid: from.process.task.euid(),
+            sender_euid: Kuid::current_euid(),
             from: from.clone(),
             to,
             code: trd.code,
@@ -165,7 +165,7 @@ impl Transaction {
             debug_id,
             target_node: None,
             from_parent: None,
-            sender_euid: from.process.task.euid(),
+            sender_euid: Kuid::current_euid(),
             from: from.clone(),
             to,
             code: trd.code,
@@ -510,8 +510,8 @@ impl DeliverToRead for Transaction {
             desired.sched_policy = prio::SCHED_NORMAL;
         }
 
-        if node_prio.prio < self.priority.prio
-            || (node_prio.prio == self.priority.prio && node_prio.sched_policy == prio::SCHED_FIFO)
+        if node_prio.prio < desired.prio
+            || (node_prio.prio == desired.prio && node_prio.sched_policy == prio::SCHED_FIFO)
         {
             // In case the minimum priority on the node is
             // higher (lower value), use that priority. If
@@ -530,7 +530,7 @@ impl DeliverToRead for Transaction {
             prio_state.state = PriorityState::Abort;
             *self.saved_priority.lock() = prio_state.next;
         } else {
-            let task = &*self.to.task;
+            let task = &*to_thread.task;
             let mut saved_priority = self.saved_priority.lock();
             saved_priority.sched_policy = task.policy();
             saved_priority.prio = task.normal_prio();

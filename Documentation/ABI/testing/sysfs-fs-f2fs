@@ -735,6 +735,7 @@ Description:	Support configuring fault injection type, should be
 		FAULT_BLKADDR_CONSISTENCE        0x000080000
 		FAULT_NO_SEGMENT                 0x000100000
 		FAULT_INCONSISTENT_FOOTER        0x000200000
+		FAULT_TIMEOUT                    0x000400000 (1000ms)
 		===========================      ===========
 
 What:		/sys/fs/f2fs/<disk>/discard_io_aware_gran
@@ -869,6 +870,19 @@ Description:	This threshold is used to control triggering garbage collection whi
 		By default, the value is ovp_sections, especially, for zoned ufs, the
 		value is 1.
 
+What:		/sys/fs/f2fs/<disk>/gc_boost_gc_multiple
+Date:		June 2025
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Set a multiplier for the background GC migration window when F2FS GC is
+		boosted. The range should be from 1 to the segment count in a section.
+		Default: 5
+
+What:		/sys/fs/f2fs/<disk>/gc_boost_gc_greedy
+Date:		June 2025
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Control GC algorithm for boost GC. 0: cost benefit, 1: greedy
+		Default: 1
+
 What:		/sys/fs/f2fs/<disk>/effective_lookup_mode
 Date:		August 2025
 Contact:	"Daniel Lee" <chullee@google.com>
@@ -883,3 +897,11 @@ Description:
 		- "compat": Hash-based lookup with a linear search fallback enabled
 		- "auto:perf": lookup_mode is auto and fallback is disabled on-disk
 		- "auto:compat": lookup_mode is auto and fallback is enabled on-disk
+
+What:		/sys/fs/f2fs/<disk>/max_lock_elapsed_time
+Date:		December 2025
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	This is a threshold, once a thread enters critical region that lock covers, total
+		elapsed time exceeds this threshold, f2fs will print tracepoint to dump information
+		of related context. This sysfs entry can be used to control the value of threshold,
+		by default, the value is 500 ms.

@@ -371,6 +371,9 @@ next:
 	}
 
 out:
+	if (time_to_inject(sbi, FAULT_TIMEOUT))
+		f2fs_io_schedule_timeout_killable(DEFAULT_FAULT_TIMEOUT);
+
 	if (ret) {
 		sbi->revoked_atomic_block += fi->atomic_write_cnt;
 	} else {
@@ -397,6 +400,7 @@ int f2fs_commit_atomic_write(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
+	struct f2fs_lock_context lc;
 	int err;
 
 	err = filemap_write_and_wait_range(inode->i_mapping, 0, LLONG_MAX);
@@ -404,11 +408,11 @@ int f2fs_commit_atomic_write(struct inode *inode)
 		return err;
 
 	f2fs_down_write(&fi->i_gc_rwsem[WRITE]);
-	f2fs_lock_op(sbi);
+	f2fs_lock_op(sbi, &lc);
 
 	err = __f2fs_commit_atomic_write(inode);
 
-	f2fs_unlock_op(sbi);
+	f2fs_unlock_op(sbi, &lc);
 	f2fs_up_write(&fi->i_gc_rwsem[WRITE]);
 
 	return err;
@@ -457,7 +461,7 @@ void f2fs_balance_fs(struct f2fs_sb_info *sbi, bool need)
 			.should_migrate_blocks = false,
 			.err_gc_skipped = false,
 			.nr_free_secs = 1 };
-		f2fs_down_write(&sbi->gc_lock);
+		f2fs_down_write_trace(&sbi->gc_lock, &gc_control.lc);
 		stat_inc_gc_call_count(sbi, FOREGROUND);
 		f2fs_gc(sbi, &gc_control);
 	}
@@ -3329,19 +3333,20 @@ int f2fs_allocate_new_section(struct f2fs_sb_info *sbi, int type, bool force)
 
 int f2fs_allocate_pinning_section(struct f2fs_sb_info *sbi)
 {
+	struct f2fs_lock_context lc;
 	int err;
 	bool gc_required = true;
 
 retry:
-	f2fs_lock_op(sbi);
+	f2fs_lock_op(sbi, &lc);
 	err = f2fs_allocate_new_section(sbi, CURSEG_COLD_DATA_PINNED, false);
-	f2fs_unlock_op(sbi);
+	f2fs_unlock_op(sbi, &lc);
 
 	if (f2fs_sb_has_blkzoned(sbi) && err == -EAGAIN && gc_required) {
-		f2fs_down_write(&sbi->gc_lock);
+		f2fs_down_write_trace(&sbi->gc_lock, &lc);
 		err = f2fs_gc_range(sbi, 0, sbi->first_zoned_segno - 1,
 				true, ZONED_PIN_SEC_REQUIRED_COUNT);
-		f2fs_up_write(&sbi->gc_lock);
+		f2fs_up_write_trace(&sbi->gc_lock, &lc);
 
 		gc_required = false;
 		if (!err)
@@ -3461,6 +3466,7 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 	block_t start_block, end_block;
 	struct cp_control cpc;
 	struct discard_policy dpolicy;
+	struct f2fs_lock_context lc;
 	unsigned long long trimmed = 0;
 	int err = 0;
 	bool need_align = f2fs_lfs_mode(sbi) && __is_large_section(sbi);
@@ -3493,10 +3499,10 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 	if (sbi->discard_blks == 0)
 		goto out;
 
-	f2fs_down_write(&sbi->gc_lock);
+	f2fs_down_write_trace(&sbi->gc_lock, &lc);
 	stat_inc_cp_call_count(sbi, TOTAL_CALL);
 	err = f2fs_write_checkpoint(sbi, &cpc);
-	f2fs_up_write(&sbi->gc_lock);
+	f2fs_up_write_trace(&sbi->gc_lock, &lc);
 	if (err)
 		goto out;
 
@@ -3845,8 +3851,13 @@ skip_new_segment:
 	locate_dirty_segment(sbi, GET_SEGNO(sbi, old_blkaddr));
 	locate_dirty_segment(sbi, GET_SEGNO(sbi, *new_blkaddr));
 
-	if (IS_DATASEG(curseg->seg_type))
-		atomic64_inc(&sbi->allocated_data_blocks);
+	if (IS_DATASEG(curseg->seg_type)) {
+		unsigned long long new_val;
+
+		new_val = atomic64_inc_return(&sbi->allocated_data_blocks);
+		if (unlikely(new_val == ULLONG_MAX))
+			atomic64_set(&sbi->allocated_data_blocks, 0);
+	}
 
 	up_write(&sit_i->sentry_lock);
 

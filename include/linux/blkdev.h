@@ -345,12 +345,21 @@ typedef unsigned int __bitwise blk_features_t;
 	((__force blk_features_t)(1u << 15))
 
 /*
+ * The request order is preserved per hardware queue by the block driver and by
+ * the block device. Set by the block driver.
+ */
+#define BLK_FEAT_ORDERED_HWQ		((__force blk_features_t)(1u << 30))
+
+/* Whether restoring the zoned write order is supported. */
+#define BLK_FEAT_ZWOR			((__force blk_features_t)(1u << 31))
+
+/*
  * Flags automatically inherited when stacking limits.
  */
 #define BLK_FEAT_INHERIT_MASK \
 	(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA | BLK_FEAT_ROTATIONAL | \
 	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED | BLK_FEAT_BOUNCE_HIGH | \
-	 BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE)
+	 BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE | BLK_FEAT_ORDERED_HWQ)
 
 /* internal flags in queue_limits.flags */
 typedef unsigned int __bitwise blk_flags_t;
@@ -710,6 +719,18 @@ static inline unsigned int disk_nr_zones(struct gendisk *disk)
 	return disk->nr_zones;
 }
 
+/*
+ * blk_pipeline_zwr() - Whether or not sequential zoned writes will be
+ *	pipelined per zone.
+ * @q: request queue pointer.
+ *
+ * Return: %true if and only if zoned writes will be pipelined per zone.
+ */
+static inline bool blk_pipeline_zwr(struct request_queue *q)
+{
+	return q->limits.features & BLK_FEAT_ORDERED_HWQ;
+}
+
 /**
  * bio_needs_zone_write_plugging - Check if a BIO needs to be handled with zone
  *				   write plugging
@@ -758,11 +779,16 @@ static inline bool bio_needs_zone_write_plugging(struct bio *bio)
 	}
 }
 
-bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs);
+bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs, int rq_cpu);
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline unsigned int disk_nr_zones(struct gendisk *disk)
 {
 	return 0;
+}
+
+static inline bool blk_pipeline_zwr(struct request_queue *q)
+{
+	return false;
 }
 
 static inline bool bio_needs_zone_write_plugging(struct bio *bio)
@@ -770,7 +796,8 @@ static inline bool bio_needs_zone_write_plugging(struct bio *bio)
 	return false;
 }
 
-static inline bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs)
+static inline bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs,
+				     int rq_cpu)
 {
 	return false;
 }
@@ -1518,7 +1545,7 @@ static inline bool bdev_zone_is_seq(struct block_device *bdev, sector_t sector)
 	return is_seq;
 }
 
-static inline int queue_dma_alignment(const struct request_queue *q)
+static inline unsigned int queue_dma_alignment(const struct request_queue *q)
 {
 	return q->limits.dma_alignment;
 }

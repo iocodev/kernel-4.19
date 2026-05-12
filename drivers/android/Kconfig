@@ -28,7 +28,7 @@ config ANDROID_BINDERFS
 
 config ANDROID_BINDER_DEVICES
 	string "Android Binder devices"
-	depends on ANDROID_BINDER_IPC
+	depends on ANDROID_BINDER_IPC || ANDROID_BINDER_IPC_RUST
 	default "binder,hwbinder,vndbinder"
 	help
 	  Default value for the binder.devices parameter.
@@ -104,5 +104,15 @@ config ANDROID_VENDOR_OEM_DATA
 	  NOT be supported by the Google Android kernel team.
 
 	  If even slightly unsure, say Y.
+
+config ANDROID_WRAPFD
+	bool "WrapFD Driver"
+	depends on MMU
+	help
+	  Enable WrapFD driver to control ability to map a file
+
+	  WrapFD allows wrapping an fd representing a memory buffer into a new
+	  file supporting ioctl API for file ownership that controls ability to
+	  map the file.
 
 endmenu

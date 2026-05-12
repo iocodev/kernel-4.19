@@ -1234,6 +1234,10 @@ static void handle___pkvm_host_split_guest(struct kvm_cpu_context *host_ctxt)
 	if (!pkvm_hyp_vcpu_is_protected(hyp_vcpu))
 		goto out;
 
+	ret = pkvm_refill_memcache(hyp_vcpu);
+	if (ret)
+		goto out;
+
 	ret = __pkvm_host_split_guest(gfn, size, hyp_vcpu);
 
 out:
@@ -1563,9 +1567,7 @@ static void handle___pkvm_load_tracing(struct kvm_cpu_context *host_ctxt)
 
 static void handle___pkvm_teardown_tracing(struct kvm_cpu_context *host_ctxt)
 {
-	__pkvm_teardown_tracing();
-
-	cpu_reg(host_ctxt, 1) = 0;
+	cpu_reg(host_ctxt, 1) = __pkvm_teardown_tracing();
 }
 
 static void handle___pkvm_enable_tracing(struct kvm_cpu_context *host_ctxt)

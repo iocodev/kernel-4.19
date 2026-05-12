@@ -187,6 +187,7 @@
   bus_get_dev_root
   bus_register
   bus_register_notifier
+  bus_rescan_devices
   bus_unregister
   bus_unregister_notifier
   caches_clean_inval_pou
@@ -1317,6 +1318,7 @@
   gunyah_hypercall_vcpu_run
   gunyah_qtvm_register_notifier
   gunyah_qtvm_unregister_notifier
+  gunyah_reclaim_fw_parcel
   gunyah_rm_call
   gunyah_rm_notifier_register
   gunyah_rm_notifier_unregister
@@ -2245,7 +2247,13 @@
   pci_aer_clear_nonfatal_status
   pci_alloc_irq_vectors_affinity
   pci_assign_resource
+  pci_bus_add_device
+  pci_bus_add_devices
+  pci_bus_assign_resources
+  pci_bus_claim_resources
+  pci_bus_size_bridges
   pci_bus_type
+  pci_clear_and_set_config_dword
   pci_clear_master
   pci_dev_get
   pci_device_group
@@ -2255,11 +2263,14 @@
   pci_disable_device
   pci_disable_msi
   pci_ecam_create
+  pci_ecam_free
   pci_ecam_map_bus
   pcie_capability_clear_and_set_word_unlocked
   pcie_capability_read_word
   pci_enable_device
   pci_find_ext_capability
+  pci_find_vsec_capability
+  pci_flags
   pci_free_irq_vectors
   pci_generic_config_read
   pci_generic_config_write
@@ -2282,13 +2293,16 @@
   pci_request_region
   pci_restore_state
   pci_save_state
+  pci_scan_root_bus_bridge
   pci_set_master
   pci_set_power_state
+  pci_stop_and_remove_bus_device_locked
   pci_store_saved_state
   pci_unregister_driver
   pci_walk_bus
   pci_write_config_dword
   pci_write_config_word
+  pcie_bus_configure_settings
   pcpu_alloc_noprof
   pcpu_nr_pages
   __percpu_down_read
@@ -2395,6 +2409,7 @@
   pin_user_pages_fast
   pipe_lock
   pipe_unlock
+  __pkvm_topup_hyp_alloc
   platform_bus_type
   platform_device_add
   platform_device_add_data
@@ -3041,6 +3056,7 @@
   smp_call_function_single
   smp_call_function_single_async
   snapshot_get_image_size
+  snd_ctl_remove
   snd_info_create_card_entry
   snd_info_create_module_entry
   snd_info_free_entry
@@ -3049,6 +3065,9 @@
   snd_jack_set_key
   snd_pcm_format_width
   _snd_pcm_hw_params_any
+  snd_pcm_stream_lock
+  snd_pcm_stream_unlock
+  snd_pcm_std_chmaps
   snd_soc_add_component_controls
   snd_soc_card_get_kcontrol
   snd_soc_card_jack_new
@@ -3112,6 +3131,7 @@
   sock_common_recvmsg
   sock_common_setsockopt
   __sock_create
+  sock_create
   sock_create_kern
   sock_diag_register
   sock_diag_save_cookie
@@ -3249,6 +3269,7 @@
   sysfs_create_link
   sysfs_emit
   sysfs_emit_at
+  sysfs_file_change_owner
   __sysfs_match_string
   sysfs_notify
   sysfs_remove_bin_file
@@ -3327,6 +3348,7 @@
   trace_event_reg
   trace_get_event_file
   trace_handle_return
+  __traceiter_android_rvh___set_task_cpu
   __traceiter_android_rvh_account_irq
   __traceiter_android_rvh_after_dequeue_task
   __traceiter_android_rvh_after_enqueue_task
@@ -3357,6 +3379,7 @@
   __traceiter_android_rvh_get_nohz_timer_target
   __traceiter_android_rvh_gh_after_vcpu_run
   __traceiter_android_rvh_gh_before_vcpu_run
+  __traceiter_android_rvh_gh_note_fw_parcel
   __traceiter_android_rvh_gh_vcpu_release
   __traceiter_android_rvh_gh_vm_release
   __traceiter_android_rvh_gic_v3_set_affinity
@@ -3473,6 +3496,7 @@
   __traceiter_suspend_resume
   __traceiter_xdp_exception
   trace_output_call
+  __tracepoint_android_rvh___set_task_cpu
   __tracepoint_android_rvh_account_irq
   __tracepoint_android_rvh_after_dequeue_task
   __tracepoint_android_rvh_after_enqueue_task
@@ -3503,6 +3527,7 @@
   __tracepoint_android_rvh_get_nohz_timer_target
   __tracepoint_android_rvh_gh_after_vcpu_run
   __tracepoint_android_rvh_gh_before_vcpu_run
+  __tracepoint_android_rvh_gh_note_fw_parcel
   __tracepoint_android_rvh_gh_vcpu_release
   __tracepoint_android_rvh_gh_vm_release
   __tracepoint_android_rvh_gic_v3_set_affinity

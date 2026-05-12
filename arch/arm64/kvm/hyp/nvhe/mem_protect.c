@@ -264,6 +264,12 @@ static void guest_s2_put_page(void *addr)
 	hyp_put_page(&current_vm->pool, addr);
 }
 
+static void guest_s2_free_unlinked_table(void *addr, s8 level)
+{
+	/* We are trying to collapse a table into a block mapping. This is forbidden. */
+	WARN_ON(1);
+}
+
 static void *__fixmap_guest_page(void *va, size_t *size)
 {
 	void *addr;
@@ -345,6 +351,7 @@ int kvm_guest_prepare_stage2(struct pkvm_hyp_vm *vm, void *pgd)
 		.zalloc_pages_exact	= guest_s2_zalloc_pages_exact,
 		.free_pages_exact	= guest_s2_free_pages_exact,
 		.zalloc_page		= guest_s2_zalloc_page,
+		.free_unlinked_table	= guest_s2_free_unlinked_table,
 		.phys_to_virt		= hyp_phys_to_virt,
 		.virt_to_phys		= hyp_virt_to_phys,
 		.page_count		= hyp_page_count,
@@ -969,6 +976,7 @@ static enum pkvm_page_state host_get_mmio_page_state(kvm_pte_t pte, u64 addr)
 enum host_check_page_state_flags {
 	HOST_CHECK_NULL_REFCNT		= BIT(0),
 	HOST_CHECK_IS_MEMORY		= BIT(1),
+	HOST_CHECK_ALLOW_NO_MAP		= BIT(2),
 };
 
 static int ___host_check_page_state_range(u64 addr, u64 size,
@@ -1001,7 +1009,7 @@ static int ___host_check_page_state_range(u64 addr, u64 size,
 	if (!reg)
 		return check_page_state_range(&host_mmu.pgt, addr, size, &d);
 
-	if (reg->flags & MEMBLOCK_NOMAP)
+	if (reg->flags & MEMBLOCK_NOMAP && !(flags & HOST_CHECK_ALLOW_NO_MAP))
 		return -EPERM;
 
 	for (; addr < end; addr += PAGE_SIZE) {
@@ -1114,15 +1122,25 @@ struct guest_request_walker_data {
 	int			max_ptes;
 };
 
-#define GUEST_WALKER_DATA_INIT(__state)			\
-{							\
-	.size		= 0,				\
-	.desired_state	= __state,			\
-	/*						\
-	 * Arbitrary limit of walked PTEs to restrict	\
-	 * the time spent at EL2			\
-	 */						\
-	.max_ptes	= 512,				\
+#define GUEST_WALKER_DATA_INIT(__state)							\
+{											\
+	.size		= 0,								\
+	.desired_state	= __state,							\
+	/*										\
+	 * In the very unlucky case where we have:					\
+	 *   1. A block-aligned start address						\
+	 *   2. An existing table							\
+	 *   3. Contiguous phys for the entire table					\
+	 *										\
+	 * The guest stage-2 mapping of that range would try to collapse the existing	\
+	 * table into a block mapping. We do not want this to happen: the		\
+	 * stage-2 geometry must remain synchronized with the host's			\
+	 * kvm_pinned_page tree at all time.						\
+	 *										\
+	 * As a mitigation, limit the number of processed PTEs to half the size		\
+	 * of a table on a 4K page-size system.						\
+	 */										\
+	.max_ptes	= 256,								\
 }
 
 static int guest_request_walker(const struct kvm_pgtable_visit_ctx *ctx,
@@ -1640,7 +1658,10 @@ int __pkvm_host_donate_ffa(u64 pfn, u64 nr_pages)
 
 	host_lock_component();
 
-	ret = __host_check_page_state_range(phys, size, PKVM_PAGE_OWNED);
+	ret = ___host_check_page_state_range(phys, size, PKVM_PAGE_OWNED,
+					     HOST_CHECK_IS_MEMORY |
+						     HOST_CHECK_NULL_REFCNT |
+						     HOST_CHECK_ALLOW_NO_MAP);
 	if (ret)
 		goto unlock;
 
@@ -1665,7 +1686,9 @@ int __pkvm_host_reclaim_ffa(u64 pfn, u64 nr_pages)
 
 	host_lock_component();
 
-	ret = __host_check_page_state_range(phys, size, PKVM_NOPAGE);
+	ret = ___host_check_page_state_range(phys, size, PKVM_NOPAGE,
+					     HOST_CHECK_IS_MEMORY |
+						     HOST_CHECK_ALLOW_NO_MAP);
 	if (ret)
 		goto unlock;
 
@@ -1819,7 +1842,10 @@ int __pkvm_host_share_ffa(u64 pfn, u64 nr_pages)
 
 	host_lock_component();
 
-	ret = __host_check_page_state_range(phys, size, PKVM_PAGE_OWNED);
+	ret = ___host_check_page_state_range(phys, size, PKVM_PAGE_OWNED,
+					     HOST_CHECK_IS_MEMORY |
+						     HOST_CHECK_NULL_REFCNT |
+						     HOST_CHECK_ALLOW_NO_MAP);
 	if (!ret)
 		ret = __host_set_page_state_range(phys, size, PKVM_PAGE_SHARED_OWNED);
 
@@ -1838,7 +1864,9 @@ int __pkvm_host_unshare_ffa(u64 pfn, u64 nr_pages)
 
 	host_lock_component();
 
-	ret = __host_check_page_state_range(phys, size, PKVM_PAGE_SHARED_OWNED);
+	ret = ___host_check_page_state_range(phys, size, PKVM_PAGE_SHARED_OWNED,
+					     HOST_CHECK_IS_MEMORY |
+						     HOST_CHECK_ALLOW_NO_MAP);
 	if (!ret)
 		ret = __host_set_page_state_range(phys, size, PKVM_PAGE_OWNED);
 
@@ -2573,8 +2601,8 @@ static int guest_request_ioguard_walker(const struct kvm_pgtable_visit_ctx *ctx,
 	kvm_pte_t pte = *ctx->ptep;
 	u64 granule_size;
 
-	state = guest_get_page_state(pte, 0);
-	if (state != PKVM_MMIO && state != PKVM_NOPAGE)
+	state = guest_get_page_state(pte, 0) & ~PKVM_MMIO;
+	if (state != PKVM_NOPAGE)
 		return -EPERM;
 
 	granule_size = kvm_granule_size(ctx->level);
@@ -2623,6 +2651,7 @@ int __pkvm_install_ioguard_page(struct pkvm_hyp_vcpu *hyp_vcpu, u64 ipa,
 		goto unlock;
 	}
 
+	*nr_guarded = (end - ipa) >> PAGE_SHIFT;
 	ret = kvm_pgtable_stage2_annotate(&vm->pgt, ipa, end - ipa,
 					  &hyp_vcpu->vcpu.arch.stage2_mc,
 					  KVM_INVALID_PTE_MMIO_NOTE);

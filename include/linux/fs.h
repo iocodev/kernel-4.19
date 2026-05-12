@@ -981,6 +981,7 @@ struct fown_struct {
  *      and so were/are genuinely "ahead".  Start next readahead when
  *      the first of these pages is accessed.
  * @ra_pages: Maximum size of a readahead request, copied from the bdi.
+ * @order: Preferred folio order used for most recent readahead.
  * @mmap_miss: How many mmap accesses missed in the page cache.
  * @prev_pos: The last byte in the most recent read request.
  *
@@ -994,6 +995,16 @@ struct file_ra_state {
 	unsigned int ra_pages;
 	unsigned int mmap_miss;
 	loff_t prev_pos;
+};
+
+/* For GKI */
+#define DEFINE_RA_MMAP_MISS(ra)						\
+	struct file_ra_state_mmap_miss *ra_mmap_miss =			\
+		(struct file_ra_state_mmap_miss *)&(ra)->mmap_miss;
+
+struct file_ra_state_mmap_miss {
+	unsigned short order;
+	unsigned short mmap_miss;
 };
 
 /*
@@ -3466,7 +3477,7 @@ struct offset_ctx {
 void simple_offset_init(struct offset_ctx *octx);
 int simple_offset_add(struct offset_ctx *octx, struct dentry *dentry);
 void simple_offset_remove(struct offset_ctx *octx, struct dentry *dentry);
-int simple_offset_rename(struct inode *old_dir, struct dentry *old_dentry,
+void simple_offset_rename(struct inode *old_dir, struct dentry *old_dentry,
 			 struct inode *new_dir, struct dentry *new_dentry);
 int simple_offset_rename_exchange(struct inode *old_dir,
 				  struct dentry *old_dentry,

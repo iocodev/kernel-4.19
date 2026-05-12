@@ -16,6 +16,7 @@
 #include <linux/plist.h>
 
 #include <linux/uaccess.h>
+#include <linux/android_kabi.h>
 
 static struct signal_struct init_signals = {
 	.nr_threads	= 1,
@@ -233,11 +234,13 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
 	.android_vendor_data1 = {0, },
 	.android_oem_data1 = {0, },
 #endif
+	.dmabuf_info = NULL,
 };
 EXPORT_SYMBOL(init_task);
 
 #ifdef CONFIG_GKI_DYNAMIC_TASK_STRUCT_SIZE
 u64 vendor_data_pad[CONFIG_GKI_TASK_STRUCT_VENDOR_SIZE_MAX / sizeof(u64)];
+ANDROID_KABI_TYPE_STRING("vendor_data_pad", "variable array_type[64] { t#u64 }");
 EXPORT_SYMBOL_GPL(vendor_data_pad);
 #endif
 

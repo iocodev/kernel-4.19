@@ -1078,7 +1078,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
 	case RGA_IOC_GET_DRVIER_VERSION:
 		/* Driver version */
-		driver_version.major = DRIVER_MAJOR_VERISON;
+		driver_version.major = DRIVER_MAJOR_VERSION;
 		driver_version.minor = DRIVER_MINOR_VERSION;
 		driver_version.revision = DRIVER_REVISION_VERSION;
 		strncpy((char *)driver_version.str, DRIVER_VERSION, sizeof(driver_version.str));
@@ -1480,7 +1480,10 @@ static int rga_drv_probe(struct platform_device *pdev)
 		scheduler->data = &rga3_data;
 	} else if (scheduler->core == RGA2_SCHEDULER_CORE0 ||
 		   scheduler->core == RGA2_SCHEDULER_CORE1) {
-		if (!strcmp(scheduler->version.str, "3.3.87975")) {
+		if (!strcmp(scheduler->version.str, "3.2.63318")) {
+			scheduler->data = &rga2e_data;
+			rga_hw_set_issue_mask(scheduler, RGA_HW_ISSUE_DIS_AUTO_RST);
+		} else if (!strcmp(scheduler->version.str, "3.3.87975")) {
 			scheduler->data = &rga2e_1106_data;
 		} else if (!strcmp(scheduler->version.str, "3.6.92812") ||
 			 !strcmp(scheduler->version.str, "3.7.93215")) {

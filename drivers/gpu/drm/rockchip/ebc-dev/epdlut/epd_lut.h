@@ -10,8 +10,8 @@
 
 #define MAXFRAME    255
 
-#define DEFAULT_BW_GHOST_RM_LEVEL 1
-#define DEFAULT_BW_BALANCE_CTL 2
+#define DEFAULT_BW_GHOST_RM_LEVEL 2
+#define DEFAULT_BW_BALANCE_CTL 1
 
 #define WF_4BIT	16
 #define WF_5BIT	32
@@ -51,6 +51,7 @@ struct epd_lut_info {
 	int pic;
 	int wf_fix;
 	int normal_repair;
+	int a2_enter;
 	int swap_2bit;
 	int bw_ghost_rm_level;
 };
@@ -67,7 +68,7 @@ int epd_lut_get_original(struct epd_lut_data *output, enum epd_lut_type lut_type
 
 //you can change overlay lut mode here
 int epd_overlay_lut(void);
-int epd_gray2_last_repair(u8 *wf_table);
+int epd_gray2_last_repair(u8 *wf_table, int frame_num, int *bw_ghost_rm_num, int bw_ghost_rm_level);
 int epd_overlay_gray2_repair(u8 *wf_table, int frame_num);
 int epd_normal_repair(u8 *wf_table, int frame_num);
 int epd_regal_repair(u8 *wf_table, int frame_num);

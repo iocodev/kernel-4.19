@@ -70,15 +70,17 @@ pvi_wf_add_custom_mode_table:           // @pvi_wf_add_custom_mode_table
 pvi_wf_get_lut:                         // @pvi_wf_get_lut
 // %bb.0:
 	str	x30, [x18], #8
-	stp	x29, x30, [sp, #-96]!           // 16-byte Folded Spill
-	stp	x20, x19, [sp, #80]             // 16-byte Folded Spill
+	sub	sp, sp, #112
+	stp	x20, x19, [sp, #96]             // 16-byte Folded Spill
 	adrp	x20, global_waveform
-	mov	x29, sp
 	ldr	x8, [x20, :lo12:global_waveform]
-	stp	x28, x27, [sp, #16]             // 16-byte Folded Spill
-	stp	x26, x25, [sp, #32]             // 16-byte Folded Spill
-	stp	x24, x23, [sp, #48]             // 16-byte Folded Spill
-	stp	x22, x21, [sp, #64]             // 16-byte Folded Spill
+	stp	x29, x30, [sp, #16]             // 16-byte Folded Spill
+	add	x29, sp, #16
+	stp	x28, x27, [sp, #32]             // 16-byte Folded Spill
+	stp	x26, x25, [sp, #48]             // 16-byte Folded Spill
+	stp	x24, x23, [sp, #64]             // 16-byte Folded Spill
+	stp	x22, x21, [sp, #80]             // 16-byte Folded Spill
+	stur	wzr, [x29, #-4]
 	cbz	x8, .LBB1_11
 // %bb.1:
 	mov	x19, x0
@@ -127,7 +129,7 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 .LBB1_8:                                // =>This Inner Loop Header: Depth=1
 	ldrb	w12, [x11, x9]
 	cmp	w12, w10
-	b.hs	.LBB1_38
+	b.hs	.LBB1_35
 // %bb.9:                               //   in Loop: Header=BB1_8 Depth=1
 	add	x9, x9, #1
 	cmp	x8, x9
@@ -135,40 +137,40 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 // %bb.10:
 	mov	w10, #-1                        // =0xffffffff
 	mov	w9, w8
-	b	.LBB1_39
+	b	.LBB1_36
 .LBB1_11:
 	mov	w0, #-19                        // =0xffffffed
-	b	.LBB1_73
+	b	.LBB1_70
 .LBB1_12:
-	and	w22, w2, #0xff
+	and	w23, w2, #0xff
 	mov	w9, #21846                      // =0x5556
 	adrp	x10, pvi_wf_get_lut.sftemp
 	mov	w11, #43692                     // =0xaaac
-	madd	w12, w22, w9, w11
+	madd	w12, w23, w9, w11
 	ldrb	w10, [x10, :lo12:pvi_wf_get_lut.sftemp]
-	adrp	x24, pvi_wf_get_lut.stype
-	adrp	x23, pvi_wf_get_lut.normal_repair
+	adrp	x25, pvi_wf_get_lut.stype
+	adrp	x24, pvi_wf_get_lut.normal_repair
 	madd	w9, w10, w9, w11
 	lsr	w10, w12, #16
 	cmp	w10, w9, lsr #16
 	b.ne	.LBB1_16
 // %bb.13:
-	ldr	w9, [x24, :lo12:pvi_wf_get_lut.stype]
+	ldr	w9, [x25, :lo12:pvi_wf_get_lut.stype]
 	cmp	w9, w1
 	b.ne	.LBB1_16
 // %bb.14:
-	ldr	w9, [x23, :lo12:pvi_wf_get_lut.normal_repair]
+	ldr	w9, [x24, :lo12:pvi_wf_get_lut.normal_repair]
 	ldr	w10, [x3, #8]
 	cmp	w9, w10
 	b.ne	.LBB1_16
 .LBB1_15:
 	mov	w0, wzr
-	b	.LBB1_73
+	b	.LBB1_70
 .LBB1_16:
 	ldr	x10, [x19, #24]
 	ldrb	w9, [x8, #38]
 	adrp	x21, waveformdata
-	mov	x27, x3
+	mov	x26, x3
 	str	x10, [x21, :lo12:waveformdata]
 	cbz	w9, .LBB1_22
 // %bb.17:
@@ -188,7 +190,7 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	b	.LBB1_24
 .LBB1_21:
 	mov	w0, #-22                        // =0xffffffea
-	b	.LBB1_73
+	b	.LBB1_70
 .LBB1_22:
 	mov	w20, wzr
 	b	.LBB1_25
@@ -205,93 +207,87 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	and	w0, w0, #0xff
 	mov	w1, w20
 	bl	get_wf_frm_num
-	tbnz	w0, #31, .LBB1_54
+	tbnz	w0, #31, .LBB1_71
 // %bb.26:
-	ldr	w9, [x27, #4]
+	ldr	w10, [x26, #4]
 	mov	w20, w0
-	mov	x8, x27
-	cbz	w9, .LBB1_31
+	mov	x8, x26
+	mov	w9, w28
+	cbz	w10, .LBB1_69
 // %bb.27:
-	cmp	w28, #7
+	cmp	w9, #7
 	b.eq	.LBB1_29
 // %bb.28:
-	mov	w9, w28
-	cmp	w28, #1
+	cmp	w9, #1
 	b.ne	.LBB1_32
 .LBB1_29:
-	ldr	w26, [x8, #16]
+	ldr	w22, [x8, #20]
 	ldr	x21, [x21, :lo12:waveformdata]
-	cmp	w26, #0
-	mov	x0, x21
+	lsl	w9, w20, #10
+	mov	w1, wzr
+	cmp	w22, #0
+	add	x0, x21, w9, sxtw
 	cset	w8, gt
-	lsl	w25, w20, w8
-	bl	epd_gray2_last_repair
-	cbz	w0, .LBB1_35
+	lsl	w27, w20, w8
+	sub	w8, w27, w20
+	stur	w27, [x29, #-4]
+	lsl	w8, w8, #10
+	sxtw	x2, w8
+	bl	memset
+	cbz	w20, .LBB1_59
 // %bb.30:
-	mov	x8, x27
-	mov	w9, w28
-	b	.LBB1_72
-.LBB1_31:
-	mov	w25, wzr
-	mov	w9, w28
-	b	.LBB1_72
+	cmp	w20, #1
+	mov	w8, w20
+	b.ne	.LBB1_47
+// %bb.31:
+	mov	x9, xzr
+	b	.LBB1_57
 .LBB1_32:
 	sub	w10, w9, #13
 	cmp	w10, #1
-	b.hi	.LBB1_50
+	b.hi	.LBB1_66
 // %bb.33:
 	ldr	x0, [x21, :lo12:waveformdata]
 	ldr	w2, [x8, #8]
 	mov	w1, w20
 	bl	pvi_wf_normal_fix
-	b	.LBB1_52
+	b	.LBB1_68
 .LBB1_34:
 	mov	w20, wzr
-	b	.LBB1_40
+	b	.LBB1_37
 .LBB1_35:
-	subs	w10, w25, #1
-	mov	x8, x27
-	mov	w9, w28
-	b.lt	.LBB1_69
-// %bb.36:
-	cmp	w25, #1
-	b.ne	.LBB1_59
-// %bb.37:
-	mov	x11, xzr
-	b	.LBB1_67
-.LBB1_38:
 	mov	w10, w9
-.LBB1_39:
+.LBB1_36:
 	sub	w11, w9, #1
 	cmp	w9, w8
 	csel	w20, w11, w10, eq
-.LBB1_40:
+.LBB1_37:
 	mov	w0, w21
 	bl	get_wf_mode_index
 	and	w0, w0, #0xff
 	mov	w1, w20
 	bl	get_wf_frm_num
-	tbnz	w0, #31, .LBB1_54
-// %bb.41:
+	tbnz	w0, #31, .LBB1_71
+// %bb.38:
 	mov	w20, w0
 	cmp	w21, #1
-	b.ne	.LBB1_49
-// %bb.42:
+	b.ne	.LBB1_46
+// %bb.39:
 	ldr	x21, [x24, :lo12:waveformdata]
-	cbz	w20, .LBB1_47
-// %bb.43:
+	cbz	w20, .LBB1_44
+// %bb.40:
 	mov	w8, wzr
 	mov	x9, xzr
 	mov	w10, w20
 	add	x11, x21, #31
 	add	x12, x21, #992
-.LBB1_44:                               // =>This Loop Header: Depth=1
-                                        //     Child Loop BB1_45 Depth 2
+.LBB1_41:                               // =>This Loop Header: Depth=1
+                                        //     Child Loop BB1_42 Depth 2
 	sxtw	x14, w8
 	mov	x15, #-16                       // =0xfffffffffffffff0
 	add	x13, x11, x14
 	add	x14, x12, x14
-.LBB1_45:                               //   Parent Loop BB1_44 Depth=1
+.LBB1_42:                               //   Parent Loop BB1_41 Depth=1
                                         // =>  This Inner Loop Header: Depth=2
 	ldurb	w16, [x13, #-1]
 	add	x15, x15, #16
@@ -302,18 +298,18 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	ldurb	w16, [x14, #-32]
 	sturb	w16, [x14, #-64]
 	strb	w16, [x14], #2
-	b.lo	.LBB1_45
-// %bb.46:                              //   in Loop: Header=BB1_44 Depth=1
+	b.lo	.LBB1_42
+// %bb.43:                              //   in Loop: Header=BB1_41 Depth=1
 	add	x9, x9, #1
 	add	w8, w8, #1024
 	cmp	x9, x10
-	b.ne	.LBB1_44
-.LBB1_47:
+	b.ne	.LBB1_41
+.LBB1_44:
 	mov	x0, x21
 	mov	w1, w20
 	bl	epd_overlay_gray2_repair
-	cbnz	w0, .LBB1_49
-// %bb.48:
+	cbnz	w0, .LBB1_46
+// %bb.45:
 	lsl	w8, w20, #10
 	mov	w9, #-6144                      // =0xffffe800
 	mov	w10, #1                         // =0x1
@@ -344,189 +340,231 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	strb	w10, [x8, #991]
 	strb	w10, [x8, #959]
 	strb	w10, [x8, #1023]
-.LBB1_49:
+.LBB1_46:
 	ldrb	w8, [x22, :lo12:pvi_wf_get_lut.sftemp]
 	and	w9, w23, #0xff00
 	str	w20, [x19, #4]
 	mov	w0, #2                          // =0x2
 	orr	w8, w8, w9
 	str	w8, [x22, :lo12:pvi_wf_get_lut.sftemp]
-	b	.LBB1_73
-.LBB1_50:
+	b	.LBB1_70
+.LBB1_47:
+	sub	x10, x8, #1
+	add	x9, x21, #992
+	lsl	x11, x10, #10
+	add	x12, x9, x11
+	cmp	x12, x9
+	mov	x9, xzr
+	b.lo	.LBB1_57
+// %bb.48:
+	add	x12, x21, #1022
+	add	x13, x12, x11
+	cmp	x13, x12
+	b.lo	.LBB1_57
+// %bb.49:
+	add	x12, x21, #928
+	add	x13, x12, x11
+	cmp	x13, x12
+	b.lo	.LBB1_57
+// %bb.50:
+	add	x12, x21, #958
+	add	x13, x12, x11
+	cmp	x13, x12
+	b.lo	.LBB1_57
+// %bb.51:
+	add	x12, x21, #990
+	add	x13, x12, x11
+	cmp	x13, x12
+	b.lo	.LBB1_57
+// %bb.52:
+	add	x11, x21, x11
+	cmp	x11, x21
+	b.lo	.LBB1_57
+// %bb.53:
+	lsr	x10, x10, #21
+	cbnz	x10, .LBB1_57
+// %bb.54:
+	and	x9, x8, #0x7ffffffe
+	mov	w10, #1024                      // =0x400
+	mov	x11, x9
+.LBB1_55:                               // =>This Inner Loop Header: Depth=1
+	sub	w13, w10, #1024
+	add	x12, x21, w10, sxtw
+	subs	x11, x11, #2
+	add	x13, x21, w13, sxtw
+	add	w10, w10, #2048
+	strb	wzr, [x12, #992]
+	strb	wzr, [x12, #1022]
+	strb	wzr, [x13, #992]
+	strb	wzr, [x13, #1022]
+	strb	wzr, [x13, #928]
+	strb	wzr, [x12, #928]
+	strb	wzr, [x13, #958]
+	strb	wzr, [x12, #958]
+	strb	wzr, [x13]
+	strb	wzr, [x12]
+	strb	wzr, [x13, #990]
+	strb	wzr, [x12, #990]
+	b.ne	.LBB1_55
+// %bb.56:
+	cmp	x9, x8
+	b.eq	.LBB1_59
+.LBB1_57:
+	lsl	w10, w9, #10
+	sub	x8, x8, x9
+.LBB1_58:                               // =>This Inner Loop Header: Depth=1
+	add	x9, x21, w10, sxtw
+	subs	x8, x8, #1
+	add	w10, w10, #1024
+	strb	wzr, [x9, #992]
+	strb	wzr, [x9, #1022]
+	strb	wzr, [x9, #928]
+	strb	wzr, [x9, #958]
+	strb	wzr, [x9]
+	strb	wzr, [x9, #990]
+	b.ne	.LBB1_58
+.LBB1_59:
+	sub	x2, x29, #4
+	mov	x0, x21
+	mov	w1, w20
+	mov	w3, w22
+	bl	epd_gray2_last_repair
+	mov	x8, x26
+	mov	w9, w28
+	cbnz	w0, .LBB1_69
+// %bb.60:
+	sub	w10, w27, #1
+	cmp	w22, w10
+	csel	w10, w22, w10, lt
+	cmp	w10, #1
+	b.lt	.LBB1_63
+// %bb.61:
+	mov	w12, wzr
+	mov	w11, #1                         // =0x1
+	mov	w13, w27
+	mov	w14, w10
+.LBB1_62:                               // =>This Inner Loop Header: Depth=1
+	lsl	w15, w12, #10
+	sdiv	w12, w13, w10
+	subs	w14, w14, #1
+	add	w13, w13, w27
+	add	x15, x21, w15, sxtw
+	strb	w11, [x15, #992]
+	strb	w11, [x15, #928]
+	b.ne	.LBB1_62
+.LBB1_63:
+	lsl	w10, w10, #1
+	cmp	w10, #1
+	b.lt	.LBB1_69
+// %bb.64:
+	mov	w12, wzr
+	mov	w11, #2                         // =0x2
+	mov	w13, w27
+	mov	w14, w10
+.LBB1_65:                               // =>This Inner Loop Header: Depth=1
+	lsl	w15, w12, #10
+	sdiv	w12, w13, w10
+	subs	w14, w14, #1
+	add	w13, w13, w27
+	add	x15, x21, w15, sxtw
+	strb	w11, [x15, #1022]
+	strb	w11, [x15, #958]
+	b.ne	.LBB1_65
+	b	.LBB1_69
+.LBB1_66:
 	sub	w10, w9, #5
 	cmp	w10, #1
-	b.hi	.LBB1_55
-// %bb.51:
+	b.hi	.LBB1_72
+// %bb.67:
 	ldr	x0, [x19, #24]
 	mov	w1, w20
 	bl	pvi_wf_regal_fix
-.LBB1_52:
+.LBB1_68:
 	mov	w9, w28
-	mov	x8, x27
-.LBB1_53:
-	mov	w25, wzr
-	b	.LBB1_72
-.LBB1_54:
+	mov	x8, x26
+.LBB1_69:
+	str	w20, [x19]
+	ldur	w10, [x29, #-4]
+	adrp	x11, pvi_wf_get_lut.sftemp
+	add	x11, x11, :lo12:pvi_wf_get_lut.sftemp
+	mov	w0, #1                          // =0x1
+	str	w9, [x25, :lo12:pvi_wf_get_lut.stype]
+	ldrb	w12, [x11, #1]
+	str	w10, [x19, #8]
+	ldr	w8, [x8, #8]
+	orr	w10, w23, w12, lsl #8
+	str	w8, [x24, :lo12:pvi_wf_get_lut.normal_repair]
+	str	w10, [x11]
+.LBB1_70:
+	ldp	x20, x19, [sp, #96]             // 16-byte Folded Reload
+	ldp	x22, x21, [sp, #80]             // 16-byte Folded Reload
+	ldp	x24, x23, [sp, #64]             // 16-byte Folded Reload
+	ldp	x26, x25, [sp, #48]             // 16-byte Folded Reload
+	ldp	x28, x27, [sp, #32]             // 16-byte Folded Reload
+	ldp	x29, x30, [sp, #16]             // 16-byte Folded Reload
+	add	sp, sp, #112
+	ldr	x30, [x18, #-8]!
+	ret
+.LBB1_71:
 	adrp	x0, .L.str
 	add	x0, x0, :lo12:.L.str
 	bl	_printk
 	mov	w0, #-5                         // =0xfffffffb
-	b	.LBB1_73
-.LBB1_55:
+	b	.LBB1_70
+.LBB1_72:
 	cmp	w9, #15
-	b.ne	.LBB1_53
-// %bb.56:
-	cbz	w20, .LBB1_53
-// %bb.57:
+	b.ne	.LBB1_69
+// %bb.73:
+	cbz	w20, .LBB1_69
+// %bb.74:
 	ldr	x10, [x21, :lo12:waveformdata]
 	cmp	w20, #1
 	mov	w11, w20
-	b.ne	.LBB1_74
-// %bb.58:
+	b.ne	.LBB1_76
+// %bb.75:
 	mov	x12, xzr
-	b	.LBB1_84
-.LBB1_59:
-	sub	x12, x25, #1
-	add	x11, x21, #992
-	lsl	x13, x12, #10
-	add	x14, x11, x13
-	cmp	x14, x11
-	mov	x11, xzr
-	b.lo	.LBB1_67
-// %bb.60:
-	add	x14, x21, #1022
-	add	x15, x14, x13
-	cmp	x15, x14
-	b.lo	.LBB1_67
-// %bb.61:
-	add	x14, x21, #990
-	add	x15, x14, x13
-	cmp	x15, x14
-	b.lo	.LBB1_67
-// %bb.62:
-	add	x13, x21, x13
-	cmp	x13, x21
-	b.lo	.LBB1_67
-// %bb.63:
-	lsr	x12, x12, #21
-	cbnz	x12, .LBB1_67
-// %bb.64:
-	and	x11, x25, #0x3ffffe
-	mov	w12, #1024                      // =0x400
-	mov	x13, x11
-.LBB1_65:                               // =>This Inner Loop Header: Depth=1
-	sub	w15, w12, #1024
-	add	x14, x21, w12, sxtw
-	subs	x13, x13, #2
-	add	x15, x21, w15, sxtw
-	add	w12, w12, #2048
-	strb	wzr, [x14, #992]
-	strb	wzr, [x14, #1022]
-	strb	wzr, [x15, #992]
-	strb	wzr, [x15, #1022]
-	strb	wzr, [x15]
-	strb	wzr, [x14]
-	strb	wzr, [x15, #990]
-	strb	wzr, [x14, #990]
-	b.ne	.LBB1_65
-// %bb.66:
-	cmp	x11, x25
-	b.eq	.LBB1_69
-.LBB1_67:
-	lsl	w12, w11, #10
-	sub	x11, x25, x11
-.LBB1_68:                               // =>This Inner Loop Header: Depth=1
-	add	x13, x21, w12, sxtw
-	subs	x11, x11, #1
-	add	w12, w12, #1024
-	strb	wzr, [x13, #992]
-	strb	wzr, [x13, #1022]
-	strb	wzr, [x13]
-	strb	wzr, [x13, #990]
-	b.ne	.LBB1_68
-.LBB1_69:
-	cmp	w26, w10
-	csel	w10, w26, w10, lt
-	cmp	w10, #1
-	b.lt	.LBB1_72
-// %bb.70:
-	mov	w11, #2                         // =0x2
-	mov	w12, #1                         // =0x1
-	mov	w13, w20
-	mov	w14, w10
-	mov	w15, w20
-.LBB1_71:                               // =>This Inner Loop Header: Depth=1
-	sdiv	w16, w13, w10
-	lsl	w15, w15, #10
-	subs	w14, w14, #1
-	add	w13, w13, w20
-	add	x15, x21, w15, sxtw
-	strb	w11, [x15, #1022]
-	strb	w12, [x15, #992]
-	add	w15, w16, w20
-	b.ne	.LBB1_71
-.LBB1_72:
-	str	w20, [x19]
-	adrp	x10, pvi_wf_get_lut.sftemp
-	add	x10, x10, :lo12:pvi_wf_get_lut.sftemp
-	ldrb	w11, [x10, #1]
-	str	w25, [x19, #8]
-	mov	w0, #1                          // =0x1
-	ldr	w8, [x8, #8]
-	str	w9, [x24, :lo12:pvi_wf_get_lut.stype]
-	orr	w11, w22, w11, lsl #8
-	str	w8, [x23, :lo12:pvi_wf_get_lut.normal_repair]
-	str	w11, [x10]
-.LBB1_73:
-	ldp	x20, x19, [sp, #80]             // 16-byte Folded Reload
-	ldp	x22, x21, [sp, #64]             // 16-byte Folded Reload
-	ldp	x24, x23, [sp, #48]             // 16-byte Folded Reload
-	ldp	x26, x25, [sp, #32]             // 16-byte Folded Reload
-	ldp	x28, x27, [sp, #16]             // 16-byte Folded Reload
-	ldp	x29, x30, [sp], #96             // 16-byte Folded Reload
-	ldr	x30, [x18, #-8]!
-	ret
-.LBB1_74:
+	b	.LBB1_86
+.LBB1_76:
 	sub	x13, x11, #1
 	add	x12, x10, #958
 	lsl	x14, x13, #10
 	add	x15, x12, x14
 	cmp	x15, x12
 	mov	x12, xzr
-	b.lo	.LBB1_84
-// %bb.75:
+	b.lo	.LBB1_86
+// %bb.77:
 	add	x15, x10, #990
 	add	x16, x15, x14
 	cmp	x16, x15
-	b.lo	.LBB1_84
-// %bb.76:
+	b.lo	.LBB1_86
+// %bb.78:
 	add	x15, x10, #1022
 	add	x16, x15, x14
 	cmp	x16, x15
-	b.lo	.LBB1_84
-// %bb.77:
+	b.lo	.LBB1_86
+// %bb.79:
 	add	x15, x10, #991
 	add	x16, x15, x14
 	cmp	x16, x15
-	b.lo	.LBB1_84
-// %bb.78:
+	b.lo	.LBB1_86
+// %bb.80:
 	add	x15, x10, #1023
 	add	x16, x15, x14
 	cmp	x16, x15
-	b.lo	.LBB1_84
-// %bb.79:
+	b.lo	.LBB1_86
+// %bb.81:
 	add	x15, x10, #957
 	add	x14, x15, x14
 	cmp	x14, x15
-	b.lo	.LBB1_84
-// %bb.80:
+	b.lo	.LBB1_86
+// %bb.82:
 	lsr	x13, x13, #21
-	cbnz	x13, .LBB1_84
-// %bb.81:
+	cbnz	x13, .LBB1_86
+// %bb.83:
 	and	x12, x11, #0x7ffffffe
 	mov	w13, #1024                      // =0x400
 	mov	x14, x12
-.LBB1_82:                               // =>This Inner Loop Header: Depth=1
+.LBB1_84:                               // =>This Inner Loop Header: Depth=1
 	sub	w16, w13, #1024
 	add	x15, x10, w13, sxtw
 	subs	x14, x14, #2
@@ -544,16 +582,15 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	strb	w17, [x15, #991]
 	strb	w0, [x16, #1023]
 	strb	w17, [x15, #1023]
-	b.ne	.LBB1_82
-// %bb.83:
+	b.ne	.LBB1_84
+// %bb.85:
 	cmp	x12, x11
-	b.eq	.LBB1_53
-.LBB1_84:
+	b.eq	.LBB1_69
+.LBB1_86:
 	lsl	w13, w12, #10
 	sub	x11, x11, x12
-.LBB1_85:                               // =>This Inner Loop Header: Depth=1
+.LBB1_87:                               // =>This Inner Loop Header: Depth=1
 	add	x12, x10, w13, sxtw
-	mov	w25, wzr
 	subs	x11, x11, #1
 	add	w13, w13, #1024
 	ldrb	w14, [x12, #957]
@@ -562,8 +599,8 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	strb	w14, [x12, #1022]
 	strb	w14, [x12, #991]
 	strb	w14, [x12, #1023]
-	b.ne	.LBB1_85
-	b	.LBB1_72
+	b.ne	.LBB1_87
+	b	.LBB1_69
 .Lfunc_end1:
 	.size	pvi_wf_get_lut, .Lfunc_end1-pvi_wf_get_lut
                                         // -- End function
@@ -1325,76 +1362,31 @@ pvi_wf_input:                           // @pvi_wf_input
 pvi_wf_get_version:                     // @pvi_wf_get_version
 // %bb.0:
 	adrp	x8, global_waveform
-	ldr	x8, [x8, :lo12:global_waveform]
-	cbz	x8, .LBB8_2
+	ldr	x9, [x8, :lo12:global_waveform]
+	mov	w8, #63                         // =0x3f
+	ldrb	w10, [x9, #64]
+	cmp	w10, #63
+	csel	w8, w10, w8, lo
+	cbz	x9, .LBB8_5
 // %bb.1:
-	ldrb	w9, [x8, #65]
 	adrp	x0, pvi_wf_get_version.spi_id_buffer
 	add	x0, x0, :lo12:pvi_wf_get_version.spi_id_buffer
-	strb	w9, [x0]
-	ldrb	w9, [x8, #66]
-	strb	w9, [x0, #1]
-	ldrb	w9, [x8, #67]
-	strb	w9, [x0, #2]
-	ldrb	w9, [x8, #68]
-	strb	w9, [x0, #3]
-	ldrb	w9, [x8, #69]
-	strb	w9, [x0, #4]
-	ldrb	w9, [x8, #70]
-	strb	w9, [x0, #5]
-	ldrb	w9, [x8, #71]
-	strb	w9, [x0, #6]
-	ldrb	w9, [x8, #72]
-	strb	w9, [x0, #7]
-	ldrb	w9, [x8, #73]
-	strb	w9, [x0, #8]
-	ldrb	w9, [x8, #74]
-	strb	w9, [x0, #9]
-	ldrb	w9, [x8, #75]
-	strb	w9, [x0, #10]
-	ldrb	w9, [x8, #76]
-	strb	w9, [x0, #11]
-	ldrb	w9, [x8, #77]
-	strb	w9, [x0, #12]
-	ldrb	w9, [x8, #78]
-	strb	w9, [x0, #13]
-	ldrb	w9, [x8, #79]
-	strb	w9, [x0, #14]
-	ldrb	w9, [x8, #80]
-	strb	w9, [x0, #15]
-	ldrb	w9, [x8, #81]
-	strb	w9, [x0, #16]
-	ldrb	w9, [x8, #82]
-	strb	w9, [x0, #17]
-	ldrb	w9, [x8, #83]
-	strb	w9, [x0, #18]
-	ldrb	w9, [x8, #84]
-	strb	w9, [x0, #19]
-	ldrb	w9, [x8, #85]
-	strb	w9, [x0, #20]
-	ldrb	w9, [x8, #86]
-	strb	w9, [x0, #21]
-	ldrb	w9, [x8, #87]
-	strb	w9, [x0, #22]
-	ldrb	w9, [x8, #88]
-	strb	w9, [x0, #23]
-	ldrb	w9, [x8, #89]
-	strb	w9, [x0, #24]
-	ldrb	w9, [x8, #90]
-	strb	w9, [x0, #25]
-	ldrb	w9, [x8, #91]
-	strb	w9, [x0, #26]
-	ldrb	w9, [x8, #92]
-	strb	w9, [x0, #27]
-	ldrb	w9, [x8, #93]
-	strb	w9, [x0, #28]
-	ldrb	w9, [x8, #94]
-	strb	w9, [x0, #29]
-	ldrb	w8, [x8, #95]
-	strb	wzr, [x0, #31]
-	strb	w8, [x0, #30]
+	cbz	w10, .LBB8_4
+// %bb.2:
+	add	x9, x9, #65
+	adrp	x10, pvi_wf_get_version.spi_id_buffer
+	add	x10, x10, :lo12:pvi_wf_get_version.spi_id_buffer
+	mov	x11, x8
+.LBB8_3:                                // =>This Inner Loop Header: Depth=1
+	ldrb	w12, [x9], #1
+	subs	x11, x11, #1
+	strb	w12, [x10], #1
+	b.ne	.LBB8_3
+.LBB8_4:
+	add	x8, x0, w8, uxtw
+	strb	wzr, [x8, #1]
 	ret
-.LBB8_2:
+.LBB8_5:
 	mov	x0, xzr
 	ret
 .Lfunc_end8:
@@ -1493,7 +1485,7 @@ maxpic:
 
 	.type	pvi_wf_get_version.spi_id_buffer,@object // @pvi_wf_get_version.spi_id_buffer
 	.local	pvi_wf_get_version.spi_id_buffer
-	.comm	pvi_wf_get_version.spi_id_buffer,32,4
+	.comm	pvi_wf_get_version.spi_id_buffer,64,1
 	.type	.L.str.3,@object                // @.str.3
 .L.str.3:
 	.asciz	"pvi: unspport PVI waveform type"

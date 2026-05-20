@@ -119,7 +119,7 @@ int epd_overlay_lut(void)
 
 //return value
 //0 : no modify  1: modify by customer
-int epd_gray2_last_repair(u8 *wf_table)
+int epd_gray2_last_repair(u8 *wf_table, int frame_num, int *bw_ghost_rm_num, int bw_ghost_rm_level)
 {
 	return 0;
 }

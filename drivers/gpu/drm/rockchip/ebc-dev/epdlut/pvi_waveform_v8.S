@@ -10,7 +10,7 @@
 	.globl	pvi_wf_add_custom_mode_table    // -- Begin function pvi_wf_add_custom_mode_table
 	.p2align	2
 	.type	pvi_wf_add_custom_mode_table,@function
-	.word	365149294                       // 0x15c3bc6e
+	.word	2966407633                      // 0xb0cfc9d1
 pvi_wf_add_custom_mode_table:           // @pvi_wf_add_custom_mode_table
 // %bb.0:
 	cmp	w1, #11
@@ -66,21 +66,24 @@ pvi_wf_add_custom_mode_table:           // @pvi_wf_add_custom_mode_table
 	.globl	pvi_wf_get_lut                  // -- Begin function pvi_wf_get_lut
 	.p2align	2
 	.type	pvi_wf_get_lut,@function
-	.word	1540621456                      // 0x5bd40490
+	.word	4161009509                      // 0xf803f765
 pvi_wf_get_lut:                         // @pvi_wf_get_lut
 // %bb.0:
 	str	x30, [x18], #8
 	sub	sp, sp, #112
-	stp	x20, x19, [sp, #96]             // 16-byte Folded Spill
-	adrp	x20, global_waveform
-	ldr	x8, [x20, :lo12:global_waveform]
 	stp	x29, x30, [sp, #16]             // 16-byte Folded Spill
 	add	x29, sp, #16
 	stp	x28, x27, [sp, #32]             // 16-byte Folded Spill
 	stp	x26, x25, [sp, #48]             // 16-byte Folded Spill
 	stp	x24, x23, [sp, #64]             // 16-byte Folded Spill
 	stp	x22, x21, [sp, #80]             // 16-byte Folded Spill
-	stur	wzr, [x29, #-4]
+	stp	x20, x19, [sp, #96]             // 16-byte Folded Spill
+	mrs	x8, SP_EL0
+	adrp	x20, global_waveform
+	ldr	x8, [x8, #1608]
+	str	x8, [sp, #8]
+	ldr	x8, [x20, :lo12:global_waveform]
+	str	wzr, [sp, #4]
 	cbz	x8, .LBB1_11
 // %bb.1:
 	mov	x19, x0
@@ -207,7 +210,7 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	and	w0, w0, #0xff
 	mov	w1, w20
 	bl	get_wf_frm_num
-	tbnz	w0, #31, .LBB1_71
+	tbnz	w0, #31, .LBB1_72
 // %bb.26:
 	ldr	w10, [x26, #4]
 	mov	w20, w0
@@ -230,7 +233,7 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	cset	w8, gt
 	lsl	w27, w20, w8
 	sub	w8, w27, w20
-	stur	w27, [x29, #-4]
+	str	w27, [sp, #4]
 	lsl	w8, w8, #10
 	sxtw	x2, w8
 	bl	memset
@@ -267,7 +270,7 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	and	w0, w0, #0xff
 	mov	w1, w20
 	bl	get_wf_frm_num
-	tbnz	w0, #31, .LBB1_71
+	tbnz	w0, #31, .LBB1_72
 // %bb.38:
 	mov	w20, w0
 	cmp	w21, #1
@@ -424,7 +427,7 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	strb	wzr, [x9, #990]
 	b.ne	.LBB1_58
 .LBB1_59:
-	sub	x2, x29, #4
+	add	x2, sp, #4
 	mov	x0, x21
 	mov	w1, w20
 	mov	w3, w22
@@ -474,7 +477,7 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 .LBB1_66:
 	sub	w10, w9, #5
 	cmp	w10, #1
-	b.hi	.LBB1_72
+	b.hi	.LBB1_73
 // %bb.67:
 	ldr	x0, [x19, #24]
 	mov	w1, w20
@@ -484,7 +487,7 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	mov	x8, x26
 .LBB1_69:
 	str	w20, [x19]
-	ldur	w10, [x29, #-4]
+	ldr	w10, [sp, #4]
 	adrp	x11, pvi_wf_get_lut.sftemp
 	add	x11, x11, :lo12:pvi_wf_get_lut.sftemp
 	mov	w0, #1                          // =0x1
@@ -496,6 +499,12 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	str	w8, [x24, :lo12:pvi_wf_get_lut.normal_repair]
 	str	w10, [x11]
 .LBB1_70:
+	mrs	x8, SP_EL0
+	ldr	x8, [x8, #1608]
+	ldr	x9, [sp, #8]
+	cmp	x8, x9
+	b.ne	.LBB1_89
+// %bb.71:
 	ldp	x20, x19, [sp, #96]             // 16-byte Folded Reload
 	ldp	x22, x21, [sp, #80]             // 16-byte Folded Reload
 	ldp	x24, x23, [sp, #64]             // 16-byte Folded Reload
@@ -505,66 +514,66 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	add	sp, sp, #112
 	ldr	x30, [x18, #-8]!
 	ret
-.LBB1_71:
+.LBB1_72:
 	adrp	x0, .L.str
 	add	x0, x0, :lo12:.L.str
 	bl	_printk
 	mov	w0, #-5                         // =0xfffffffb
 	b	.LBB1_70
-.LBB1_72:
+.LBB1_73:
 	cmp	w9, #15
 	b.ne	.LBB1_69
-// %bb.73:
-	cbz	w20, .LBB1_69
 // %bb.74:
+	cbz	w20, .LBB1_69
+// %bb.75:
 	ldr	x10, [x21, :lo12:waveformdata]
 	cmp	w20, #1
 	mov	w11, w20
-	b.ne	.LBB1_76
-// %bb.75:
+	b.ne	.LBB1_77
+// %bb.76:
 	mov	x12, xzr
-	b	.LBB1_86
-.LBB1_76:
+	b	.LBB1_87
+.LBB1_77:
 	sub	x13, x11, #1
 	add	x12, x10, #958
 	lsl	x14, x13, #10
 	add	x15, x12, x14
 	cmp	x15, x12
 	mov	x12, xzr
-	b.lo	.LBB1_86
-// %bb.77:
+	b.lo	.LBB1_87
+// %bb.78:
 	add	x15, x10, #990
 	add	x16, x15, x14
 	cmp	x16, x15
-	b.lo	.LBB1_86
-// %bb.78:
+	b.lo	.LBB1_87
+// %bb.79:
 	add	x15, x10, #1022
 	add	x16, x15, x14
 	cmp	x16, x15
-	b.lo	.LBB1_86
-// %bb.79:
+	b.lo	.LBB1_87
+// %bb.80:
 	add	x15, x10, #991
 	add	x16, x15, x14
 	cmp	x16, x15
-	b.lo	.LBB1_86
-// %bb.80:
+	b.lo	.LBB1_87
+// %bb.81:
 	add	x15, x10, #1023
 	add	x16, x15, x14
 	cmp	x16, x15
-	b.lo	.LBB1_86
-// %bb.81:
+	b.lo	.LBB1_87
+// %bb.82:
 	add	x15, x10, #957
 	add	x14, x15, x14
 	cmp	x14, x15
-	b.lo	.LBB1_86
-// %bb.82:
-	lsr	x13, x13, #21
-	cbnz	x13, .LBB1_86
+	b.lo	.LBB1_87
 // %bb.83:
+	lsr	x13, x13, #21
+	cbnz	x13, .LBB1_87
+// %bb.84:
 	and	x12, x11, #0x7ffffffe
 	mov	w13, #1024                      // =0x400
 	mov	x14, x12
-.LBB1_84:                               // =>This Inner Loop Header: Depth=1
+.LBB1_85:                               // =>This Inner Loop Header: Depth=1
 	sub	w16, w13, #1024
 	add	x15, x10, w13, sxtw
 	subs	x14, x14, #2
@@ -582,14 +591,14 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	strb	w17, [x15, #991]
 	strb	w0, [x16, #1023]
 	strb	w17, [x15, #1023]
-	b.ne	.LBB1_84
-// %bb.85:
+	b.ne	.LBB1_85
+// %bb.86:
 	cmp	x12, x11
 	b.eq	.LBB1_69
-.LBB1_86:
+.LBB1_87:
 	lsl	w13, w12, #10
 	sub	x11, x11, x12
-.LBB1_87:                               // =>This Inner Loop Header: Depth=1
+.LBB1_88:                               // =>This Inner Loop Header: Depth=1
 	add	x12, x10, w13, sxtw
 	subs	x11, x11, #1
 	add	w13, w13, #1024
@@ -599,8 +608,10 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	strb	w14, [x12, #1022]
 	strb	w14, [x12, #991]
 	strb	w14, [x12, #1023]
-	b.ne	.LBB1_87
+	b.ne	.LBB1_88
 	b	.LBB1_69
+.LBB1_89:
+	bl	__stack_chk_fail
 .Lfunc_end1:
 	.size	pvi_wf_get_lut, .Lfunc_end1-pvi_wf_get_lut
                                         // -- End function
@@ -1121,48 +1132,51 @@ pvi_wf_regal_fix:                       // @pvi_wf_regal_fix
 	add	x10, x20, w9, sxtw
 	add	x9, x9, #1024
 	cmp	x8, x9
-	ldrb	w11, [x10, #94]
-	ldrb	w12, [x10, #158]
-	strb	w11, [x10, #95]
-	strb	w11, [x10, #93]
-	ldrb	w11, [x10, #222]
-	strb	w12, [x10, #159]
-	strb	w12, [x10, #157]
-	ldrb	w12, [x10, #286]
-	strb	w11, [x10, #223]
-	strb	w11, [x10, #221]
-	ldrb	w11, [x10, #350]
-	strb	w12, [x10, #287]
-	strb	w12, [x10, #285]
-	ldrb	w12, [x10, #414]
-	strb	w11, [x10, #351]
-	strb	w11, [x10, #349]
-	ldrb	w11, [x10, #478]
-	strb	w12, [x10, #415]
-	strb	w12, [x10, #413]
-	ldrb	w12, [x10, #542]
-	strb	w11, [x10, #479]
-	strb	w11, [x10, #477]
-	ldrb	w11, [x10, #606]
-	strb	w12, [x10, #543]
-	strb	w12, [x10, #541]
-	ldrb	w12, [x10, #670]
-	strb	w11, [x10, #607]
-	strb	w11, [x10, #605]
-	ldrb	w11, [x10, #734]
-	strb	w12, [x10, #671]
-	strb	w12, [x10, #669]
-	ldrb	w12, [x10, #798]
-	strb	w11, [x10, #735]
-	strb	w11, [x10, #733]
-	ldrb	w11, [x10, #862]
-	strb	w12, [x10, #799]
-	strb	w12, [x10, #797]
-	ldrb	w12, [x10, #926]
-	strb	w11, [x10, #863]
-	strb	w11, [x10, #861]
-	strb	w12, [x10, #927]
-	strb	w12, [x10, #925]
+	ldrb	w11, [x10, #30]
+	ldrb	w12, [x10, #94]
+	strb	w11, [x10, #31]
+	strb	w11, [x10, #29]
+	ldrb	w11, [x10, #158]
+	strb	w12, [x10, #95]
+	strb	w12, [x10, #93]
+	ldrb	w12, [x10, #222]
+	strb	w11, [x10, #159]
+	strb	w11, [x10, #157]
+	ldrb	w11, [x10, #286]
+	strb	w12, [x10, #223]
+	strb	w12, [x10, #221]
+	ldrb	w12, [x10, #350]
+	strb	w11, [x10, #287]
+	strb	w11, [x10, #285]
+	ldrb	w11, [x10, #414]
+	strb	w12, [x10, #351]
+	strb	w12, [x10, #349]
+	ldrb	w12, [x10, #478]
+	strb	w11, [x10, #415]
+	strb	w11, [x10, #413]
+	ldrb	w11, [x10, #542]
+	strb	w12, [x10, #479]
+	strb	w12, [x10, #477]
+	ldrb	w12, [x10, #606]
+	strb	w11, [x10, #543]
+	strb	w11, [x10, #541]
+	ldrb	w11, [x10, #670]
+	strb	w12, [x10, #607]
+	strb	w12, [x10, #605]
+	ldrb	w12, [x10, #734]
+	strb	w11, [x10, #671]
+	strb	w11, [x10, #669]
+	ldrb	w11, [x10, #798]
+	strb	w12, [x10, #735]
+	strb	w12, [x10, #733]
+	ldrb	w12, [x10, #862]
+	strb	w11, [x10, #799]
+	strb	w11, [x10, #797]
+	ldrb	w11, [x10, #926]
+	strb	w12, [x10, #863]
+	strb	w12, [x10, #861]
+	strb	w11, [x10, #927]
+	strb	w11, [x10, #925]
 	b.ne	.LBB5_3
 .LBB5_4:
 	mov	w0, w19
@@ -1176,7 +1190,7 @@ pvi_wf_regal_fix:                       // @pvi_wf_regal_fix
 	.globl	pvi_wf_get_original_lut         // -- Begin function pvi_wf_get_original_lut
 	.p2align	2
 	.type	pvi_wf_get_original_lut,@function
-	.word	1296462099                      // 0x4d467113
+	.word	2908290955                      // 0xad58ff8b
 pvi_wf_get_original_lut:                // @pvi_wf_get_original_lut
 // %bb.0:
 	adrp	x8, global_waveform
@@ -1259,7 +1273,7 @@ pvi_wf_get_original_lut:                // @pvi_wf_get_original_lut
 	.globl	pvi_wf_input                    // -- Begin function pvi_wf_input
 	.p2align	2
 	.type	pvi_wf_input,@function
-	.word	2314953021                      // 0x89fb613d
+	.word	3228165220                      // 0xc069e464
 pvi_wf_input:                           // @pvi_wf_input
 // %bb.0:
 	str	x30, [x18], #8
@@ -1358,7 +1372,7 @@ pvi_wf_input:                           // @pvi_wf_input
 	.globl	pvi_wf_get_version              // -- Begin function pvi_wf_get_version
 	.p2align	2
 	.type	pvi_wf_get_version,@function
-	.word	2603798321                      // 0x9b32cf31
+	.word	1371061343                      // 0x51b8bc5f
 pvi_wf_get_version:                     // @pvi_wf_get_version
 // %bb.0:
 	adrp	x8, global_waveform
@@ -1395,7 +1409,7 @@ pvi_wf_get_version:                     // @pvi_wf_get_version
 	.globl	pvi_wf_get_wf_bit               // -- Begin function pvi_wf_get_wf_bit
 	.p2align	2
 	.type	pvi_wf_get_wf_bit,@function
-	.word	917620134                       // 0x36b1c5a6
+	.word	1874538549                      // 0x6fbb3035
 pvi_wf_get_wf_bit:                      // @pvi_wf_get_wf_bit
 // %bb.0:
 	adrp	x8, global_waveform

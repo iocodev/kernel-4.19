@@ -10,7 +10,7 @@
 	.globl	rkf_wf_input                    // -- Begin function rkf_wf_input
 	.p2align	2
 	.type	rkf_wf_input,@function
-	.word	2314953021                      // 0x89fb613d
+	.word	3228165220                      // 0xc069e464
 rkf_wf_input:                           // @rkf_wf_input
 // %bb.0:
 	str	x30, [x18], #8
@@ -182,7 +182,7 @@ rkf_wf_input:                           // @rkf_wf_input
 	.globl	rkf_wf_get_version              // -- Begin function rkf_wf_get_version
 	.p2align	2
 	.type	rkf_wf_get_version,@function
-	.word	2603798321                      // 0x9b32cf31
+	.word	1371061343                      // 0x51b8bc5f
 rkf_wf_get_version:                     // @rkf_wf_get_version
 // %bb.0:
 	adrp	x8, global_waveform
@@ -197,7 +197,7 @@ rkf_wf_get_version:                     // @rkf_wf_get_version
 	.globl	rkf_wf_get_wf_bit               // -- Begin function rkf_wf_get_wf_bit
 	.p2align	2
 	.type	rkf_wf_get_wf_bit,@function
-	.word	917620134                       // 0x36b1c5a6
+	.word	1874538549                      // 0x6fbb3035
 rkf_wf_get_wf_bit:                      // @rkf_wf_get_wf_bit
 // %bb.0:
 	adrp	x8, maxpic
@@ -217,7 +217,7 @@ rkf_wf_get_wf_bit:                      // @rkf_wf_get_wf_bit
 	.globl	rkf_wf_get_lut                  // -- Begin function rkf_wf_get_lut
 	.p2align	2
 	.type	rkf_wf_get_lut,@function
-	.word	1540621456                      // 0x5bd40490
+	.word	4161009509                      // 0xf803f765
 rkf_wf_get_lut:                         // @rkf_wf_get_lut
 // %bb.0:
 	str	x30, [x18], #8

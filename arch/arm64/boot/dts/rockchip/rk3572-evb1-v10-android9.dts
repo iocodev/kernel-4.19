@@ -8,6 +8,7 @@
 
 #include "rk3572-evb1-v10.dtsi"
 #include "rk3572-android9.dtsi"
+#include "rk3572-virtual-poweroff.dtsi"
 #include "rk3572-evb1-cam-csi0.dtsi"
 
 / {
@@ -17,7 +18,7 @@
 
 &firmware_android {
 	compatible = "android,firmware";
-	boot_devices = "soc/29e00000.ufs, soc/2a010000.mmc";
+	boot_devices = "soc/29e00000.ufs,soc/2a010000.mmc";
 	vbmeta {
 		compatible = "android,vbmeta";
 		parts = "vbmeta,boot,system,vendor,dtbo";
@@ -34,7 +35,15 @@
 	};
 };
 
+&hdmi {
+	cec-enable;
+};
+
 &route_hdmi {
 	status = "okay";
 	connect = <&vp0_out_hdmi>;
+};
+
+&pwm0_2ch_0 {
+	rockchip,disable-rc;
 };

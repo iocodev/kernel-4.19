@@ -240,7 +240,7 @@ rkf_wf_get_lut:                         // @rkf_wf_get_lut
 	b.ne	.LBB3_8
 // %bb.3:
 	ldr	x8, [x0, #32]
-	cbz	x8, .LBB3_26
+	cbz	x8, .LBB3_25
 // %bb.4:
 	adrp	x22, rkf_wf_get_lut.sftemp
 	mov	w9, #26215                      // =0x6667
@@ -258,17 +258,17 @@ rkf_wf_get_lut:                         // @rkf_wf_get_lut
 	b.ne	.LBB3_13
 // %bb.5:
 	mov	w8, wzr
-	b	.LBB3_26
+	b	.LBB3_25
 .LBB3_6:
 	mov	w8, #-19                        // =0xffffffed
-	b	.LBB3_26
+	b	.LBB3_25
 .LBB3_7:
 	mov	w8, #-22                        // =0xffffffea
-	b	.LBB3_26
+	b	.LBB3_25
 .LBB3_8:
 	cmp	w1, #16
 	mov	w8, wzr
-	b.ne	.LBB3_26
+	b.ne	.LBB3_25
 // %bb.9:
 	adrp	x9, rkf_wf_get_lut.sftemp
 	mov	w11, #13108                     // =0x3334
@@ -280,19 +280,19 @@ rkf_wf_get_lut:                         // @rkf_wf_get_lut
 	lsr	x10, x10, #32
 	lsr	x9, x9, #32
 	cmp	w10, w9
-	b.ne	.LBB3_26
+	b.ne	.LBB3_25
 // %bb.10:
 	ldr	w8, [x3, #8]
-	cbz	w8, .LBB3_26
+	cbz	w8, .LBB3_25
 // %bb.11:
 	ldr	x8, [x0, #16]
-	cbz	x8, .LBB3_27
+	cbz	x8, .LBB3_26
 // %bb.12:
 	mov	x19, x0
 	mov	x0, x8
 	bl	kfree
 	str	xzr, [x19, #16]
-	b	.LBB3_27
+	b	.LBB3_26
 .LBB3_13:
 	mov	x19, x0
 	ldr	x0, [x0, #16]
@@ -308,7 +308,7 @@ rkf_wf_get_lut:                         // @rkf_wf_get_lut
 	mov	w2, w20
 	mov	w1, w21
 	bl	parse_wf_data
-	tbnz	w0, #31, .LBB3_27
+	tbnz	w0, #31, .LBB3_26
 // %bb.16:
 	mov	w20, w0
 	ldr	x1, [x19, #32]
@@ -316,28 +316,23 @@ rkf_wf_get_lut:                         // @rkf_wf_get_lut
 	mov	w2, w20
 	bl	rkf_lut_wf_table
 	cmp	w21, #1
-	b.ne	.LBB3_25
+	b.ne	.LBB3_24
 // %bb.17:
 	ldr	x21, [x19, #32]
-	mov	w1, w20
-	mov	x0, x21
-	bl	epd_normal_repair
-	cbnz	w0, .LBB3_25
+	cbz	w20, .LBB3_22
 // %bb.18:
-	cbz	w20, .LBB3_23
-// %bb.19:
 	mov	w8, wzr
 	mov	x9, xzr
 	mov	w10, w20
 	add	x11, x21, #31
 	add	x12, x21, #992
-.LBB3_20:                               // =>This Loop Header: Depth=1
-                                        //     Child Loop BB3_21 Depth 2
+.LBB3_19:                               // =>This Loop Header: Depth=1
+                                        //     Child Loop BB3_20 Depth 2
 	sxtw	x14, w8
 	mov	x15, #-16                       // =0xfffffffffffffff0
 	add	x13, x11, x14
 	add	x14, x12, x14
-.LBB3_21:                               //   Parent Loop BB3_20 Depth=1
+.LBB3_20:                               //   Parent Loop BB3_19 Depth=1
                                         // =>  This Inner Loop Header: Depth=2
 	ldurb	w16, [x13, #-1]
 	add	x15, x15, #16
@@ -348,56 +343,33 @@ rkf_wf_get_lut:                         // @rkf_wf_get_lut
 	ldurb	w16, [x14, #-32]
 	sturb	w16, [x14, #-64]
 	strb	w16, [x14], #2
-	b.lo	.LBB3_21
-// %bb.22:                              //   in Loop: Header=BB3_20 Depth=1
+	b.lo	.LBB3_20
+// %bb.21:                              //   in Loop: Header=BB3_19 Depth=1
 	add	x9, x9, #1
 	add	w8, w8, #1024
 	cmp	x9, x10
-	b.ne	.LBB3_20
-.LBB3_23:
+	b.ne	.LBB3_19
+.LBB3_22:
 	mov	x0, x21
 	mov	w1, w20
 	bl	epd_overlay_gray2_repair
-	cbnz	w0, .LBB3_25
-// %bb.24:
+	cbnz	w0, .LBB3_24
+// %bb.23:
 	lsl	w8, w20, #10
-	mov	w9, #-6144                      // =0xffffe800
-	mov	w10, #1                         // =0x1
-	add	w9, w8, w9
-	sub	w11, w8, #1, lsl #12            // =4096
-	add	x9, x21, w9, sxtw
-	add	x11, x21, w11, sxtw
-	strb	w10, [x9, #991]
-	strb	w10, [x9, #959]
-	strb	w10, [x9, #1023]
-	mov	w9, #-5120                      // =0xffffec00
-	add	w9, w8, w9
-	strb	w10, [x11, #991]
-	strb	w10, [x11, #959]
-	add	x9, x21, w9, sxtw
-	strb	w10, [x11, #1023]
-	sub	w11, w8, #3072
+	mov	w9, #2                          // =0x2
 	sub	w8, w8, #2048
-	add	x11, x21, w11, sxtw
 	add	x8, x21, w8, sxtw
-	mov	w10, #2                         // =0x2
-	strb	w10, [x9, #991]
-	strb	w10, [x9, #959]
-	strb	w10, [x9, #1023]
-	strb	w10, [x11, #991]
-	strb	w10, [x11, #959]
-	strb	w10, [x11, #1023]
-	strb	w10, [x8, #991]
-	strb	w10, [x8, #959]
-	strb	w10, [x8, #1023]
-.LBB3_25:
+	strb	w9, [x8, #991]
+	strb	w9, [x8, #959]
+	strb	w9, [x8, #1023]
+.LBB3_24:
 	ldrb	w8, [x22, :lo12:rkf_wf_get_lut.sftemp]
 	and	w9, w23, #0xff00
 	str	w20, [x19, #4]
 	orr	w8, w8, w9
 	str	w8, [x22, :lo12:rkf_wf_get_lut.sftemp]
 	mov	w8, #2                          // =0x2
-.LBB3_26:
+.LBB3_25:
 	ldp	x20, x19, [sp, #48]             // 16-byte Folded Reload
 	mov	w0, w8
 	ldp	x22, x21, [sp, #32]             // 16-byte Folded Reload
@@ -405,12 +377,12 @@ rkf_wf_get_lut:                         // @rkf_wf_get_lut
 	ldp	x29, x30, [sp], #64             // 16-byte Folded Reload
 	ldr	x30, [x18, #-8]!
 	ret
-.LBB3_27:
+.LBB3_26:
 	adrp	x0, .L.str.3
 	add	x0, x0, :lo12:.L.str.3
 	bl	_printk
 	mov	w8, #-5                         // =0xfffffffb
-	b	.LBB3_26
+	b	.LBB3_25
 .Lfunc_end3:
 	.size	rkf_wf_get_lut, .Lfunc_end3-rkf_wf_get_lut
                                         // -- End function

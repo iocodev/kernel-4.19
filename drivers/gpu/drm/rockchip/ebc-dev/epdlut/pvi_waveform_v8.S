@@ -314,35 +314,12 @@ pvi_wf_get_lut:                         // @pvi_wf_get_lut
 	cbnz	w0, .LBB1_46
 // %bb.45:
 	lsl	w8, w20, #10
-	mov	w9, #-6144                      // =0xffffe800
-	mov	w10, #1                         // =0x1
-	add	w9, w8, w9
-	sub	w11, w8, #1, lsl #12            // =4096
-	add	x9, x21, w9, sxtw
-	add	x11, x21, w11, sxtw
-	strb	w10, [x9, #991]
-	strb	w10, [x9, #959]
-	strb	w10, [x9, #1023]
-	mov	w9, #-5120                      // =0xffffec00
-	add	w9, w8, w9
-	strb	w10, [x11, #991]
-	strb	w10, [x11, #959]
-	add	x9, x21, w9, sxtw
-	strb	w10, [x11, #1023]
-	sub	w11, w8, #3072
+	mov	w9, #2                          // =0x2
 	sub	w8, w8, #2048
-	add	x11, x21, w11, sxtw
 	add	x8, x21, w8, sxtw
-	mov	w10, #2                         // =0x2
-	strb	w10, [x9, #991]
-	strb	w10, [x9, #959]
-	strb	w10, [x9, #1023]
-	strb	w10, [x11, #991]
-	strb	w10, [x11, #959]
-	strb	w10, [x11, #1023]
-	strb	w10, [x8, #991]
-	strb	w10, [x8, #959]
-	strb	w10, [x8, #1023]
+	strb	w9, [x8, #991]
+	strb	w9, [x8, #959]
+	strb	w9, [x8, #1023]
 .LBB1_46:
 	ldrb	w8, [x22, :lo12:pvi_wf_get_lut.sftemp]
 	and	w9, w23, #0xff00

@@ -220,8 +220,9 @@ void android_device_destroy(struct android_uevent_opts *opts)
 
 	android_opts = NULL;
 	ida_destroy(&opts->function_ida);
-	device_destroy(dev->class, dev->devt);
 	spin_unlock_irqrestore(&opts_lock, flags);
+
+	device_unregister(dev);
 }
 
 void __android_set_connected(struct android_uevent_opts *opts,

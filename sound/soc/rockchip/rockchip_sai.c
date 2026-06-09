@@ -2036,23 +2036,92 @@ static irqreturn_t rockchip_sai_isr(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
+static int rockchip_sai_always_on_parse_fmt(struct rk_sai_dev *sai,
+					     unsigned int *fmt)
+{
+	const char *str;
+	int ret;
+
+	ret = device_property_read_string(sai->dev,
+					  "rockchip,always-on-format", &str);
+	if (ret) {
+		*fmt = SND_SOC_DAIFMT_I2S;
+		return 0;
+	}
+
+	if (!strcmp(str, "i2s"))
+		*fmt = SND_SOC_DAIFMT_I2S;
+	else if (!strcmp(str, "left_j"))
+		*fmt = SND_SOC_DAIFMT_LEFT_J;
+	else if (!strcmp(str, "right_j"))
+		*fmt = SND_SOC_DAIFMT_RIGHT_J;
+	else if (!strcmp(str, "dsp_a"))
+		*fmt = SND_SOC_DAIFMT_DSP_A;
+	else if (!strcmp(str, "dsp_b"))
+		*fmt = SND_SOC_DAIFMT_DSP_B;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
 static int rockchip_sai_keep_clk_always_on(struct rk_sai_dev *sai)
 {
-	unsigned int mclk_rate, bclk_rate, div_bclk;
+	unsigned int mclk_rate, bclk_rate, div_bclk, fmt;
+	unsigned int bclk_fs, fsync_rate, fpw;
+	unsigned int ckr_mask, ckr_val;
+	int ret;
 
 	sai->is_master_mode = true;
 
-	/* init I2S fmt default */
-	rockchip_sai_fmt_create(sai, SND_SOC_DAIFMT_I2S);
+	ret = rockchip_sai_always_on_parse_fmt(sai, &fmt);
+	if (ret) {
+		dev_err(sai->dev, "Invalid always-on format\n");
+		return ret;
+	}
+
+	rockchip_sai_fmt_create(sai, fmt);
+
+	if (device_property_read_u32(sai->dev, "rockchip,always-on-bclk-fs",
+				     &bclk_fs))
+		bclk_fs = 64;
+
+	if (device_property_read_u32(sai->dev, "rockchip,always-on-fsync-rate",
+				     &fsync_rate))
+		fsync_rate = DEFAULT_FS;
+
+	switch (sai->fpw) {
+	case FPW_ONE_BCLK_WIDTH:
+		fpw = 1;
+		break;
+	case FPW_HALF_FRAME_WIDTH:
+		fpw = bclk_fs / 2;
+		break;
+	case FPW_ONE_SLOT_WIDTH:
+		fpw = bclk_fs;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	regmap_update_bits(sai->regmap, SAI_FSCR,
-			   SAI_FSCR_FW_MASK |
-			   SAI_FSCR_FPW_MASK,
-			   SAI_FSCR_FW(64) |
-			   SAI_FSCR_FPW(32));
+			   SAI_FSCR_FW_MASK | SAI_FSCR_FPW_MASK,
+			   SAI_FSCR_FW(bclk_fs) | SAI_FSCR_FPW(fpw));
+
+	ckr_mask = SAI_CKR_CKP_MASK | SAI_CKR_FSP_MASK;
+	ckr_val = 0;
+	if (device_property_read_bool(sai->dev, "rockchip,always-on-bclk-invert"))
+		ckr_val |= SAI_CKR_CKP_INVERTED;
+	else
+		ckr_val |= SAI_CKR_CKP_NORMAL;
+	if (device_property_read_bool(sai->dev, "rockchip,always-on-fsync-invert"))
+		ckr_val |= SAI_CKR_FSP_INVERTED;
+	else
+		ckr_val |= SAI_CKR_FSP_NORMAL;
+	regmap_update_bits(sai->regmap, SAI_CKR, ckr_mask, ckr_val);
 
 	mclk_rate = clk_get_rate(sai->mclk);
-	bclk_rate = DEFAULT_FS * 64;
+	bclk_rate = fsync_rate * bclk_fs;
 	div_bclk = DIV_ROUND_CLOSEST(mclk_rate, bclk_rate);
 
 	regmap_update_bits(sai->regmap, SAI_CKR, SAI_CKR_MDIV_MASK,
@@ -2060,8 +2129,8 @@ static int rockchip_sai_keep_clk_always_on(struct rk_sai_dev *sai)
 
 	pm_runtime_forbid(sai->dev);
 
-	dev_info(sai->dev, "CLK-ALWAYS-ON: mclk: %d, bclk: %d, fsync: %d\n",
-		 mclk_rate, bclk_rate, DEFAULT_FS);
+	dev_info(sai->dev, "CLK-ALWAYS-ON: mclk=%d bclk=%d fsync=%d fmt=%u bclk_fs=%u\n",
+		 mclk_rate, bclk_rate, fsync_rate, fmt, bclk_fs);
 
 	return 0;
 }

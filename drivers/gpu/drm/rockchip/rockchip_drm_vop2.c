@@ -2195,7 +2195,8 @@ static inline void rk3588_vop2_cfg_done(struct drm_crtc *crtc)
 
 	if (vp->reserved_plane_phy_id != ROCKCHIP_VOP2_PHY_ID_INVALID) {
 		if (vop2->version < VOP_VERSION_RK3572)
-			VOP_CTRL_SET(vop2, win_cfg_done, vp->win_cfg_done_bits);
+			vop2_writel(vop2, RK3588_SYS_WIN_REG_CFG_DONE,
+				    vp->win_cfg_done_bits | (vp->win_cfg_done_bits << 16));
 		val = RK3568_VOP2_GLB_CFG_DONE_EN | RK3568_VOP2_WB_CFG_DONE |
 		      (RK3568_VOP2_WB_CFG_DONE << 16) | BIT(vp_data->reg_done_bit) |
 		      (BIT(vp_data->reg_done_bit) << 16);
@@ -8454,7 +8455,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		rk3588_vop2_win_cfg_axi(win);
 
 	if (is_vop3(vop2)) {
-		if (!win->parent && !vop2_cluster_window(win))
+		if (!win->parent && vop2_multi_area_window(win))
 			VOP_WIN_SET(vop2, win, scale_engine_num, win->scale_engine_num);
 
 		/* Only esmart win0 and cluster win0 need to enter config vp id and win dly num */
@@ -9846,10 +9847,13 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	struct vop2 *vop2 = vp->vop2;
 	struct drm_crtc_state *crtc_state = crtc->state;
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct drm_display_mode tmp;
 	struct rockchip_crtc_state *state = to_rockchip_crtc_state(crtc->state);
 	bool interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
 	struct drm_plane *plane;
 	unsigned long aclk_rate;
+	u64 dividend, dclk_rate_kHz;
+	u32 actual_fps_x100;
 
 	DEBUG_PRINT("Video Port%d: %s\n", vp->id, crtc_state->active ? "ACTIVE" : "DISABLED");
 
@@ -9865,6 +9869,15 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	else
 		aclk_rate = clk_get_rate(vop2->aclk);
 
+	/* Calculate refresh rate multiplied by 100 to keep two decimal precision */
+	drm_mode_copy(&tmp, mode);
+	tmp.clock *= 100;
+	dclk_rate_kHz = clk_get_rate(vp->dclk) / 1000;
+	/* The expected crtc_clock and actual hardware dclk may have integer multiple relation */
+	dclk_rate_kHz *= DIV64_U64_ROUND_CLOSEST((u64)mode->crtc_clock, dclk_rate_kHz);
+	dividend = mul_u32_u32(drm_mode_vrefresh(&tmp), dclk_rate_kHz);
+	actual_fps_x100 = div64_u64(dividend, (u64)mode->crtc_clock);
+
 	vop2_dump_connector_on_crtc(crtc, s);
 	DEBUG_PRINT("\tbus_format[%x]: %s\n", state->bus_format,
 		    drm_get_bus_format_name(state->bus_format));
@@ -9878,11 +9891,11 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 		    state->post_r2y_en ? csc_mode_to_string(vop2, state->post_csc_mode) : "off",
 		    state->sharp_en, state->acm_en, state->post_y2r_en ?
 		    csc_mode_to_string(vop2, state->post_csc_y2r_mode) : "off");
-	DEBUG_PRINT("    Display mode: %dx%d%s%d\n",
+	DEBUG_PRINT("    Display mode: %dx%d%s%u.%02u\n",
 		    mode->hdisplay, mode->vdisplay, interlaced ? "i" : "p",
-		    drm_mode_vrefresh(mode));
-	DEBUG_PRINT("\tdclk[%d kHz] real_dclk[%d kHz] aclk[%ld kHz] type[%x] flag[%x]\n",
-		    mode->clock, mode->crtc_clock, aclk_rate / 1000,
+		    actual_fps_x100 / 100, actual_fps_x100 % 100);
+	DEBUG_PRINT("\tdclk[%d kHz] crtc_dclk[%d kHz] real_dclk[%lu kHz] aclk[%ld kHz] type[%x] flag[%x]\n",
+		    mode->clock, mode->crtc_clock, clk_get_rate(vp->dclk) / 1000, aclk_rate / 1000,
 		    mode->type, mode->flags);
 	DEBUG_PRINT("\tH: %d %d %d %d\n", mode->hdisplay, mode->hsync_start,
 		    mode->hsync_end, mode->htotal);
@@ -17845,10 +17858,44 @@ static int rk3576_shared_mode_esmart_scale_engine(int phy_id)
 	}
 }
 
+static int vop3_get_esmart_scale_engine_by_lb_mode(struct vop2 *vop2, int phy_id)
+{
+	const struct vop2_scale_engine *scale_engine = vop2->data->scale_engine;
+	int i;
+
+	/* Find the scale engine configurations according to the esmart lb mode */
+	scale_engine += vop2->esmart_lb_mode * VOP2_MAX_MULTI_AREA_WIN;
+
+	for (i = 0; i < VOP2_MAX_MULTI_AREA_WIN; i++) {
+		if (scale_engine[i].plane_phy_id == phy_id)
+			return scale_engine[i].scale_engine_num;
+	}
+
+	return 0;
+}
+
+/**
+ * RK3528/RK3562/RK3576 platforms require configuring the scale engine number
+ * for each esmart window during driver initialization. The configuration
+ * follows these rules:
+ *
+ * 1. The scale engine number must be unique for each esmart window.
+ * 2. Valid scale engine numbers are determined by the esmart lb mode:
+ *    - VOP3_ESMART_8K_MODE supports 0
+ *    - VOP3_ESMART_4K_4K_MODE supports 0, 1
+ *    - VOP3_ESMART_4K_2K_2K_MODE supports 0, 1, 2
+ *    - VOP3_ESMART_2K_2K_2K_2K_MODE supports 0, 1, 2, 3
+ *    - VOP3_ESMART_4K_4K_4K_MODE supports 0, 1, 2
+ *    - VOP3_ESMART_4K_4K_2K_2K_MODE supports 0, 1, 2, 3
+ * 3. Scale engine number is static and fixed at init time, cannot be changed
+ *    dynamically.
+ */
 static void vop3_init_esmart_scale_engine(struct vop2 *vop2)
 {
-	u8 scale_engine_num = 0;
 	struct drm_plane *plane = NULL;
+
+	if (!vop2->data->scale_engine)
+		return;
 
 	drm_for_each_plane(plane, vop2->drm_dev) {
 		struct vop2_win *win = to_vop2_win(plane);
@@ -17859,7 +17906,7 @@ static void vop3_init_esmart_scale_engine(struct vop2 *vop2)
 		if (vop2->shared_mode_res.shared_mode)
 			win->scale_engine_num = rk3576_shared_mode_esmart_scale_engine(win->phys_id);
 		else
-			win->scale_engine_num = scale_engine_num++;
+			win->scale_engine_num = vop3_get_esmart_scale_engine_by_lb_mode(vop2, win->phys_id);
 	}
 }
 
@@ -19573,7 +19620,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	 * };
 	 */
 	ret = of_property_read_u8(dev->of_node, "esmart_lb_mode", &vop2->esmart_lb_mode);
-	if (ret < 0)
+	if (ret < 0 || vop2->esmart_lb_mode >= VOP3_ESMART_LB_MODE_MAX)
 		vop2->esmart_lb_mode = vop2->data->esmart_lb_mode;
 
 	/*

@@ -1045,6 +1045,11 @@ config SND_SOC_CS530X_I2C
 	  Enable support for Cirrus Logic CS530X ADCs
 	  with I2C control.
 
+config SND_SOC_CSK8110
+	tristate "Rockchip CSK8110 CODEC"
+	help
+	  Enable support for CSK8110 audio codec.
+
 config SND_SOC_CX20442
 	tristate
 	depends on TTY

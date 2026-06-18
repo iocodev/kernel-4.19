@@ -286,10 +286,10 @@
 
 		power-supply = <&vcc3v3_lcd>;
 		max-touch-number = <5>;
-		display-coords = <0 0 1080 1920>;
-		pos-swap = <0>;
+		display-coords = <0 0 1920 1080>;
+		pos-swap = <1>;
 		posx-reverse = <0>;
-		posy-reverse = <0>;
+		posy-reverse = <1>;
 	};
 };
 

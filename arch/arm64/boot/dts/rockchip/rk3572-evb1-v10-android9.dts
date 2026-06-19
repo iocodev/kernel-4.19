@@ -39,11 +39,17 @@
 	cec-enable;
 };
 
+&pwm0_2ch_0 {
+	rockchip,disable-rc;
+};
+
+&route_dsi {
+	logo,mode = "fullscreen";
+	logo,rotate = <90>;
+};
+
 &route_hdmi {
 	status = "okay";
 	connect = <&vp0_out_hdmi>;
-};
-
-&pwm0_2ch_0 {
-	rockchip,disable-rc;
+	logo,mode = "fullscreen";
 };

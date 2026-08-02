@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
  *
@@ -140,11 +140,22 @@ static int tcon_enable(struct eink_tcon *tcon, struct ebc_panel *panel)
 {
 	int reg_num = 0;
 	int i;
+	int ret;
 	const struct eink_reg_data *pre_init_reg;
 
-	clk_prepare_enable(tcon->pclk);
-	clk_prepare_enable(tcon->hclk);
-	pm_runtime_get_sync(tcon->dev);
+	ret = clk_prepare_enable(tcon->pclk);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(tcon->hclk);
+	if (ret)
+		goto err_disable_pclk;
+
+	ret = pm_runtime_get_sync(tcon->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(tcon->dev);
+		goto err_disable_hclk;
+	}
 
 	if ((panel->width == 1872) && (panel->height == 1404)) {
 		pre_init_reg = PANEL_1872x1404_INIT;
@@ -163,6 +174,12 @@ static int tcon_enable(struct eink_tcon *tcon, struct ebc_panel *panel)
 	enable_irq(tcon->irq);
 
 	return 0;
+
+err_disable_hclk:
+	clk_disable_unprepare(tcon->hclk);
+err_disable_pclk:
+	clk_disable_unprepare(tcon->pclk);
+	return ret;
 }
 
 static void tcon_disable(struct eink_tcon *tcon)

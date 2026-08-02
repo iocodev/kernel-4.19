@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
  *
@@ -48,6 +48,7 @@
 #define PAPYRUS_TEMP_READ_TIME_MS 10
 /* Powerup sequence takes at least 24 ms - no need to poll too frequently */
 #define HW_GET_STATE_INTERVAL_MS 24
+#define PAPYRUS_VCOM_PROGRAM_RETRIES 20
 
 #define SEQ_VDD(index)		((index % 4) << 6)
 #define SEQ_VPOS(index)	((index % 4) << 4)
@@ -285,14 +286,14 @@ static void papyrus_hw_send_powerdown(struct papyrus_sess *sess)
 static irqreturn_t papyrus_irq(int irq, void *dev_id)
 {
 	struct papyrus_sess *sess = dev_id;
-	struct papyrus_hw_state hwst;
+	struct papyrus_hw_state hwst = { 0 };
 
 	papyrus_hw_get_int_state(sess, &hwst);
 	dev_info(&sess->client->dev, "%s: (INT1 = %02x, INT2 = %02x)\n", __func__,
 						hwst.int_status1, hwst.int_status2);
 	//reset pmic
 	if ((hwst.int_status2 & 0xfa) || (hwst.int_status1 & 0x04)) {
-		if (sess->enable_reg_shadow | V3P3_EN_MASK)
+		if (sess->enable_reg_shadow & V3P3_EN_MASK)
 			papyrus_hw_setreg(sess, PAPYRUS_ADDR_ENABLE, sess->enable_reg_shadow);
 	}
 
@@ -381,17 +382,18 @@ static int papyrus_hw_read_temperature(struct ebc_pmic *pmic, int *t)
 	msleep(PAPYRUS_TEMP_READ_TIME_MS);
 #endif
 	stat = papyrus_hw_getreg(sess, PAPYRUS_ADDR_TMST_VALUE, &tb);
-	*t = (int)(int8_t)tb;
+	if (stat)
+		return stat;
 
-	return stat;
+	*t = (int)(int8_t)tb;
+	return 0;
 }
 
 static void papyrus_hw_power_req(struct ebc_pmic *pmic, bool up)
 {
 	struct papyrus_sess *sess = (struct papyrus_sess *)pmic->drvpar;
 
-	if (up)
-		mutex_lock(&sess->power_lock);
+	mutex_lock(&sess->power_lock);
 	if (papyrus_need_reconfig) {
 		if (up) {
 			papyrus_hw_send_powerup(sess);
@@ -414,9 +416,7 @@ static void papyrus_hw_power_req(struct ebc_pmic *pmic, bool up)
 				gpiod_direction_output(sess->pwr_up_pin, 0);
 		}
 	}
-	if (!up)
-		mutex_unlock(&sess->power_lock);
-	return;
+	mutex_unlock(&sess->power_lock);
 }
 
 static int papyrus_hw_vcom_get(struct ebc_pmic *pmic)
@@ -449,32 +449,44 @@ static int papyrus_hw_vcom_set(struct ebc_pmic *pmic, int vcom_mv)
 {
 	struct papyrus_sess *sess = (struct papyrus_sess *)pmic->drvpar;
 	uint8_t rev_val = 0;
-	int stat = 0;
+	int retries = PAPYRUS_VCOM_PROGRAM_RETRIES;
+	int stat;
 
 	mutex_lock(&sess->power_lock);
 	gpiod_direction_output(sess->wake_up_pin, 1);
 	msleep(10);
-	// Set vcom voltage
+	/* Set VCOM before issuing the nonvolatile programming command. */
 	papyrus_set_vcom_voltage(sess, vcom_mv);
-	stat |= papyrus_hw_setreg(sess, PAPYRUS_ADDR_VCOM1_ADJUST, sess->vcom1);
-	stat |= papyrus_hw_setreg(sess, PAPYRUS_ADDR_VCOM2_ADJUST, sess->vcom2);
-
-	// PROGRAMMING
-	sess->vcom2 |= 1 << PAPYRUS_VCOM2_PROG;
-	stat |= papyrus_hw_setreg(sess, PAPYRUS_ADDR_VCOM2_ADJUST, sess->vcom2);
-	rev_val = 0;
-	while (!(rev_val & (1 << PAPYRUS_INT_STATUS1_PRGC))) {
-		stat |= papyrus_hw_getreg(sess, PAPYRUS_ADDR_INT_STATUS1, &rev_val);
-		if (stat)
-			break;
-		msleep(50);
-	}
-
+	stat = papyrus_hw_setreg(sess, PAPYRUS_ADDR_VCOM1_ADJUST, sess->vcom1);
 	if (stat)
-		dev_err(&sess->client->dev, "papyrus: I2C error: %d\n", stat);
+		goto out;
+	stat = papyrus_hw_setreg(sess, PAPYRUS_ADDR_VCOM2_ADJUST, sess->vcom2);
+	if (stat)
+		goto out;
+
+	sess->vcom2 |= BIT(PAPYRUS_VCOM2_PROG);
+	stat = papyrus_hw_setreg(sess, PAPYRUS_ADDR_VCOM2_ADJUST, sess->vcom2);
+	if (stat)
+		goto out;
+
+	do {
+		stat = papyrus_hw_getreg(sess, PAPYRUS_ADDR_INT_STATUS1,
+					 &rev_val);
+		if (stat)
+			goto out;
+		if (rev_val & BIT(PAPYRUS_INT_STATUS1_PRGC))
+			goto out;
+		msleep(50);
+	} while (--retries);
+
+	stat = -ETIMEDOUT;
+out:
+	if (stat)
+		dev_err(&sess->client->dev,
+			"papyrus: VCOM programming failed: %d\n", stat);
 	mutex_unlock(&sess->power_lock);
 
-	return 0;
+	return stat;
 }
 
 static void papyrus_pm_sleep(struct ebc_pmic *pmic)
@@ -508,8 +520,9 @@ static void papyrus_pm_resume(struct ebc_pmic *pmic)
 
 	//trigger temperature measurement
 	papyrus_hw_setreg(s, PAPYRUS_ADDR_TMST1, 0x80);
-	queue_delayed_work(s->tmp_monitor_wq, &s->tmp_delay_work,
-			   msecs_to_jiffies(10000));
+	if (s->tmp_monitor_wq)
+		queue_delayed_work(s->tmp_monitor_wq, &s->tmp_delay_work,
+				   msecs_to_jiffies(10000));
 }
 
 static void papyrus_tmp_work(struct work_struct *work)
@@ -520,8 +533,9 @@ static void papyrus_tmp_work(struct work_struct *work)
 	//trigger temperature measurement
 	papyrus_hw_setreg(s, PAPYRUS_ADDR_TMST1, 0x80);
 
-	queue_delayed_work(s->tmp_monitor_wq, &s->tmp_delay_work,
-			   msecs_to_jiffies(10000));
+	if (s->tmp_monitor_wq)
+		queue_delayed_work(s->tmp_monitor_wq, &s->tmp_delay_work,
+				   msecs_to_jiffies(10000));
 }
 
 static int papyrus_probe(struct ebc_pmic *pmic, struct i2c_client *client)
@@ -603,6 +617,8 @@ static int papyrus_probe(struct ebc_pmic *pmic, struct i2c_client *client)
 
 	sess->tmp_monitor_wq = alloc_ordered_workqueue("%s",
 			WQ_MEM_RECLAIM | WQ_FREEZABLE, "tps-tmp-monitor-wq");
+	if (!sess->tmp_monitor_wq)
+		return -ENOMEM;
 	INIT_DELAYED_WORK(&sess->tmp_delay_work, papyrus_tmp_work);
 
 	queue_delayed_work(sess->tmp_monitor_wq, &sess->tmp_delay_work,
@@ -613,6 +629,7 @@ static int papyrus_probe(struct ebc_pmic *pmic, struct i2c_client *client)
 static int tps65185_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct ebc_pmic *pmic;
+	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "i2c check functionality failed.");
@@ -625,9 +642,10 @@ static int tps65185_probe(struct i2c_client *client, const struct i2c_device_id 
 		return -ENOMEM;
 	}
 
-	if (0 != papyrus_probe(pmic, client)) {
-		dev_err(&client->dev, "tps65185 hw init failed.");
-		return -ENODEV;
+	ret = papyrus_probe(pmic, client);
+	if (ret) {
+		dev_err(&client->dev, "tps65185 hw init failed: %d", ret);
+		return ret;
 	}
 
 	pmic->dev = &client->dev;

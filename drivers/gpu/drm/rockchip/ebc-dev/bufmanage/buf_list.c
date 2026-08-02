@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
  *
@@ -26,6 +26,7 @@ int buf_list_init(buf_list_t **li, int maxelements)
 	(*li)->array_elements = (int **)kmalloc(sizeof(int *) * maxelements, GFP_KERNEL);
 	if ((*li)->array_elements == NULL) {
 		kfree(*li);
+		*li = NULL;
 		return -ENOMEM;
 	}
 	memset((*li)->array_elements, 0, (sizeof(int *) * maxelements));

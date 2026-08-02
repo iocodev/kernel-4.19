@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
  *
@@ -27,22 +27,22 @@ struct ebc_pmic {
 
 static inline void ebc_pmic_power_on(struct ebc_pmic *pmic)
 {
-	return pmic->pmic_power_req(pmic, 1);
+	pmic->pmic_power_req(pmic, true);
 }
 
 static inline void ebc_pmic_power_off(struct ebc_pmic *pmic)
 {
-	return pmic->pmic_power_req(pmic, 0);
+	pmic->pmic_power_req(pmic, false);
 }
 
 static inline void ebc_pmic_suspend(struct ebc_pmic *pmic)
 {
-	return pmic->pmic_pm_suspend(pmic);
+	pmic->pmic_pm_suspend(pmic);
 }
 
 static inline void ebc_pmic_resume(struct ebc_pmic *pmic)
 {
-	return pmic->pmic_pm_resume(pmic);
+	pmic->pmic_pm_resume(pmic);
 }
 
 static inline int ebc_pmic_read_temp(struct ebc_pmic *pmic, int *t)

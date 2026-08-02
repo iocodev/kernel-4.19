@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
  *
@@ -54,7 +54,8 @@ static inline void ebc_tcon_disable(struct ebc_tcon *tcon)
 static inline void ebc_tcon_dsp_mode_set(struct ebc_tcon *tcon, int update_mode,
 					 int display_mode, int three_win_mode, int eink_mode)
 {
-	return tcon->dsp_mode_set(tcon, update_mode, display_mode, three_win_mode, eink_mode);
+	tcon->dsp_mode_set(tcon, update_mode, display_mode, three_win_mode,
+			   eink_mode);
 }
 
 static inline void ebc_tcon_image_addr_set(struct ebc_tcon *tcon, u32 pre_image_addr, u32 cur_image_addr)

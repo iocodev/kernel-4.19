@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
  *
@@ -163,9 +163,21 @@ static inline void tcon_cfg_done(struct ebc_tcon *tcon)
 
 static int tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 {
-	clk_prepare_enable(tcon->hclk);
-	clk_prepare_enable(tcon->dclk);
-	pm_runtime_get_sync(tcon->dev);
+	int ret;
+
+	ret = clk_prepare_enable(tcon->hclk);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(tcon->dclk);
+	if (ret)
+		goto err_disable_hclk;
+
+	ret = pm_runtime_get_sync(tcon->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(tcon->dev);
+		goto err_disable_dclk;
+	}
 
 	/* panel timing and win info config */
 	tcon_write(tcon, EBC_DSP_HTIMING0,
@@ -215,6 +227,12 @@ static int tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 	enable_irq(tcon->irq);
 
 	return 0;
+
+err_disable_dclk:
+	clk_disable_unprepare(tcon->dclk);
+err_disable_hclk:
+	clk_disable_unprepare(tcon->hclk);
+	return ret;
 }
 
 static void tcon_disable(struct ebc_tcon *tcon)

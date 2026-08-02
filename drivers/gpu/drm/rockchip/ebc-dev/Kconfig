@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 
 menuconfig ROCKCHIP_EBC_DEV
 	bool "Rockchip eBook Device Driver"

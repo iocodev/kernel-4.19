@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
  *
@@ -7,6 +7,10 @@
 
 #ifndef EPD_LUT_H
 #define EPD_LUT_H
+
+#include <linux/types.h>
+
+struct device;
 
 enum epd_lut_type {
 	WF_TYPE_RESET	= 1,
@@ -56,6 +60,7 @@ int epd_lut_get(struct epd_lut_data *output, enum epd_lut_type lut_type, int tem
 int pvi_wf_input(void *waveform_file);
 const char *pvi_wf_get_version(void);
 int pvi_wf_get_lut(struct epd_lut_data *output, enum epd_lut_type lut_type, int temperture);
+int decodewaveform(u8 *data, int width);
 
 /*
  * RKF Waveform Interfaces

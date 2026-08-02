@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
  *
@@ -38,19 +38,26 @@ static DECLARE_WAIT_QUEUE_HEAD(ebc_buf_wq);
 
 int ebc_buf_release(struct ebc_buf_s  *release_buf)
 {
-	struct ebc_buf_s *temp_buf = release_buf;
+	bool wake = false;
 
-	if (temp_buf) {
-		if (temp_buf->status == buf_osd) {
-			kfree(temp_buf);
-		} else {
-			temp_buf->status = buf_idle;
-			if (1 == ebc_buf_info.use_buf_is_empty) {
-				ebc_buf_info.use_buf_is_empty = 0;
-				wake_up_interruptible_sync(&ebc_buf_wq);
-			}
-		}
+	if (!release_buf)
+		return BUF_SUCCESS;
+
+	if (release_buf->status == buf_osd) {
+		kfree(release_buf);
+		return BUF_SUCCESS;
 	}
+
+	mutex_lock(&ebc_buf_info.ebc_buf_lock);
+	release_buf->status = buf_idle;
+	if (ebc_buf_info.use_buf_is_empty) {
+		ebc_buf_info.use_buf_is_empty = 0;
+		wake = true;
+	}
+	mutex_unlock(&ebc_buf_info.ebc_buf_lock);
+
+	if (wake)
+		wake_up_interruptible(&ebc_buf_wq);
 
 	return BUF_SUCCESS;
 }
@@ -135,24 +142,36 @@ int ebc_add_to_dsp_buf_list(struct ebc_buf_s *dsp_buf)
 
 int ebc_get_dsp_list_enum_num(void)
 {
-	return ebc_buf_info.dsp_buf_list->nb_elt;
+	int num = 0;
+
+	mutex_lock(&ebc_buf_info.dsp_buf_lock);
+	if (ebc_buf_info.dsp_buf_list)
+		num = ebc_buf_info.dsp_buf_list->nb_elt;
+	mutex_unlock(&ebc_buf_info.dsp_buf_lock);
+
+	return num;
 }
 
 struct ebc_buf_s *ebc_find_buf_by_phy_addr(unsigned long phy_addr)
 {
+	struct ebc_buf_s *found = NULL;
 	struct ebc_buf_s *temp_buf;
 	int temp_pos;
 
+	mutex_lock(&ebc_buf_info.ebc_buf_lock);
 	if (ebc_buf_info.buf_list) {
 		temp_pos = 0;
 		while (temp_pos < ebc_buf_info.buf_list->nb_elt) {
 			temp_buf = (struct ebc_buf_s *)buf_list_get(ebc_buf_info.buf_list, temp_pos++);
-			if (temp_buf && (temp_buf->phy_addr == phy_addr))
-				return temp_buf;
+			if (temp_buf && temp_buf->phy_addr == phy_addr) {
+				found = temp_buf;
+				break;
+			}
 		}
 	}
+	mutex_unlock(&ebc_buf_info.ebc_buf_lock);
 
-	return NULL;
+	return found;
 }
 
 struct ebc_buf_s *ebc_dsp_buf_get(void)
@@ -169,9 +188,13 @@ struct ebc_buf_s *ebc_dsp_buf_get(void)
 
 struct ebc_buf_s *ebc_osd_buf_get(void)
 {
-	if (ebc_buf_info.osd_buf)
-		return ebc_buf_info.osd_buf;
-	return NULL;
+	struct ebc_buf_s *buf;
+
+	mutex_lock(&ebc_buf_info.ebc_buf_lock);
+	buf = ebc_buf_info.osd_buf;
+	mutex_unlock(&ebc_buf_info.ebc_buf_lock);
+
+	return buf;
 }
 
 struct ebc_buf_s *ebc_osd_buf_clone(void)
@@ -179,46 +202,66 @@ struct ebc_buf_s *ebc_osd_buf_clone(void)
 	struct ebc_buf_s *temp_buf;
 
 	temp_buf = kzalloc(sizeof(*temp_buf), GFP_KERNEL);
-	if (NULL == temp_buf)
+	if (!temp_buf)
 		return NULL;
 
+	mutex_lock(&ebc_buf_info.ebc_buf_lock);
+	if (!ebc_buf_info.osd_buf) {
+		mutex_unlock(&ebc_buf_info.ebc_buf_lock);
+		kfree(temp_buf);
+		return NULL;
+	}
 	temp_buf->virt_addr = ebc_buf_info.osd_buf->virt_addr;
 	temp_buf->phy_addr = ebc_buf_info.osd_buf->phy_addr;
+	temp_buf->len = ebc_buf_info.osd_buf->len;
 	temp_buf->status = buf_osd;
+	mutex_unlock(&ebc_buf_info.ebc_buf_lock);
 
 	return temp_buf;
 }
 
 struct ebc_buf_s *ebc_empty_buf_get(void)
 {
-	struct ebc_buf_s *temp_buf = NULL;
+	struct ebc_buf_s *temp_buf;
 	int temp_pos;
+	int ret;
 
-	mutex_lock(&ebc_buf_info.ebc_buf_lock);
-	while (ebc_buf_info.buf_list) {
-		temp_pos = 0;
+	for (;;) {
+		temp_buf = NULL;
+		mutex_lock(&ebc_buf_info.ebc_buf_lock);
+		if (!ebc_buf_info.buf_list) {
+			mutex_unlock(&ebc_buf_info.ebc_buf_lock);
+			return NULL;
+		}
 
-		while (temp_pos < ebc_buf_info.buf_list->nb_elt) {
-			temp_buf = (struct ebc_buf_s *)buf_list_get(ebc_buf_info.buf_list, temp_pos++);
-			if (temp_buf) {
-				if (temp_buf->status == buf_idle) {
-					temp_buf->status = buf_user;
-					memcpy(temp_buf->tid_name, current->comm, TASK_COMM_LEN); //store user thread name
-					goto OUT;
-				}
-				// one tid only can get one buf at one time
-				else if ((temp_buf->status == buf_user) && (!strncmp(temp_buf->tid_name, current->comm, TASK_COMM_LEN - 7))) {
-					goto OUT;
-				}
+		for (temp_pos = 0; temp_pos < ebc_buf_info.buf_list->nb_elt;
+		     temp_pos++) {
+			temp_buf = (struct ebc_buf_s *)buf_list_get(ebc_buf_info.buf_list,
+								       temp_pos);
+			if (!temp_buf)
+				continue;
+			if (temp_buf->status == buf_idle) {
+				temp_buf->status = buf_user;
+				memcpy(temp_buf->tid_name, current->comm, TASK_COMM_LEN);
+				mutex_unlock(&ebc_buf_info.ebc_buf_lock);
+				return temp_buf;
+			}
+			/* One thread may only own one buffer at a time. */
+			if (temp_buf->status == buf_user &&
+			    !strncmp(temp_buf->tid_name, current->comm,
+				     TASK_COMM_LEN - 7)) {
+				mutex_unlock(&ebc_buf_info.ebc_buf_lock);
+				return temp_buf;
 			}
 		}
-		ebc_buf_info.use_buf_is_empty = 1;
-		wait_event_interruptible(ebc_buf_wq, ebc_buf_info.use_buf_is_empty != 1);
-	}
 
-OUT:
-	mutex_unlock(&ebc_buf_info.ebc_buf_lock);
-	return temp_buf;
+		ebc_buf_info.use_buf_is_empty = 1;
+		mutex_unlock(&ebc_buf_info.ebc_buf_lock);
+		ret = wait_event_interruptible(ebc_buf_wq,
+				READ_ONCE(ebc_buf_info.use_buf_is_empty) != 1);
+		if (ret)
+			return NULL;
+	}
 }
 
 unsigned long ebc_phy_buf_base_get(void)
@@ -237,13 +280,26 @@ int ebc_buf_state_show(char *buf)
 	int ret = 0;
 	struct ebc_buf_s *temp_buf;
 
-	ret += sprintf(buf, "dsp_buf num = %d\n", ebc_buf_info.dsp_buf_list->nb_elt);
+	mutex_lock(&ebc_buf_info.dsp_buf_lock);
+	if (ebc_buf_info.dsp_buf_list)
+		ret += sprintf(buf, "dsp_buf num = %d\n",
+			       ebc_buf_info.dsp_buf_list->nb_elt);
+	else
+		ret += sprintf(buf, "dsp_buf num = 0\n");
+	mutex_unlock(&ebc_buf_info.dsp_buf_lock);
+
+	mutex_lock(&ebc_buf_info.ebc_buf_lock);
 	if (ebc_buf_info.buf_list) {
 		for (i = 0; i < ebc_buf_info.buf_list->nb_elt; i++) {
 			temp_buf = (struct ebc_buf_s *)buf_list_get(ebc_buf_info.buf_list, i);
-			ret += sprintf(buf + ret, "ebc_buf[%d]: s = %d, m = %d\n", i, temp_buf->status, temp_buf->buf_mode);
+			if (temp_buf)
+				ret += sprintf(buf + ret,
+					       "ebc_buf[%d]: s = %d, m = %d\n",
+					       i, temp_buf->status,
+					       temp_buf->buf_mode);
 		}
 	}
+	mutex_unlock(&ebc_buf_info.ebc_buf_lock);
 
 	return ret;
 }
@@ -253,17 +309,45 @@ int ebc_buf_uninit(void)
 	struct ebc_buf_s *temp_buf;
 	int pos;
 
-	ebc_buf_info.buf_total_num = 0;
-	if (ebc_buf_info.buf_list) {
-		pos = ebc_buf_info.buf_list->nb_elt - 1;
-		while (pos >= 0) {
-			temp_buf = (struct ebc_buf_s *)buf_list_get(ebc_buf_info.buf_list, pos);
-			if (temp_buf)
+	/* Lock ordering is always dsp_buf_lock before ebc_buf_lock. */
+	mutex_lock(&ebc_buf_info.dsp_buf_lock);
+	mutex_lock(&ebc_buf_info.ebc_buf_lock);
+
+	if (ebc_buf_info.dsp_buf_list) {
+		for (pos = ebc_buf_info.dsp_buf_list->nb_elt - 1; pos >= 0; pos--) {
+			temp_buf = (struct ebc_buf_s *)buf_list_get(
+				ebc_buf_info.dsp_buf_list, pos);
+			if (temp_buf && temp_buf->status == buf_osd &&
+			    temp_buf != ebc_buf_info.osd_buf)
 				kfree(temp_buf);
-			buf_list_remove(ebc_buf_info.buf_list, pos);
-			pos--;
+			buf_list_remove(ebc_buf_info.dsp_buf_list, pos);
 		}
+		buf_list_uninit(ebc_buf_info.dsp_buf_list);
+		ebc_buf_info.dsp_buf_list = NULL;
 	}
+
+	if (ebc_buf_info.buf_list) {
+		for (pos = ebc_buf_info.buf_list->nb_elt - 1; pos >= 0; pos--) {
+			temp_buf = (struct ebc_buf_s *)buf_list_get(
+				ebc_buf_info.buf_list, pos);
+			kfree(temp_buf);
+			buf_list_remove(ebc_buf_info.buf_list, pos);
+		}
+		buf_list_uninit(ebc_buf_info.buf_list);
+		ebc_buf_info.buf_list = NULL;
+	}
+
+	kfree(ebc_buf_info.osd_buf);
+	ebc_buf_info.osd_buf = NULL;
+	ebc_buf_info.buf_total_num = 0;
+	ebc_buf_info.phy_mem_base = 0;
+	ebc_buf_info.virt_mem_base = NULL;
+	ebc_buf_info.use_buf_is_empty = 0;
+	ebc_buf_info.dsp_buf_list_status = 0;
+
+	mutex_unlock(&ebc_buf_info.ebc_buf_lock);
+	mutex_unlock(&ebc_buf_info.dsp_buf_lock);
+	wake_up_interruptible_all(&ebc_buf_wq);
 
 	return BUF_SUCCESS;
 }
@@ -275,7 +359,7 @@ int ebc_buf_init(unsigned long phy_start, char *mem_start, int men_len, int dest
 	char *temp_addr;
 	struct ebc_buf_s *temp_buf;
 
-	if (max_buf_num < 0)
+	if (max_buf_num <= 0 || dest_buf_len <= 0 || men_len < dest_buf_len)
 		return BUF_ERROR;
 
 	if (NULL == mem_start)
@@ -311,6 +395,7 @@ int ebc_buf_init(unsigned long phy_start, char *mem_start, int men_len, int dest
 		temp_buf->status = buf_idle;
 
 		if (-1 == buf_list_add(ebc_buf_info.buf_list, (int *)temp_buf, -1)) {
+			kfree(temp_buf);
 			res = BUF_ERROR;
 			goto exit;
 		}
@@ -341,9 +426,10 @@ int ebc_buf_init(unsigned long phy_start, char *mem_start, int men_len, int dest
 	return BUF_SUCCESS;
 exit:
 	ebc_buf_uninit();
-	buf_list_uninit(ebc_buf_info.dsp_buf_list);
+	return res;
 buf_list_err:
 	buf_list_uninit(ebc_buf_info.buf_list);
+	ebc_buf_info.buf_list = NULL;
 
 	return res;
 }

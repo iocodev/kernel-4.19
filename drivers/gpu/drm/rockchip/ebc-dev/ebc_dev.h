@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
  *
@@ -9,6 +9,7 @@
 #define __EBC_DEV_H__
 
 #include <linux/notifier.h>
+#include <linux/types.h>
 
 /*
 * max support panel size 2232x1680
@@ -97,6 +98,16 @@ struct ebc_buf_info {
 	int width_mm;
 	int height_mm;
 };
+
+struct ebc_info;
+struct work_struct;
+
+void refresh_new_image2(u32 *image_new, const u32 *image_fb,
+			const u32 *image_bg, const u8 *frame_count,
+			struct ebc_info *info, int mode);
+void refresh_new_image_auto(u32 *image_new, const u32 *image_fb,
+			     const u8 *frame_count, struct ebc_info *info);
+void new_buffer_refresh(struct work_struct *work);
 
 #if IS_ENABLED(CONFIG_ROCKCHIP_EBC_DEV)
 int ebc_register_notifier(struct notifier_block *nb);

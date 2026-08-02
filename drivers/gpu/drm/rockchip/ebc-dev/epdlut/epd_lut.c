@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
  *
@@ -54,7 +54,10 @@ int epd_lut_from_file_init(struct device *dev, void *waveform, int size)
 		return ret;
 	}
 
-	return epd_lut_from_mem_init(waveform);
+	ret = epd_lut_from_mem_init(waveform);
+	release_firmware(fw);
+
+	return ret;
 }
 
 const char *epd_lut_get_wf_version(void)
@@ -68,5 +71,8 @@ const char *epd_lut_get_wf_version(void)
 
 int epd_lut_get(struct epd_lut_data *output, enum epd_lut_type lut_type, int temperture)
 {
+	if (!lut_get)
+		return -ENODEV;
+
 	return lut_get(output, lut_type, temperture);
 }

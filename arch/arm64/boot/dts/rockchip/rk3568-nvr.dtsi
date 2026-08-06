@@ -42,38 +42,19 @@
 	};
 
 	hdmi_sound: hdmi-sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <128>;
-		simple-audio-card,name = "hdmi-sound";
 		status = "okay";
-
-		simple-audio-card,cpu {
-				sound-dai = <&i2s0_8ch>;
-		};
-		simple-audio-card,codec {
-				sound-dai = <&hdmi>;
-		};
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <128>;
+		rockchip,card-name = "rockchip-hdmi0";
+		rockchip,cpu = <&i2s0_8ch>;
+		rockchip,codec = <&hdmi>;
+		rockchip,jack-det;
 	};
 
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		rknpu_reserved: rknpu {
-			compatible = "shared-dma-pool";
-			inactive;
-			reusable;
-			size = <0x0 0x20000000>;
-			alignment = <0x0 0x1000>;
-		};
-	};
-
-	spdif-sound {
+	spdif_sound: spdif-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "ROCKCHIP,SPDIF";
+		simple-audio-card,name = "ROCKCHIP-SPDIF";
 		simple-audio-card,cpu {
 				sound-dai = <&spdif_8ch>;
 		};
@@ -242,6 +223,7 @@
 };
 
 &hdmi {
+	skip-check-420-mode;
 	status = "okay";
 };
 
@@ -344,13 +326,12 @@
 };
 
 &rknpu {
-	memory-region = <&rknpu_reserved>;
 	rknpu-supply = <&vdd_npu>;
 	status = "okay";
 };
 
 &rknpu_mmu {
-	status = "disabled";
+	status = "okay";
 };
 
 &rkvdec {

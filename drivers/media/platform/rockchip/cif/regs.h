@@ -209,6 +209,7 @@ enum cif_reg_index {
 /* Check if swap y and c in bt1120 mode */
 #define CIF_FETCH_IS_Y_FIRST(val)	((val >> 5) & 0x3)
 #define CIF_RAW_STORED_BIT_WIDTH	(16U)
+#define CIF_RAW_STORED_BIT_WIDTH_RV1126	(8U)
 #define CIF_YUV_STORED_BIT_WIDTH	(8U)
 
 /* RK1808 & RV1126 CIF CSI & LVDS Registers Offset */
@@ -431,6 +432,7 @@ enum cif_reg_index {
 #define BT656_1120_MULTI_ID_1_MASK	~(0x03 << 12)
 #define BT656_1120_MULTI_ID_2_MASK	~(0x03 << 20)
 #define BT656_1120_MULTI_ID_3_MASK	~(0x03 << 28)
+#define	CIF_HIGH_ALIGN			(0x01 << 18)
 
 /* CIF_SCL_CTRL */
 #define ENABLE_SCL_DOWN			(0x01 << 0)
@@ -514,6 +516,7 @@ enum cif_reg_index {
 #define CSI_YUV_INPUT_ORDER_VYUY	(0x1 << 16)
 #define CSI_YUV_INPUT_ORDER_YUYV	(0x2 << 16)
 #define CSI_YUV_INPUT_ORDER_YVYU	(0x3 << 16)
+#define CSI_ENABLE_MIPI_HIGH_ALIGN	(0x1 << 31)
 
 #define LVDS_ENABLE_CAPTURE		(0x1 << 16)
 #define LVDS_MODE(mode)			(((mode) & 0x7) << 17)

@@ -130,7 +130,7 @@
 	bt-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "dsp_a";
-		simple-audio-card,bitclock-inversion = <1>;
+		simple-audio-card,bitclock-inversion;
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,name = "rockchip,bt";
 		simple-audio-card,cpu {
@@ -442,7 +442,7 @@
 			vdd_logic: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <950000>;
+				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
@@ -456,7 +456,7 @@
 			vdd_arm: DCDC_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <950000>;
+				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;

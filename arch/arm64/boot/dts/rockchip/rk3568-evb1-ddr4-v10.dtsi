@@ -15,13 +15,6 @@
 	model = "Rockchip RK3568 EVB1 DDR4 V10 Board";
 	compatible = "rockchip,rk3568-evb1-ddr4-v10", "rockchip,rk3568";
 
-	rk_headset: rk-headset {
-		compatible = "rockchip_headset";
-		headset_gpio = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
-	};
-
 	vcc2v5_sys: vcc2v5-ddr {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc2v5-sys";
@@ -62,15 +55,15 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	pcie30_3v3: gpio-regulator {
-		compatible = "regulator-gpio";
-		regulator-name = "pcie30_3v3";
-		regulator-min-microvolt = <100000>;
+	vcc3v3_pcie: vcc3v3-pcie {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie";
+		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpios = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
-		gpios-states = <0x1>;
-		states = <100000 0x0
-			  3300000 0x1>;
+		enable-active-high;
+		gpio = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
+		vin-supply = <&dc_12v>;
 	};
 
 	vcc3v3_bu: vcc3v3-bu {
@@ -368,7 +361,7 @@
 
 &pcie3x2 {
 	reset-gpios = <&gpio2 RK_PD6 GPIO_ACTIVE_HIGH>;
-	vpcie3v3-supply = <&pcie30_3v3>;
+	vpcie3v3-supply = <&vcc3v3_pcie>;
 	status = "okay";
 };
 
@@ -399,6 +392,10 @@
 	};
 };
 
+&rk809_sound {
+	hp-det-gpio = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
+};
+
 &rkisp {
 	status = "okay";
 };
@@ -424,6 +421,11 @@
 &route_dsi0 {
 	status = "okay";
 	connect = <&vp1_out_dsi0>;
+};
+
+&route_edp {
+	status = "okay";
+	connect = <&vp0_out_edp>;
 };
 
 &sata2 {
@@ -481,7 +483,7 @@
 	//wifi-bt-power-toggle;
 	uart_rts_gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default", "rts_gpio";
-	pinctrl-0 = <&uart8m0_rtsn>;
+	pinctrl-0 = <&uart8m0_rtsn>, <&bt_irq_gpio>;
 	pinctrl-1 = <&uart8_gpios>;
 	BT,reset_gpio    = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
 	BT,wake_gpio     = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;

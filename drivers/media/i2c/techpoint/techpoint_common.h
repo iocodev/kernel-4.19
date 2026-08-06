@@ -2,13 +2,12 @@
 /*
  * Rockchip CIF Driver
  *
- * Copyright (C) 2021 Rockchip Electronics Co., Ltd.
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #ifndef _TECHPOINT_COMMON_H
 #define _TECHPOINT_COMMON_H
 
-// #define DEBUG
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -29,11 +28,12 @@
 #include <linux/rk-preisp.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
 
 #define DRIVER_VERSION  KERNEL_VERSION(0, 0x01, 0x0)
 
 #define TECHPOINT_CAMERA_XVCLK_FREQ		"xvclk_freq"
-#define TECHPOINT_CHANNEL_NUMS			"channel_nums"
 
 #define TECHPOINT_TEST_PATTERN	0
 #define DEF_1080P		1
@@ -51,6 +51,8 @@ enum techpoint_chips {
 	CHIP_TP2855,
 	CHIP_TP2815,
 	CHIP_TP9930,
+	CHIP_TP9950,
+	CHIP_TP9951,
 };
 
 enum techpoint_input_type {
@@ -64,6 +66,9 @@ enum techpoint_support_reso {
 	TECHPOINT_S_RESO_1080P_25,
 	TECHPOINT_S_RESO_720P_30,
 	TECHPOINT_S_RESO_1080P_30,
+	TECHPOINT_S_RESO_SD,
+	TECHPOINT_S_RESO_PAL,
+	TECHPOINT_S_RESO_NTSC,
 	TECHPOINT_S_RESO_NUMS,
 };
 
@@ -89,7 +94,23 @@ struct techpoint_video_modes {
 	enum techpoint_support_reso channel_reso[PAD_MAX];
 };
 
+/* Audio output port formats */
+enum techpoint_audfmts {
+	AUDFMT_I2S = 0,
+	AUDFMT_DSP,
+};
+
+struct techpoint_audio {
+	enum techpoint_audfmts audfmt;
+	int mclk_fs;
+	int cascade_num;
+	int cascade_order;
+	int slave_num;
+	struct techpoint *slave_tp[3];
+};
+
 struct techpoint {
+	struct device dev;
 	struct i2c_client *client;
 	struct clk *xvclk;
 	struct gpio_desc *reset_gpio;
@@ -105,11 +126,14 @@ struct techpoint {
 	struct mutex mutex;
 	struct regulator_bulk_data *supplies;
 	u32 xvclk_freq_value;
-	u32 channel_nums;
+	struct techpoint_audio *audio_in;
+	struct techpoint_audio *audio_out;
+	int i2c_idx;
+	u32 data_lanes;
 
 	enum techpoint_chips chip_id;
 	struct techpoint_video_modes *video_modes;
-	const struct techpoint_video_modes *cur_video_mode;
+	struct techpoint_video_modes *cur_video_mode;
 	u32 video_modes_num;
 	enum techpoint_input_type input_type;
 

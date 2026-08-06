@@ -10,13 +10,12 @@
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
 
-#define RKISP_API_VERSION		KERNEL_VERSION(1, 6, 1)
+#define RKISP_API_VERSION		KERNEL_VERSION(1, 9, 0)
+
+/****************ISP SUBDEV IOCTL*****************************/
 
 #define RKISP_CMD_TRIGGER_READ_BACK \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 0, struct isp2x_csi_trigger)
-
-#define RKISP_CMD_CSI_MEMORY_MODE \
-	_IOW('V', BASE_VIDIOC_PRIVATE + 1, int)
 
 #define RKISP_CMD_GET_SHARED_BUF \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 2, struct rkisp_thunderboot_resmem)
@@ -35,6 +34,34 @@
 
 #define RKISP_CMD_GET_FBCBUF_FD \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 7, struct isp2x_buf_idxfd)
+
+#define RKISP_CMD_GET_MESHBUF_INFO \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 8, struct rkisp_meshbuf_info)
+
+#define RKISP_CMD_SET_MESHBUF_SIZE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 9, struct rkisp_meshbuf_size)
+
+/****************ISP VIDEO IOCTL******************************/
+
+#define RKISP_CMD_GET_CSI_MEMORY_MODE \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 100, int)
+
+#define RKISP_CMD_SET_CSI_MEMORY_MODE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 101, int)
+
+#define RKISP_CMD_GET_STREAM_INFO \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 104, struct rkisp_stream_info)
+
+#define RKISP_CMD_SET_IQTOOL_CONN_ID \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 113, int)
+
+#define RKISP_CMD_SET_QUICK_STREAM \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 117, struct rkisp_quick_stream_param)
+
+#define RKISP_CMD_START_CAPTURE_ONE_FRAME_AOV \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 118, int)
+
+/*************************************************************/
 
 #define ISP2X_ID_DPCC			(0)
 #define ISP2X_ID_BLS			(1)
@@ -203,6 +230,31 @@
 
 #define ISP2X_FBCBUF_FD_NUM		64
 
+#define ISP2X_MESH_BUF_NUM		2
+
+enum isp2x_mesh_buf_stat {
+	MESH_BUF_INIT = 0,
+	MESH_BUF_WAIT2CHIP,
+	MESH_BUF_CHIPINUSE,
+};
+
+struct rkisp_meshbuf_info {
+	u64 module_id;
+	s32 buf_fd[ISP2X_MESH_BUF_NUM];
+	u32 buf_size[ISP2X_MESH_BUF_NUM];
+} __attribute__ ((packed));
+
+struct rkisp_meshbuf_size {
+	u64 module_id;
+	u32 meas_width;
+	u32 meas_height;
+} __attribute__ ((packed));
+
+struct isp2x_mesh_head {
+	enum isp2x_mesh_buf_stat stat;
+	u32 data_oft;
+} __attribute__ ((packed));
+
 /* trigger event mode
  * T_TRY: trigger maybe with retry
  * T_TRY_YES: trigger to retry
@@ -211,6 +263,7 @@
  * T_START_X1: isp read one frame
  * T_START_X2: isp read hdr two frame
  * T_START_X3: isp read hdr three frame
+ * T_START_C: isp read hdr linearised and compressed data
  */
 enum isp2x_trigger_mode {
 	T_TRY = BIT(0),
@@ -220,6 +273,7 @@ enum isp2x_trigger_mode {
 	T_START_X1 = BIT(4),
 	T_START_X2 = BIT(5),
 	T_START_X3 = BIT(6),
+	T_START_C = BIT(7),
 };
 
 struct isp2x_csi_trigger {
@@ -231,11 +285,25 @@ struct isp2x_csi_trigger {
 	enum isp2x_trigger_mode mode;
 } __attribute__ ((packed));
 
-enum isp2x_csi_memory {
+/* isp csi dmatx/dmarx memory mode
+ * 0: raw12/raw10/raw8 8bit memory compact
+ * 1: raw12/raw10 16bit memory one pixel
+ *    big endian for rv1126/rv1109
+ *    |15|14|13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
+ *    | 3| 2| 1| 0| -| -| -| -|11|10| 9| 8| 7| 6| 5| 4|
+ *    little align for rk356x
+ *    |15|14|13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
+ *    | -| -| -| -|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
+ * 2: raw12/raw10 16bit memory one pixel
+ *    big align for rv1126/rv1109/rk356x
+ *    |15|14|13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
+ *    |11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0| -| -| -| -|
+ */
+enum isp_csi_memory {
 	CSI_MEM_COMPACT = 0,
-	CSI_MEM_BYTE_BE,
-	CSI_MEM_BYTE_LE,
-	CSI_MEM_MAX,
+	CSI_MEM_WORD_BIG_END = 1,
+	CSI_MEM_WORD_LITTLE_ALIGN = 1,
+	CSI_MEM_WORD_BIG_ALIGN = 2,
 };
 
 struct isp2x_ispgain_buf {
@@ -763,6 +831,20 @@ enum isp2x_wdr_mode {
 	ISP2X_WDR_MODE_BLOCK,
 	ISP2X_WDR_MODE_GLOBAL
 };
+
+/* struct rkisp_stream_info
+ * cur_frame_id: stream current frame id
+ * input_frame_loss: isp input frame loss num
+ * output_frame_loss: stream output frame loss num
+ * stream_on: stream on/off
+ */
+struct rkisp_stream_info {
+	unsigned int cur_frame_id;
+	unsigned int input_frame_loss;
+	unsigned int output_frame_loss;
+	unsigned char stream_on;
+	unsigned char stream_id;
+} __attribute__ ((packed));
 
 struct isp2x_wdr_cfg {
 	enum isp2x_wdr_mode mode;
@@ -1710,6 +1792,12 @@ struct rkisp_thunderboot_video_buf {
 	u32 bufsize;
 } __attribute__ ((packed));
 
+enum {
+	RKISP_RTT_MODE_NORMAL = 0,
+	RKISP_RTT_MODE_MULTI_FRAME,
+	RKISP_RTT_MODE_ONE_FRAME,
+};
+
 /**
  * struct rkisp_thunderboot_resmem_head
  */
@@ -1742,6 +1830,12 @@ struct rkisp_thunderboot_shmem {
 	u32 shm_start;
 	u32 shm_size;
 	s32 shm_fd;
+} __attribute__ ((packed));
+
+struct rkisp_quick_stream_param {
+	int on;
+	int frame_num;
+	int resume_mode;
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RKISP2_CONFIG_H */

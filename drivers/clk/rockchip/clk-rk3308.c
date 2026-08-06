@@ -937,6 +937,15 @@ static const char *const rk3308_critical_clocks[] __initconst = {
 	"sclk_ddrc",
 };
 
+static int protect_clocks[] = {
+	SCLK_PWM0,
+	SCLK_PWM1,
+	SCLK_PWM2,
+	DCLK_VOP,
+	ACLK_VOP,
+	HCLK_VOP,
+};
+
 static void __iomem *rk3308_cru_base;
 
 void rk3308_dump_cru(void)
@@ -1011,6 +1020,7 @@ static void __init rk3308_clk_init(struct device_node *np)
 				   RK3308_GRF_SOC_STATUS0);
 	rockchip_clk_register_branches(ctx, rk3308_clk_branches,
 				       ARRAY_SIZE(rk3308_clk_branches));
+	rockchip_soc_id_init();
 	if (soc_is_rk3308b())
 		rockchip_clk_register_branches(ctx, rk3308b_dclk_vop_frac,
 					       ARRAY_SIZE(rk3308b_dclk_vop_frac));
@@ -1034,6 +1044,14 @@ static void __init rk3308_clk_init(struct device_node *np)
 
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &rk3308_clk_panic_block);
+	rockchip_clk_protect(ctx, protect_clocks, ARRAY_SIZE(protect_clocks));
 }
 
 CLK_OF_DECLARE(rk3308_cru, "rockchip,rk3308-cru", rk3308_clk_init);
+
+static int __init rk3308_clocks_unprotect(void)
+{
+	rockchip_clk_unprotect();
+	return 0;
+}
+late_initcall_sync(rk3308_clocks_unprotect);

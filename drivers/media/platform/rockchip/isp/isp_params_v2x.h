@@ -329,6 +329,11 @@ struct rkisp_isp_params_val_v2x {
 	struct rkisp_dummy_buffer buf_lsclut[RKISP_PARAM_LSC_LUT_BUF_NUM];
 	u32 buf_lsclut_idx;
 
+	struct isp2x_hdrtmo_cfg last_hdrtmo;
+	struct isp2x_hdrmge_cfg last_hdrmge;
+	struct isp2x_hdrtmo_cfg cur_hdrtmo;
+	struct isp2x_hdrmge_cfg cur_hdrmge;
+
 	u8 dhaz_en;
 	u8 wdr_en;
 	u8 tmo_en;
@@ -343,7 +348,12 @@ struct rkisp_isp_params_val_v2x {
 	bool delay_en_ldch;
 };
 
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V20)
 int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev);
 void rkisp_uninit_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev);
+#else
+static inline int rkisp_init_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev) { return -EINVAL; }
+static inline void rkisp_uninit_params_vdev_v2x(struct rkisp_isp_params_vdev *params_vdev) {}
+#endif
 
 #endif /* _RKISP_ISP_PARAM_V2X_H */

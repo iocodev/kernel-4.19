@@ -14,21 +14,15 @@
 	model = "Rockchip RK3566 EVB1 DDR4 V10 Board";
 	compatible = "rockchip,rk3566-evb1-ddr4-v10", "rockchip,rk3566";
 
-	vcc3v3_pcie: gpio-regulator {
+	vcc3v3_pcie: vcc3v3-pcie {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
 		gpio = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
 		vin-supply = <&dc_12v>;
-	};
-
-	rk_headset: rk-headset {
-		compatible = "rockchip_headset";
-		headset_gpio = <&gpio3 RK_PA1 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
 	};
 
 	vcc3v3_vga: vcc3v3-vga {
@@ -50,6 +44,13 @@
 		enable-active-high;
 		regulator-always-on;
 		regulator-boot-on;
+	};
+};
+
+&bt_sound {
+	status = "disabled";
+	simple-audio-card,cpu {
+		sound-dai = <&i2s2_2ch>;
 	};
 };
 
@@ -279,6 +280,12 @@
 	};
 };
 
+&i2s2_2ch {
+	pinctrl-0 = <&i2s2m1_sclktx &i2s2m1_lrcktx &i2s2m1_sdi &i2s2m1_sdo>;
+	rockchip,bclk-fs = <32>;
+	status = "disabled";
+};
+
 &i2s3_2ch {
 	status = "disabled";
 };
@@ -428,7 +435,7 @@
 &wireless_bluetooth {
 	uart_rts_gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default", "rts_gpio";
-	pinctrl-0 = <&uart1m1_rtsn>;
+	pinctrl-0 = <&uart1m1_rtsn>, <&bt_irq_gpio>;
 	pinctrl-1 = <&uart1_gpios>;
 	BT,reset_gpio    = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
 	BT,wake_gpio     = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
@@ -455,12 +462,6 @@
 		};
 	};
 
-	headphone {
-		hp_det: hp-det {
-			rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-	};
-
 	lcd0 {
 		lcd0_rst_gpio: lcd0-rst-gpio {
 			rockchip,pins = <4 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -480,8 +481,14 @@
 	};
 
 	wireless-bluetooth {
+		/delete-node/ uart8-gpios;
+
 		uart1_gpios: uart1-gpios {
 			rockchip,pins = <4 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_irq_gpio: bt-irq-gpio {
+			rockchip,pins = <4 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

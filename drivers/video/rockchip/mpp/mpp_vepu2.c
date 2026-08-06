@@ -26,6 +26,7 @@
 #include "mpp_debug.h"
 #include "mpp_common.h"
 #include "mpp_iommu.h"
+#include "hack/mpp_hack_px30.h"
 
 #define VEPU2_DRIVER_NAME		"mpp_vepu2"
 
@@ -115,7 +116,7 @@ struct vepu_dev {
 	struct mpp_clk_info aclk_info;
 	struct mpp_clk_info hclk_info;
 	u32 default_max_load;
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 	struct proc_dir_entry *procfs;
 #endif
 	struct reset_control *rst_a;
@@ -286,6 +287,7 @@ static int vepu_run(struct mpp_dev *mpp,
 	u32 i;
 	u32 reg_en;
 	struct vepu_task *task = to_vepu_task(mpp_task);
+	u32 timing_en = mpp->srv->timing_en;
 
 	mpp_debug_enter();
 
@@ -304,12 +306,21 @@ static int vepu_run(struct mpp_dev *mpp,
 
 		mpp_write_req(mpp, task->reg, s, e, reg_en);
 	}
+
+	/* flush tlb before starting hardware */
+	mpp_iommu_flush_tlb(mpp->iommu_info);
+
 	/* init current task */
 	mpp->cur_task = mpp_task;
+
+	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
+
 	/* Last, flush the registers */
 	wmb();
 	mpp_write(mpp, VEPU2_REG_ENC_EN,
 		  task->reg[reg_en] | VEPU2_ENC_START);
+
+	mpp_task_run_end(mpp_task, timing_en);
 
 	mpp_debug_leave();
 
@@ -489,7 +500,7 @@ static int vepu_init_session(struct mpp_session *session)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 static int vepu_procfs_remove(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
@@ -577,6 +588,10 @@ static int vepu_procfs_init(struct mpp_dev *mpp)
 		enc->procfs = NULL;
 		return -EIO;
 	}
+
+	/* for common mpp_dev options */
+	mpp_procfs_create_common(enc->procfs, mpp);
+
 	mpp_procfs_create_u32("aclk", 0644,
 			      enc->procfs, &enc->aclk_info.debug_rate_hz);
 	mpp_procfs_create_u32("session_buffers", 0644,
@@ -721,15 +736,17 @@ static int vepu_reset(struct mpp_dev *mpp)
 {
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 
+	mpp_write(mpp, VEPU2_REG_ENC_EN, 0);
+	udelay(5);
 	if (enc->rst_a && enc->rst_h) {
 		/* Don't skip this or iommu won't work after reset */
-		rockchip_pmu_idle_request(mpp->dev, true);
+		mpp_pmu_idle_request(mpp, true);
 		mpp_safe_reset(enc->rst_a);
 		mpp_safe_reset(enc->rst_h);
 		udelay(5);
 		mpp_safe_unreset(enc->rst_a);
 		mpp_safe_unreset(enc->rst_h);
-		rockchip_pmu_idle_request(mpp->dev, false);
+		mpp_pmu_idle_request(mpp, false);
 	}
 	mpp_write(mpp, VEPU2_REG_INT, VEPU2_INT_CLEAR);
 
@@ -791,10 +808,12 @@ static const struct of_device_id mpp_vepu2_dt_match[] = {
 		.compatible = "rockchip,vpu-encoder-v2",
 		.data = &vepu_v2_data,
 	},
+#ifdef CONFIG_CPU_PX30
 	{
 		.compatible = "rockchip,vpu-encoder-px30",
 		.data = &vepu_px30_data,
 	},
+#endif
 	{},
 };
 
@@ -838,6 +857,8 @@ static int vepu_probe(struct platform_device *pdev)
 
 	mpp->session_max_buffers = VEPU2_SESSION_MAX_BUFFERS;
 	vepu_procfs_init(mpp);
+	/* register current device to mpp service */
+	mpp_dev_register_srv(mpp, mpp->srv);
 	dev_info(dev, "probing finish\n");
 
 	return 0;

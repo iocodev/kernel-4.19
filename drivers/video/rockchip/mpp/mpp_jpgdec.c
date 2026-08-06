@@ -58,6 +58,9 @@
 #define JPGDEC_IRQ_DIS			BIT(1)
 #define JPGDEC_START_EN			BIT(0)
 
+#define JPGDEC_REG_SYS_BASE		0x008
+#define JPGDEC_FORCE_SOFTRESET_VALID	BIT(17)
+
 #define JPGDEC_REG_PIC_INFO_BASE	0x00c
 #define JPGDEC_REG_PIC_INFO_INDEX	(3)
 #define JPGDEC_GET_WIDTH(x)		(((x) & 0xffff) + 1)
@@ -91,7 +94,7 @@ struct jpgdec_dev {
 
 	struct mpp_clk_info aclk_info;
 	struct mpp_clk_info hclk_info;
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 	struct proc_dir_entry *procfs;
 #endif
 	struct reset_control *rst_a;
@@ -234,12 +237,35 @@ fail:
 	return NULL;
 }
 
+static int jpgdec_soft_reset(struct mpp_dev *mpp)
+{
+	int ret;
+	u32 int_status = mpp_read(mpp, JPGDEC_REG_INT_EN_BASE);
+	u32 dec_en = int_status & JPGDEC_START_EN;
+
+	/* if hw is idle, need to set force_softreset_valid bit to reset */
+	if (!dec_en)
+		mpp_write(mpp, JPGDEC_REG_SYS_BASE, JPGDEC_FORCE_SOFTRESET_VALID);
+
+	mpp_debug(DEBUG_RESET, "soft reset");
+
+	mpp_write(mpp, JPGDEC_REG_INT_EN_BASE, int_status | JPGDEC_SOFT_REST_EN);
+	ret = readl_relaxed_poll_timeout(mpp->reg_base + JPGDEC_REG_INT_EN_BASE,
+					 int_status, int_status & JPGDEC_SOFT_RSET_READY,
+					 0, 10);
+
+	if (ret)
+		mpp_err("soft reset failed.");
+	return ret;
+}
+
 static int jpgdec_run(struct mpp_dev *mpp,
 		      struct mpp_task *mpp_task)
 {
 	u32 i;
 	u32 reg_en;
 	struct jpgdec_task *task = to_jpgdec_task(mpp_task);
+	u32 timing_en = mpp->srv->timing_en;
 
 	mpp_debug_enter();
 
@@ -252,17 +278,28 @@ static int jpgdec_run(struct mpp_dev *mpp,
 
 		mpp_write_req(mpp, task->reg, s, e, reg_en);
 	}
+
+	/* flush tlb before starting hardware */
+	mpp_iommu_flush_tlb(mpp->iommu_info);
+
 	/* init current task */
 	mpp->cur_task = mpp_task;
+
+	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
+
 	/* Flush the register before the start the device */
 	wmb();
 	mpp_write(mpp, JPGDEC_REG_INT_EN_BASE,
 		  task->reg[reg_en] | JPGDEC_START_EN);
 
+	mpp_task_run_end(mpp_task, timing_en);
+
 	mpp_debug_leave();
 
 	return 0;
 }
+
+static int jpgdec_reset(struct mpp_dev *mpp);
 
 static int jpgdec_finish(struct mpp_dev *mpp,
 			 struct mpp_task *mpp_task)
@@ -289,6 +326,15 @@ static int jpgdec_finish(struct mpp_dev *mpp,
 	dec_get = mpp_read_relaxed(mpp, JPGDEC_REG_STREAM_RLC_BASE);
 	dec_length = dec_get - task->strm_addr;
 	task->reg[JPGDEC_REG_STREAM_RLC_BASE_INDEX] = dec_length << 10;
+	/*
+	 * If the softrest_rdy bit is low,
+	 * it means that the soft-reset of the previous frame
+	 * has not been completed.We have to manually trigger to do soft-reset.
+	 */
+	if (!(task->irq_status & JPGDEC_SOFT_RSET_READY) &&
+	    !atomic_read(&mpp->reset_request))
+		jpgdec_reset(mpp);
+
 	mpp_debug(DEBUG_REGISTER,
 		  "dec_get %08x dec_length %d\n", dec_get, dec_length);
 
@@ -331,7 +377,7 @@ static int jpgdec_free_task(struct mpp_session *session,
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 static int jpgdec_procfs_remove(struct mpp_dev *mpp)
 {
 	struct jpgdec_dev *dec = to_jpgdec_dev(mpp);
@@ -354,6 +400,10 @@ static int jpgdec_procfs_init(struct mpp_dev *mpp)
 		dec->procfs = NULL;
 		return -EIO;
 	}
+
+	/* for common mpp_dev options */
+	mpp_procfs_create_common(dec->procfs, mpp);
+
 	mpp_procfs_create_u32("aclk", 0644,
 			      dec->procfs, &dec->aclk_info.debug_rate_hz);
 	mpp_procfs_create_u32("session_buffers", 0644,
@@ -485,18 +535,21 @@ static int jpgdec_isr(struct mpp_dev *mpp)
 static int jpgdec_reset(struct mpp_dev *mpp)
 {
 	struct jpgdec_dev *dec = to_jpgdec_dev(mpp);
+	int ret = 0;
 
-	if (dec->rst_a && dec->rst_h) {
+	ret = jpgdec_soft_reset(mpp);
+
+	if (ret && dec->rst_a && dec->rst_h) {
 		mpp_debug(DEBUG_RESET, "reset in\n");
 
 		/* Don't skip this or iommu won't work after reset */
-		rockchip_pmu_idle_request(mpp->dev, true);
+		mpp_pmu_idle_request(mpp, true);
 		mpp_safe_reset(dec->rst_a);
 		mpp_safe_reset(dec->rst_h);
 		udelay(5);
 		mpp_safe_unreset(dec->rst_a);
 		mpp_safe_unreset(dec->rst_h);
-		rockchip_pmu_idle_request(mpp->dev, false);
+		mpp_pmu_idle_request(mpp, false);
 
 		mpp_debug(DEBUG_RESET, "reset out\n");
 	}
@@ -579,6 +632,8 @@ static int jpgdec_probe(struct platform_device *pdev)
 
 	mpp->session_max_buffers = JPGDEC_SESSION_MAX_BUFFERS;
 	jpgdec_procfs_init(mpp);
+	/* register current device to mpp service */
+	mpp_dev_register_srv(mpp, mpp->srv);
 	dev_info(dev, "probing finish\n");
 
 	return 0;

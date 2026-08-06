@@ -4,6 +4,7 @@
 #include <media/videobuf2-dma-contig.h>
 #include <linux/delay.h>
 #include <linux/of_platform.h>
+#include <linux/slab.h>
 #include "dev.h"
 #include "regs.h"
 
@@ -27,6 +28,11 @@ u32 rkispp_read(struct rkispp_device *dev, u32 reg)
 	else
 		val = *(u32 *)(dev->sw_base_addr + reg);
 	return val;
+}
+
+u32 rkispp_read_reg_cache(struct rkispp_device *dev, u32 reg)
+{
+	return *(u32 *)(dev->sw_base_addr + reg);
 }
 
 void rkispp_set_bits(struct rkispp_device *dev, u32 reg, u32 mask, u32 val)
@@ -89,6 +95,7 @@ int rkispp_allow_buffer(struct rkispp_device *dev,
 	if (dev->hw_dev->is_dma_sg_ops) {
 		sg_tbl = (struct sg_table *)g_ops->cookie(mem_priv);
 		buf->dma_addr = sg_dma_address(sg_tbl->sgl);
+		g_ops->prepare(mem_priv);
 	} else {
 		buf->dma_addr = *((dma_addr_t *)g_ops->cookie(mem_priv));
 	}
@@ -348,6 +355,15 @@ static void rkispp_queue_dmabuf(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf 
 		hw->is_idle = true;
 	if (hw->is_shutdown)
 		hw->is_idle = false;
+
+	ispp = hw->ispp[hw->cur_dev_id];
+	if (ispp->is_suspend) {
+		if (dbufs)
+			list_add_tail(&dbufs->list, list);
+		if (ispp->suspend_sync && hw->is_idle)
+			complete(&ispp->pm_cmpl);
+		goto end;
+	}
 	if (dbufs && list_empty(list) && hw->is_idle) {
 		/* ispp idle or handle same device */
 		buf = dbufs;
@@ -369,10 +385,9 @@ static void rkispp_queue_dmabuf(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf 
 		ispp = hw->ispp[buf->index];
 		vdev = &ispp->stream_vdev;
 		val = (vdev->module_ens & ISPP_MODULE_TNR) ? ISPP_MODULE_TNR : ISPP_MODULE_NR;
-		rkispp_params_cfg(&ispp->params_vdev, buf->frame_id);
 		rkispp_module_work_event(ispp, buf, NULL, val, false);
 	}
-
+end:
 	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 }
 

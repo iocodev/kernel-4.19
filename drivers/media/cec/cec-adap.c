@@ -4,7 +4,7 @@
  *
  * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
-
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -457,7 +457,12 @@ int cec_thread_func(void *_adap)
 
 		if (adap->transmit_in_progress) {
 			int err;
+			/* in rk platform 400ms is enough */
+			int time_out_ms = 400;
 
+			/* poll msg only need 100ms */
+			if (adap->transmitting && adap->transmitting->msg.len == 1)
+				time_out_ms = 100;
 			/*
 			 * We are transmitting a message, so add a timeout
 			 * to prevent the state machine to get stuck waiting
@@ -471,7 +476,7 @@ int cec_thread_func(void *_adap)
 				kthread_should_stop() ||
 				(!adap->transmit_in_progress &&
 				 !list_empty(&adap->transmit_queue)),
-				msecs_to_jiffies(CEC_XFER_TIMEOUT_MS));
+				msecs_to_jiffies(time_out_ms));
 			timeout = err == 0;
 		} else {
 			/* Otherwise we just wait for something to happen. */
@@ -532,19 +537,11 @@ int cec_thread_func(void *_adap)
 		adap->transmitting = data;
 
 		/*
-		 * Suggested number of attempts as per the CEC 2.0 spec:
-		 * 4 attempts is the default, except for 'secondary poll
-		 * messages', i.e. poll messages not sent during the adapter
-		 * configuration phase when it allocates logical addresses.
+		 * The number of retries is not set before the first sending,
+		 * but is set according to the actual sending result.
 		 */
-		if (data->msg.len == 1 && adap->is_configured)
-			attempts = 2;
-		else
-#ifdef CONFIG_ANDROID
-			attempts = 1;
-#else
-			attempts = 4;
-#endif
+		attempts = 0;
+
 		/* Set the suggested signal free time */
 		if (data->attempts) {
 			/* should be >= 3 data bit periods for a retry */
@@ -610,6 +607,28 @@ void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
 		adap->transmit_in_progress = false;
 		goto wake_thread;
 	}
+
+	if (!(status & CEC_TX_STATUS_OK)) {
+		/* poll message is prefer to send twice */
+		if (nack_cnt && data->msg.len == 1) {
+			/* first send is successful or recover from bus busy */
+			if (!data->attempts || data->attempts > 2)
+				data->attempts = 2;
+			usleep_range(200, 300);
+		/*
+		 * If cec bus is busy, need retry.
+		 * Especially when TV wakes up STB, TV will
+		 * send cec messages then occupy cec bus.
+		 * The longest cec message takes more than 300 ms to send,
+		 * so retry in 400 ms.
+		 */
+		} else {
+			if (!data->attempts)
+				data->attempts = 200;
+			usleep_range(2000, 2200);
+		}
+	}
+
 	adap->transmit_in_progress = false;
 
 	msg = &data->msg;
@@ -871,8 +890,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	 */
 	mutex_unlock(&adap->lock);
 	wait_for_completion_killable(&data->c);
-	if (!data->completed)
-		cancel_delayed_work_sync(&data->work);
+	cancel_delayed_work_sync(&data->work);
 	mutex_lock(&adap->lock);
 
 	/* Cancel the transmit if it was interrupted */
@@ -1040,7 +1058,8 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 	mutex_lock(&adap->lock);
 	dprintk(2, "%s: %*ph\n", __func__, msg->len, msg->msg);
 
-	adap->last_initiator = 0xff;
+	if (!adap->transmit_in_progress)
+		adap->last_initiator = 0xff;
 
 	/* Check if this message was for us (directed or broadcast). */
 	if (!cec_msg_is_broadcast(msg))
@@ -1154,6 +1173,7 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 			if (abort)
 				dst->rx_status |= CEC_RX_STATUS_FEATURE_ABORT;
 			msg->flags = dst->flags;
+			msg->sequence = dst->sequence;
 			/* Remove it from the wait_queue */
 			list_del_init(&data->list);
 
@@ -1225,7 +1245,7 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 		 * While trying to poll the physical address was reset
 		 * and the adapter was unconfigured, so bail out.
 		 */
-		if (!adap->is_configuring)
+		if (adap->phys_addr == CEC_PHYS_ADDR_INVALID)
 			return -EINTR;
 
 		if (err)
@@ -1283,7 +1303,6 @@ static void cec_adap_unconfigure(struct cec_adapter *adap)
 	    adap->phys_addr != CEC_PHYS_ADDR_INVALID)
 		WARN_ON(adap->ops->adap_log_addr(adap, CEC_LOG_ADDR_INVALID));
 	adap->log_addrs.log_addr_mask = 0;
-	adap->is_configuring = false;
 	adap->is_configured = false;
 	memset(adap->phys_addrs, 0xff, sizeof(adap->phys_addrs));
 	cec_flush(adap);
@@ -1361,6 +1380,7 @@ static int cec_config_thread_func(void *arg)
 		unsigned int type = las->log_addr_type[i];
 		const u8 *la_list;
 		u8 last_la;
+		const u8 invalid_log_addrs[] = { CEC_LOG_ADDR_INVALID };
 
 		/*
 		 * The TV functionality can only map to physical address 0.
@@ -1384,6 +1404,8 @@ static int cec_config_thread_func(void *arg)
 
 		if (err < 0)
 			goto unconfigure;
+
+		la_list = invalid_log_addrs;
 
 		for (j = 0; la_list[j] != CEC_LOG_ADDR_INVALID; j++) {
 			/* Tried this one already, skip it */
@@ -1476,9 +1498,10 @@ unconfigure:
 	for (i = 0; i < las->num_log_addrs; i++)
 		las->log_addr[i] = CEC_LOG_ADDR_INVALID;
 	cec_adap_unconfigure(adap);
+	adap->is_configuring = false;
 	adap->kthread_config = NULL;
-	mutex_unlock(&adap->lock);
 	complete(&adap->config_completion);
+	mutex_unlock(&adap->lock);
 	return 0;
 }
 

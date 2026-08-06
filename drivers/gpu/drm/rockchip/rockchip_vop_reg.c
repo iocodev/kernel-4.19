@@ -139,7 +139,7 @@ static const struct vop_win_phy rk3288_win01_data = {
 	.nformats = ARRAY_SIZE(formats_win_full_10bit),
 	.enable = VOP_REG(RK3288_WIN0_CTRL0, 0x1, 0),
 	.format = VOP_REG(RK3288_WIN0_CTRL0, 0x7, 1),
-	.fmt_10 = VOP_REG(RK3288_WIN0_CTRL0, 0x7, 4),
+	.fmt_10 = VOP_REG(RK3288_WIN0_CTRL0, 0x1, 4),
 	.csc_mode = VOP_REG_VER(RK3288_WIN0_CTRL0, 0x3, 10, 3, 2, -1),
 	.rb_swap = VOP_REG(RK3288_WIN0_CTRL0, 0x1, 12),
 	.xmirror = VOP_REG_VER(RK3368_WIN0_CTRL0, 0x1, 21, 3, 2, -1),
@@ -256,6 +256,10 @@ static const struct vop_ctrl rk3288_ctrl_data = {
 	.edp_pin_pol = VOP_REG_VER(RK3368_DSP_CTRL1, 0x7, 24, 3, 2, -1),
 	.mipi_dclk_pol = VOP_REG_VER(RK3368_DSP_CTRL1, 0x1, 31, 3, 2, -1),
 	.mipi_pin_pol = VOP_REG_VER(RK3368_DSP_CTRL1, 0x7, 28, 3, 2, -1),
+
+	.edpi_wms_fs = VOP_REG(RK3288_SYS_CTRL, 0x1, 10),
+	.edpi_ctrl_mode = VOP_REG(RK3288_SYS_CTRL, 0x1, 9),
+	.edpi_te_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 8),
 
 	.dither_down_sel = VOP_REG(RK3288_DSP_CTRL1, 0x1, 4),
 	.dither_down_mode = VOP_REG(RK3288_DSP_CTRL1, 0x1, 3),
@@ -414,6 +418,8 @@ static const struct vop_win_phy rk3368_win23_data = {
 	.src_alpha_ctl = VOP_REG(RK3368_WIN2_SRC_ALPHA_CTRL, 0xffff, 0),
 	.global_alpha_val = VOP_REG(RK3368_WIN2_SRC_ALPHA_CTRL, 0xff, 16),
 	.dst_alpha_ctl = VOP_REG(RK3368_WIN2_DST_ALPHA_CTRL, 0xffffffff, 0),
+	.color_key = VOP_REG(RK3368_WIN2_COLOR_KEY, 0xffffff, 0),
+	.color_key_en = VOP_REG(RK3368_WIN2_COLOR_KEY, 0x1, 24),
 };
 
 static const struct vop_win_phy rk3368_area1_data = {
@@ -608,7 +614,7 @@ static const struct vop_win_phy rk3399_win01_data = {
 	.nformats = ARRAY_SIZE(formats_win_full_10bit_yuyv),
 	.enable = VOP_REG(RK3288_WIN0_CTRL0, 0x1, 0),
 	.format = VOP_REG(RK3288_WIN0_CTRL0, 0x7, 1),
-	.fmt_10 = VOP_REG(RK3288_WIN0_CTRL0, 0x7, 4),
+	.fmt_10 = VOP_REG(RK3288_WIN0_CTRL0, 0x1, 4),
 	.fmt_yuyv = VOP_REG(RK3288_WIN0_CTRL0, 0x1, 17),
 	.csc_mode = VOP_REG_VER(RK3288_WIN0_CTRL0, 0x3, 10, 3, 2, -1),
 	.rb_swap = VOP_REG(RK3288_WIN0_CTRL0, 0x1, 12),
@@ -625,6 +631,8 @@ static const struct vop_win_phy rk3399_win01_data = {
 	.global_alpha_val = VOP_REG(RK3288_WIN0_SRC_ALPHA_CTRL, 0xff, 16),
 	.dst_alpha_ctl = VOP_REG(RK3288_WIN0_DST_ALPHA_CTRL, 0xffffffff, 0),
 	.channel = VOP_REG_VER(RK3288_WIN0_CTRL2, 0xff, 0, 3, 8, 8),
+	.color_key = VOP_REG(RK3288_WIN0_COLOR_KEY, 0x3fffffff, 0),
+	.color_key_en = VOP_REG(RK3288_WIN0_COLOR_KEY, 0x1, 31),
 };
 
 static const struct vop_win_data rk3399_vop_win_data[] = {
@@ -1337,6 +1345,7 @@ static const struct vop_win_phy rk3366_lit_win0_data = {
 
 	.enable = VOP_REG(RK3366_LIT_WIN0_CTRL0, 0x1, 0),
 	.format = VOP_REG(RK3366_LIT_WIN0_CTRL0, 0x7, 1),
+	.csc_mode = VOP_REG(RK3366_LIT_WIN0_CTRL0, 0x3, 10),
 	.rb_swap = VOP_REG(RK3366_LIT_WIN0_CTRL0, 0x1, 12),
 	.act_info = VOP_REG(RK3366_LIT_WIN0_ACT_INFO, 0xffffffff, 0),
 	.dsp_info = VOP_REG(RK3366_LIT_WIN0_DSP_INFO, 0xffffffff, 0),
@@ -1350,8 +1359,9 @@ static const struct vop_win_phy rk3366_lit_win0_data = {
 	.alpha_mode = VOP_REG(RK3366_LIT_WIN0_ALPHA_CTRL, 0x1, 1),
 	.alpha_en = VOP_REG(RK3366_LIT_WIN0_ALPHA_CTRL, 0x1, 0),
 	.global_alpha_val = VOP_REG(RK3366_LIT_WIN0_ALPHA_CTRL, 0xff, 4),
-	.key_color = VOP_REG(RK3366_LIT_WIN0_COLOR_KEY, 0xffffff, 0),
-	.key_en = VOP_REG(RK3366_LIT_WIN0_COLOR_KEY, 0x1, 24),
+	.color_key = VOP_REG(RK3366_LIT_WIN0_COLOR_KEY, 0xffffff, 0),
+	.color_key_en = VOP_REG(RK3366_LIT_WIN0_COLOR_KEY, 0x1, 24),
+	.channel = VOP_REG(RK3366_LIT_WIN0_CTRL0, 0xff, 12),
 };
 
 static const struct vop_win_phy rk3366_lit_win1_data = {
@@ -1370,8 +1380,9 @@ static const struct vop_win_phy rk3366_lit_win1_data = {
 	.alpha_mode = VOP_REG(RK3366_LIT_WIN1_ALPHA_CTRL, 0x1, 1),
 	.alpha_en = VOP_REG(RK3366_LIT_WIN1_ALPHA_CTRL, 0x1, 0),
 	.global_alpha_val = VOP_REG(RK3366_LIT_WIN1_ALPHA_CTRL, 0xff, 4),
-	.key_color = VOP_REG(RK3366_LIT_WIN1_COLOR_KEY, 0xffffff, 0),
-	.key_en = VOP_REG(RK3366_LIT_WIN1_COLOR_KEY, 0x1, 24),
+	.color_key = VOP_REG(RK3366_LIT_WIN1_COLOR_KEY, 0xffffff, 0),
+	.color_key_en = VOP_REG(RK3366_LIT_WIN1_COLOR_KEY, 0x1, 24),
+	.channel = VOP_REG(RK3366_LIT_WIN1_CTRL1, 0xf, 8),
 };
 
 static const struct vop_win_data rk3366_vop_lit_win_data[] = {
@@ -1505,6 +1516,10 @@ static const struct vop_ctrl px30_ctrl_data = {
 	.mcu_type = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 31),
 	.mcu_rw_bypass_port = VOP_REG(RK3366_LIT_MCU_RW_BYPASS_PORT,
 				      0xffffffff, 0),
+
+	.edpi_wms_fs = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 11),
+	.edpi_ctrl_mode = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 10),
+	.edpi_te_en = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 9),
 };
 
 static const struct vop_win_phy px30_win23_data = {
@@ -1512,6 +1527,7 @@ static const struct vop_win_phy px30_win23_data = {
 	.nformats = ARRAY_SIZE(formats_win_lite),
 	.gate = VOP_REG(RK3368_WIN2_CTRL0, 0x1, 0),
 	.enable = VOP_REG(RK3368_WIN2_CTRL0, 0x1, 4),
+	.csc_mode = VOP_REG(RK3368_WIN2_CTRL0, 0x3, 2),
 	.format = VOP_REG(RK3368_WIN2_CTRL0, 0x3, 5),
 	.rb_swap = VOP_REG(RK3368_WIN2_CTRL0, 0x1, 20),
 	.dsp_info = VOP_REG(RK3368_WIN2_DSP_INFO0, 0x0fff0fff, 0),
@@ -1523,6 +1539,8 @@ static const struct vop_win_phy px30_win23_data = {
 	.alpha_en = VOP_REG(RK3368_WIN2_SRC_ALPHA_CTRL, 0x1, 0),
 	.global_alpha_val = VOP_REG(RK3368_WIN2_SRC_ALPHA_CTRL, 0xff, 4),
 	.channel = VOP_REG(RK3368_WIN2_CTRL1, 0xf, 8),
+	.color_key = VOP_REG(RK3368_WIN2_COLOR_KEY, 0xffffff, 0),
+	.color_key_en = VOP_REG(RK3368_WIN2_COLOR_KEY, 0x1, 24),
 };
 
 static const struct vop_win_data px30_vop_big_win_data[] = {
@@ -1738,6 +1756,10 @@ static const struct vop_ctrl rv1126_ctrl_data = {
 				      0xffffffff, 0),
 	.bt1120_yc_swap = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 30),
 	.bt1120_en = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 31),
+
+	.edpi_wms_fs = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 11),
+	.edpi_ctrl_mode = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 10),
+	.edpi_te_en = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 9),
 };
 
 static const struct vop_win_data rv1126_vop_win_data[] = {
@@ -1766,36 +1788,58 @@ static const struct vop_data rv1126_vop = {
 };
 
 static const struct of_device_id vop_driver_dt_match[] = {
+#if IS_ENABLED(CONFIG_CPU_RK3036)
 	{ .compatible = "rockchip,rk3036-vop",
 	  .data = &rk3036_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK30XX)
 	{ .compatible = "rockchip,rk3066-vop",
 	  .data = &rk3066_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK312X)
 	{ .compatible = "rockchip,rk3126-vop",
 	  .data = &rk3126_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_PX30)
 	{ .compatible = "rockchip,px30-vop-lit",
 	  .data = &px30_vop_lit },
 	{ .compatible = "rockchip,px30-vop-big",
 	  .data = &px30_vop_big },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3308)
 	{ .compatible = "rockchip,rk3308-vop",
 	  .data = &rk3308_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RV1126)
 	{ .compatible = "rockchip,rv1126-vop",
 	  .data = &rv1126_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3288)
 	{ .compatible = "rockchip,rk3288-vop-big",
 	  .data = &rk3288_vop_big },
 	{ .compatible = "rockchip,rk3288-vop-lit",
 	  .data = &rk3288_vop_lit },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3368)
 	{ .compatible = "rockchip,rk3368-vop",
 	  .data = &rk3368_vop },
 	{ .compatible = "rockchip,rk3366-vop",
 	  .data = &rk3366_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3399)
 	{ .compatible = "rockchip,rk3399-vop-big",
 	  .data = &rk3399_vop_big },
 	{ .compatible = "rockchip,rk3399-vop-lit",
 	  .data = &rk3399_vop_lit },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK322X)
 	{ .compatible = "rockchip,rk3228-vop",
 	  .data = &rk3228_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3328)
 	{ .compatible = "rockchip,rk3328-vop",
 	  .data = &rk3328_vop },
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(of, vop_driver_dt_match);

@@ -109,6 +109,7 @@ struct rockchip_chg_det_reg {
  * @ls_det_en: linestate detection enable register.
  * @ls_det_st: linestate detection state register.
  * @ls_det_clr: linestate detection clear register.
+ * @phy_chg_mode: set phy in charge detection mode.
  * @phy_sus: phy suspend register.
  * @utmi_bvalid: utmi vbus bvalid status register.
  * @utmi_iddig: otg port id pin status register.
@@ -140,6 +141,7 @@ struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	ls_det_en;
 	struct usb2phy_reg	ls_det_st;
 	struct usb2phy_reg	ls_det_clr;
+	struct usb2phy_reg	phy_chg_mode;
 	struct usb2phy_reg	phy_sus;
 	struct usb2phy_reg	utmi_bvalid;
 	struct usb2phy_reg	utmi_iddig;
@@ -155,6 +157,7 @@ struct rockchip_usb2phy_port_cfg {
  * @phy_tuning: phy default parameters tuning.
  * @phy_lowpower: phy low power mode.
  * @clkout_ctl: keep on/turn off output clk of phy.
+ * @ls_filter_con: set linestate filter time.
  * @port_cfgs: ports register configuration, assigned by driver data.
  * @chg_det: charger detection registers.
  * @last: indicate the last one.
@@ -167,6 +170,7 @@ struct rockchip_usb2phy_cfg {
 	int		(*phy_tuning)(struct rockchip_usb2phy *rphy);
 	int		(*phy_lowpower)(struct rockchip_usb2phy *rphy, bool en);
 	struct		usb2phy_reg clkout_ctl;
+	struct		usb2phy_reg ls_filter_con;
 	const struct	rockchip_usb2phy_port_cfg port_cfgs[USB2PHY_NUM_PORTS];
 	const struct	rockchip_chg_det_reg chg_det;
 	bool		last;
@@ -219,6 +223,7 @@ struct rockchip_usb2phy_port {
  * @dev: pointer to our struct device.
  * @grf: General Register Files regmap.
  * @base: the base address of APB interface.
+ * @apb_reset: apb reset signal for phy.
  * @reset: power reset signal for phy.
  * @clks: array of input clocks.
  * @num_clks: number of input clocks.
@@ -237,6 +242,7 @@ struct rockchip_usb2phy {
 	struct device		*dev;
 	struct regmap		*grf;
 	void __iomem		*base;
+	struct reset_control	*apb_reset;
 	struct reset_control	*reset;
 	struct clk_bulk_data	*clks;
 	int			num_clks;
@@ -796,12 +802,45 @@ static void rockchip_chg_detect(struct rockchip_usb2phy *rphy,
 				struct rockchip_usb2phy_port *rport)
 {
 	bool chg_valid, phy_connect;
-	int result;
-	int cnt;
+	const struct usb2phy_reg *phy_sus_reg;
+	unsigned int phy_sus_cfg, mask;
+	int result, cnt, ret;
 
 	mutex_lock(&rport->mutex);
 
-	reset_control_assert(rphy->reset);
+	/*
+	 * We are violating what the phy specification says about
+	 * the charge detection process. Ideally we need to hold
+	 * the phy in the reset state during the charge detection
+	 * process, but that's causing trouble synchronizing between
+	 * the phy and usb controller because CLK60_30 is disabled
+	 * while phy in reset.
+	 *
+	 * We have discussed this with the phy IP Provider, and
+	 * it was suggested to keep the CLK60_30 while do charging
+	 * detection.
+	 *
+	 * Set the phy in charge mode (keep the CLK60_30):
+	 * Enable the DP/DM pulldown resistor;
+	 * Set the opmode to non-driving mode;
+	 * Set the phy controlled by GRF utmi interface, and set
+	 * the utmi in normal mode to keep the CLK60_30.
+	 */
+	phy_sus_reg = &rport->port_cfg->phy_sus;
+	ret = regmap_read(rphy->grf, phy_sus_reg->offset, &phy_sus_cfg);
+	if (ret) {
+		dev_err(&rport->phy->dev,
+			"Fail to read phy_sus reg offset 0x%x, ret %d\n",
+			phy_sus_reg->offset, ret);
+		goto unlock;
+	}
+
+	ret = property_enable(rphy->grf, &rport->port_cfg->phy_chg_mode, true);
+	if (ret) {
+		dev_err(&rport->phy->dev,
+			"Fail to set phy_chg_mode reg, ret %d\n", ret);
+		goto unlock;
+	}
 
 	/* CHG_RST is set to 1'b0 to start charge detection */
 	property_enable(rphy->grf, &rphy->phy_cfg->chg_det.chg_en, true);
@@ -841,15 +880,21 @@ static void rockchip_chg_detect(struct rockchip_usb2phy *rphy,
 	dev_info(&rport->phy->dev, "charger = %s\n",
 		 chg_to_string(rphy->chg_type));
 
-	usleep_range(1000, 1100);
-	reset_control_deassert(rphy->reset);
-	/* waiting for the utmi_clk to become stable */
-	usleep_range(2500, 3000);
-
 	/* disable the chg detection module */
 	property_enable(rphy->grf, &rphy->phy_cfg->chg_det.chg_rst, true);
 	property_enable(rphy->grf, &rphy->phy_cfg->chg_det.chg_en, false);
 
+	mask = GENMASK(phy_sus_reg->bitend, phy_sus_reg->bitstart);
+	/* Restore the phy suspend configuration */
+	ret = regmap_write(rphy->grf, phy_sus_reg->offset,
+			   ((phy_sus_cfg << phy_sus_reg->bitstart) |
+			    (mask << BIT_WRITEABLE_SHIFT)));
+	if (ret)
+		dev_err(&rport->phy->dev,
+			"Fail to set phy_sus reg offset 0x%x, ret %d\n",
+			phy_sus_reg->offset, ret);
+
+unlock:
 	mutex_unlock(&rport->mutex);
 }
 
@@ -1466,6 +1511,10 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 	if (IS_ERR(rphy->reset))
 		return PTR_ERR(rphy->reset);
 
+	rphy->apb_reset = devm_reset_control_get(dev, "u2phy-apb");
+	if (IS_ERR(rphy->apb_reset))
+		return PTR_ERR(rphy->apb_reset);
+
 	rphy->vup_gpio = devm_gpiod_get_optional(dev, "vup", GPIOD_OUT_LOW);
 	if (IS_ERR(rphy->vup_gpio)) {
 		ret = PTR_ERR(rphy->vup_gpio);
@@ -1473,9 +1522,11 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	reset_control_assert(rphy->apb_reset);
 	reset_control_assert(rphy->reset);
 	udelay(1);
 	reset_control_deassert(rphy->reset);
+	reset_control_deassert(rphy->apb_reset);
 
 	match = of_match_device(dev->driver->of_match_table, dev);
 	if (!match || !match->data) {
@@ -1672,6 +1723,11 @@ static int rv1126_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 		ret = regmap_write(rphy->grf, 0x1028c, 0x0f0f0100);
 		if (ret)
 			goto out;
+
+		/* Enable host port wakeup irq */
+		ret = regmap_write(rphy->grf, 0x0000, 0x00040004);
+		if (ret)
+			goto out;
 	}
 
 out:
@@ -1706,6 +1762,18 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 
 	if (device_may_wakeup(rphy->dev))
 		wakeup_enable = true;
+
+	/*
+	 * Set the linestate filter time to 1ms based
+	 * on the usb2 phy grf pclk 32KHz on suspend.
+	 */
+	if (rphy->phy_cfg->ls_filter_con.enable) {
+		ret = regmap_write(rphy->grf,
+				   rphy->phy_cfg->ls_filter_con.offset,
+				   rphy->phy_cfg->ls_filter_con.enable);
+		if (ret)
+			dev_err(rphy->dev, "failed to set ls filter %d\n", ret);
+	}
 
 	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
 		rport = &rphy->ports[index];
@@ -1749,6 +1817,10 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 	if (rphy->phy_cfg->phy_lowpower)
 		ret = rphy->phy_cfg->phy_lowpower(rphy, true);
 
+	/* Set gpio output low to avoid leakage */
+	if (rphy->vup_gpio && !wakeup_enable)
+		gpiod_set_value(rphy->vup_gpio, 1);
+
 	return ret;
 }
 
@@ -1763,6 +1835,18 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 
 	if (device_may_wakeup(rphy->dev))
 		wakeup_enable = true;
+
+	if (rphy->phy_cfg->ls_filter_con.disable) {
+		ret = regmap_write(rphy->grf,
+				   rphy->phy_cfg->ls_filter_con.offset,
+				   rphy->phy_cfg->ls_filter_con.disable);
+		if (ret)
+			dev_err(rphy->dev, "failed to set ls filter %d\n", ret);
+	}
+
+	/* Set gpio output high to disable pull-up circuit on DM */
+	if (rphy->vup_gpio && !wakeup_enable)
+		gpiod_set_value(rphy->vup_gpio, 0);
 
 	/* exit low power state */
 	if (rphy->phy_cfg->phy_lowpower)
@@ -1833,6 +1917,7 @@ static const struct rockchip_usb2phy_cfg rv1126_phy_cfgs[] = {
 		.num_clks	= 2,
 		.clks		= rv1126_clks,
 		.clkout_ctl	= { 0x10230, 14, 14, 0, 1 },
+		.ls_filter_con	= { 0x10310, 19, 0, 0x30100, 0x20 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
 				.bypass_otgsuspendm = { 0x10234, 12, 12, 0, 1 },
@@ -1860,7 +1945,8 @@ static const struct rockchip_usb2phy_cfg rv1126_phy_cfgs[] = {
 				.ls_det_en = { 0x10300, 0, 0, 0, 1 },
 				.ls_det_st = { 0x10304, 0, 0, 0, 1 },
 				.ls_det_clr = { 0x10308, 0, 0, 0, 1 },
-				.phy_sus = { 0x10230, 8, 0, 0x052, 0x1d5 },
+				.phy_chg_mode = { 0x10230, 8, 0, 0x052, 0x1d7 },
+				.phy_sus = { 0x10230, 8, 0, 0x052, 0x1d1 },
 				.utmi_bvalid = { 0x10248, 9, 9, 0, 1 },
 				.utmi_iddig = { 0x10248, 6, 6, 0, 1 },
 				.utmi_hostdet = { 0x10248, 7, 7, 0, 1 },
@@ -1881,6 +1967,7 @@ static const struct rockchip_usb2phy_cfg rv1126_phy_cfgs[] = {
 		.num_clks	= 2,
 		.clks		= rv1126_clks,
 		.clkout_ctl	= { 0x10238, 9, 9, 0, 1 },
+		.ls_filter_con	= { 0x10310, 19, 0, 0x30100, 0x20 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_HOST] = {
 				.disconfall_det_en = { 0x10300, 9, 9, 0, 1 },
@@ -1892,7 +1979,7 @@ static const struct rockchip_usb2phy_cfg rv1126_phy_cfgs[] = {
 				.ls_det_en = { 0x10300, 1, 1, 0, 1 },
 				.ls_det_st = { 0x10304, 1, 1, 0, 1 },
 				.ls_det_clr = { 0x10308, 1, 1, 0, 1 },
-				.phy_sus = { 0x10238, 3, 0, 0x2, 0x5 },
+				.phy_sus = { 0x10238, 3, 0, 0x2, 0x1 },
 				.utmi_hostdet = { 0x10248, 23, 23, 0, 1 },
 			}
 		},

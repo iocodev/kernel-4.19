@@ -20,7 +20,6 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-fwnode.h>
 #include <linux/iommu.h>
-#include <dt-bindings/soc/rockchip-system-status.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
@@ -91,11 +90,143 @@ static ssize_t rkcif_store_compact_mode(struct device *dev,
 
 	return len;
 }
+
+static ssize_t rkcif_show_line_int_num(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int ret;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n",
+		       cif_dev->wait_line_cache);
+	return ret;
+}
+
+static ssize_t rkcif_store_line_int_num(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t len)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int val = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (!ret && val >= 0 && val <= 0x3fff)
+		cif_dev->wait_line_cache = val;
+	else
+		dev_info(cif_dev->dev, "set line int num failed\n");
+	return len;
+}
+
+static ssize_t rkcif_show_dummybuf_mode(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int ret;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n",
+		       cif_dev->is_use_dummybuf);
+	return ret;
+}
+
+static ssize_t rkcif_store_dummybuf_mode(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t len)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int val = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (!ret) {
+		if (val)
+			cif_dev->is_use_dummybuf = true;
+		else
+			cif_dev->is_use_dummybuf = false;
+	} else {
+		dev_info(cif_dev->dev, "set dummy buf mode failed\n");
+	}
+	return len;
+}
+
+/* show the compact mode of each stream in stream index order,
+ * 1 for compact, 0 for 16bit
+ */
+static ssize_t rkcif_show_memory_mode(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int ret;
+
+	ret = snprintf(buf, PAGE_SIZE,
+		       "stream[0~3] %d %d %d %d, 0(low align) 1(high align) 2(compact)\n",
+		       cif_dev->stream[0].is_compact ? 2 : (cif_dev->stream[0].is_high_align ? 1 : 0),
+		       cif_dev->stream[1].is_compact ? 2 : (cif_dev->stream[1].is_high_align ? 1 : 0),
+		       cif_dev->stream[2].is_compact ? 2 : (cif_dev->stream[2].is_high_align ? 1 : 0),
+		       cif_dev->stream[3].is_compact ? 2 : (cif_dev->stream[3].is_high_align ? 1 : 0));
+	return ret;
+}
+
+static ssize_t rkcif_store_memory_mode(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t len)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int i, index;
+	char val[4];
+
+	if (buf) {
+		index = 0;
+		for (i = 0; i < len; i++) {
+			if (buf[i] == ' ') {
+				continue;
+			} else if (buf[i] == '\0') {
+				break;
+			} else {
+				val[index] = buf[i];
+				index++;
+				if (index == 4)
+					break;
+			}
+		}
+
+		for (i = 0; i < index; i++) {
+			if (cif_dev->stream[i].is_compact) {
+				dev_info(cif_dev->dev, "stream[%d] set memory align fail, is compact mode\n",
+					 i);
+				continue;
+			}
+			if (val[i] - '0' == 0)
+				cif_dev->stream[i].is_high_align = false;
+			else
+				cif_dev->stream[i].is_high_align = true;
+		}
+	}
+
+	return len;
+}
+
 static DEVICE_ATTR(compact_test, S_IWUSR | S_IRUSR,
 		   rkcif_show_compact_mode, rkcif_store_compact_mode);
 
+static DEVICE_ATTR(wait_line, S_IWUSR | S_IRUSR,
+		   rkcif_show_line_int_num, rkcif_store_line_int_num);
+
+static DEVICE_ATTR(is_use_dummybuf, S_IWUSR | S_IRUSR,
+		   rkcif_show_dummybuf_mode, rkcif_store_dummybuf_mode);
+
+static DEVICE_ATTR(is_high_align, S_IWUSR | S_IRUSR,
+		   rkcif_show_memory_mode, rkcif_store_memory_mode);
+
+
 static struct attribute *dev_attrs[] = {
 	&dev_attr_compact_test.attr,
+	&dev_attr_wait_line.attr,
+	&dev_attr_is_use_dummybuf.attr,
+	&dev_attr_is_high_align.attr,
 	NULL,
 };
 
@@ -355,6 +486,7 @@ static int rkcif_pipeline_close(struct rkcif_pipeline *p)
 static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 {
 	struct rkcif_device *cif_dev = container_of(p, struct rkcif_device, pipe);
+	struct rkcif_stream *stream = NULL;
 	bool can_be_set = false;
 	int i, ret;
 
@@ -374,10 +506,8 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			cif_dev->irq_stats.all_err_cnt = 0;
 			cif_dev->irq_stats.all_frm_end_cnt = 0;
 			cif_dev->reset_watchdog_timer.is_triggered = false;
-			cif_dev->reset_watchdog_timer.is_running = false;
-			cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt = 0;
-			cif_dev->reset_watchdog_timer.run_cnt = 0;
-			cif_dev->buf_wake_up_cnt = 0;
+			for (i = 0; i < cif_dev->num_channels; i++)
+				cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 		}
 
 		/* phy -> sensor */
@@ -386,6 +516,8 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 				goto err_stream_off;
 		}
+		if (on)
+			rkcif_monitor_reset_event(cif_dev->hw_dev);
 	} else {
 		if (!on && atomic_dec_return(&p->stream_cnt) > 0)
 			return 0;
@@ -421,10 +553,8 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				cif_dev->irq_stats.all_frm_end_cnt = 0;
 				cif_dev->is_start_hdr = true;
 				cif_dev->reset_watchdog_timer.is_triggered = false;
-				cif_dev->reset_watchdog_timer.is_running = false;
-				cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt = 0;
-				cif_dev->reset_watchdog_timer.run_cnt = 0;
-				cif_dev->buf_wake_up_cnt = 0;
+				for (i = 0; i < cif_dev->num_channels; i++)
+					cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 			}
 
 			/* phy -> sensor */
@@ -433,6 +563,13 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 
 				if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 					goto err_stream_off;
+			}
+			if (on) {
+				rkcif_monitor_reset_event(cif_dev->hw_dev);
+				for (i = 0; i < atomic_read(&p->stream_cnt); i++) {
+					stream = &cif_dev->stream[i];
+					stream->streamon_timestamp = ktime_get_ns();
+				}
 			}
 		}
 	}
@@ -445,6 +582,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 err_stream_off:
 	for (--i; i >= 0; --i)
 		v4l2_subdev_call(p->subdevs[i], video, s_stream, false);
+	atomic_set(&p->stream_cnt, 0);
 	rockchip_clear_system_status(SYS_STATUS_CIF0);
 	return ret;
 }
@@ -584,16 +722,21 @@ static int rkcif_create_links(struct rkcif_device *dev)
 
 static int _set_pipeline_default_fmt(struct rkcif_device *dev)
 {
+	rkcif_set_default_fmt(dev);
 	return 0;
 }
 
 static int subdev_asyn_register_itf(struct rkcif_device *dev)
 {
-	struct sditf_priv *sditf = dev->sditf;
+	struct sditf_priv *sditf = NULL;
 	int ret = 0;
+	int i = 0;
 
-	if (sditf)
-		ret = v4l2_async_register_subdev_sensor_common(&sditf->sd);
+	for (i = 0; i < dev->sditf_cnt; i++) {
+		sditf = dev->sditf[i];
+		if (sditf)
+			ret = v4l2_async_register_subdev_sensor_common(&sditf->sd);
+	}
 
 	return ret;
 }
@@ -806,7 +949,7 @@ static int rkcif_register_platform_subdevs(struct rkcif_device *cif_dev)
 		stream_num = RKCIF_MAX_STREAM_MIPI;
 		ret = rkcif_register_stream_vdevs(cif_dev, stream_num, true);
 	}
-
+	cif_dev->num_channels = stream_num;
 	if (ret < 0) {
 		dev_err(cif_dev->dev, "cif register stream[%d] failed!\n", stream_num);
 		return -EINVAL;
@@ -923,92 +1066,359 @@ static int rkcif_detach_hw(struct rkcif_device *cif_dev)
 	return 0;
 }
 
-static char *rkcif_get_monitor_mode(enum rkcif_monitor_mode mode)
-{
-	switch (mode) {
-	case RKCIF_MONITOR_MODE_IDLE:
-		return "idle";
-	case RKCIF_MONITOR_MODE_CONTINUE:
-		return "continue";
-	case RKCIF_MONITOR_MODE_TRIGGER:
-		return "trigger";
-	case RKCIF_MONITOR_MODE_HOTPLUG:
-		return "hotplug";
-	default:
-		return "unknown";
-	}
-}
-
 static void rkcif_init_reset_monitor(struct rkcif_device *dev)
 {
-	struct device_node *node = dev->dev->of_node;
 	struct rkcif_timer *timer = &dev->reset_watchdog_timer;
 	struct notifier_block *notifier = &dev->reset_notifier;
-	u32 para[8];
-	int i;
 
-	if (!of_property_read_u32_array(node,
-					OF_CIF_MONITOR_PARA,
-					para,
-					CIF_MONITOR_PARA_NUM)) {
-		for (i = 0; i < CIF_MONITOR_PARA_NUM; i++) {
-			if (i == 0) {
-				timer->monitor_mode = para[0];
-				v4l2_info(&dev->v4l2_dev,
-					  "%s: timer monitor mode:%s\n",
-					  __func__, rkcif_get_monitor_mode(timer->monitor_mode));
-			}
-
-			if (i == 1) {
-				timer->triggered_frame_num = para[1];
-				v4l2_info(&dev->v4l2_dev,
-					  "timer triggered frm num:%d\n",
-					  timer->triggered_frame_num);
-			}
-
-			if (i == 2) {
-				timer->frm_num_of_monitor_cycle = para[2];
-				v4l2_info(&dev->v4l2_dev,
-					  "timer frm num of monitor cycle:%d\n",
-					  timer->frm_num_of_monitor_cycle);
-			}
-
-			if (i == 3) {
-				timer->err_time_interval = para[3];
-				v4l2_info(&dev->v4l2_dev,
-					  "timer err time for keeping:%d ms\n",
-					  timer->err_time_interval);
-			}
-
-			if (i == 4) {
-				timer->csi2_err_ref_cnt = para[4];
-				v4l2_info(&dev->v4l2_dev,
-					  "timer csi2 err ref val for resetting:%d\n",
-					  timer->csi2_err_ref_cnt);
-			}
-		}
-	} else {
-		timer->monitor_mode = RKCIF_MONITOR_MODE_IDLE;
-		timer->err_time_interval = 0xffffffff;
-		timer->frm_num_of_monitor_cycle = 0xffffffff;
-		timer->triggered_frame_num =  0xffffffff;
-		timer->csi2_err_ref_cnt = 0xffffffff;
-	}
-
-	timer->is_running = false;
 	timer->is_triggered = false;
 	timer->is_buf_stop_update = false;
 	timer->csi2_err_cnt_even = 0;
 	timer->csi2_err_cnt_odd = 0;
 	timer->csi2_err_fs_fe_cnt = 0;
 	timer->csi2_err_fs_fe_detect_cnt = 0;
+	timer->csi2_err_triggered_cnt = 0;
+	timer->csi2_first_err_timestamp = 0;
 
-	timer_setup(&timer->timer, rkcif_reset_watchdog_timer_handler, 0);
-
-	notifier->priority = 1;
-	notifier->notifier_call = rkcif_reset_notifier;
-	rkcif_csi2_register_notifier(notifier);
+	if (dev->inf_id == RKCIF_MIPI_LVDS) {
+		notifier->priority = 1;
+		notifier->notifier_call = rkcif_reset_notifier;
+		rkcif_csi2_register_notifier(notifier);
+	}
 	INIT_WORK(&dev->reset_work.work, rkcif_reset_work);
+}
+
+static void rkcif_set_sensor_stream(struct work_struct *work)
+{
+	struct rkcif_sensor_work *sensor_work = container_of(work,
+						struct rkcif_sensor_work,
+						work);
+	struct rkcif_device *cif_dev = container_of(sensor_work,
+						    struct rkcif_device,
+						    sensor_work);
+
+	v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+			core, ioctl,
+			RKMODULE_SET_QUICK_STREAM,
+			&sensor_work->on);
+}
+
+static void rkcif_exposure_effect_sequeue_match(struct rkcif_device *dev,
+							  struct sditf_effect_time *effect_time,
+							  struct sditf_effect_gain *effect_gain)
+{
+	struct sditf_effect_time *new_effect_time = NULL;
+	struct sditf_effect_gain *new_effect_gain = NULL;
+
+	if (effect_time->sequence < effect_gain->sequence) {
+		if (!list_empty(&dev->effect_time_head)) {
+			new_effect_time = list_first_entry(&dev->effect_time_head,
+					struct sditf_effect_time,
+					list);
+			if (new_effect_time) {
+				list_del(&new_effect_time->list);
+				kfree(effect_time);
+				effect_time = new_effect_time;
+				rkcif_exposure_effect_sequeue_match(dev, effect_time, effect_gain);
+			} else {
+				return;
+			}
+		} else {
+			return;
+		}
+	} else if (effect_time->sequence > effect_gain->sequence) {
+		if (!list_empty(&dev->effect_gain_head)) {
+			new_effect_gain = list_first_entry(&dev->effect_gain_head,
+					struct sditf_effect_gain,
+					list);
+			if (new_effect_gain) {
+				list_del(&new_effect_gain->list);
+				kfree(effect_gain);
+				effect_gain = new_effect_gain;
+				rkcif_exposure_effect_sequeue_match(dev, effect_time, effect_gain);
+			} else {
+				return;
+			}
+		} else {
+			return;
+		}
+	}
+}
+
+static void rkcif_get_cur_effect_sequeue(struct rkcif_device *dev,
+						 u32 total_sequeue,
+						 u32 *cur_sequeue,
+						 u32 *cur_id)
+{
+	u32 i = 0, pattern_cnt = 0, tmp = 0;
+	u32 tmp_pattern_cnt = 0, offset = 0;
+
+	for (i = 0; i < dev->channels[0].capture_info.one_to_multi.isp_num; i++)
+		pattern_cnt += dev->channels[0].capture_info.one_to_multi.frame_pattern[i];
+
+	if (pattern_cnt == 0) {
+		v4l2_info(&dev->v4l2_dev,
+			  "pattern_cnt is %d, pls check it\n",
+			  pattern_cnt);
+		return;
+	}
+	*cur_sequeue = total_sequeue / pattern_cnt;
+	tmp = total_sequeue % pattern_cnt;
+	pattern_cnt = 0;
+	for (i = 0; i < dev->channels[0].capture_info.one_to_multi.isp_num; i++) {
+		pattern_cnt += dev->channels[0].capture_info.one_to_multi.frame_pattern[i];
+		if (i > 0)
+			tmp_pattern_cnt += dev->channels[0].capture_info.one_to_multi.frame_pattern[i - 1];
+		if (tmp < pattern_cnt) {
+			*cur_id = i;
+			offset = tmp - tmp_pattern_cnt;
+			break;
+		}
+	}
+	*cur_sequeue *= dev->channels[0].capture_info.one_to_multi.frame_pattern[*cur_id];
+	*cur_sequeue += offset;
+}
+
+static void rkcif_update_effect_exposure(struct rkcif_device *dev)
+{
+	struct sditf_priv *priv = NULL;
+	struct sditf_effect_exp *effect_exp = NULL;
+	struct sditf_effect_time *effect_time = NULL;
+	struct sditf_effect_gain *effect_gain = NULL;
+	u32 cur_sequeue = 0;
+	u32 cur_id = 0;
+
+	if (!list_empty(&dev->effect_time_head) && (!list_empty(&dev->effect_gain_head))) {
+		effect_time = list_first_entry(&dev->effect_time_head,
+					struct sditf_effect_time,
+					list);
+		if (effect_time)
+			list_del(&effect_time->list);
+
+		effect_gain = list_first_entry(&dev->effect_gain_head,
+					struct sditf_effect_gain,
+					list);
+		if (effect_gain)
+			list_del(&effect_gain->list);
+	}
+
+	if (effect_time && effect_gain) {
+		rkcif_exposure_effect_sequeue_match(dev, effect_time, effect_gain);
+		effect_exp = kzalloc(sizeof(*effect_exp), GFP_KERNEL);
+		if (effect_exp && effect_time && effect_gain) {
+			rkcif_get_cur_effect_sequeue(dev, effect_time->sequence, &cur_sequeue, &cur_id);
+			priv = dev->sditf[cur_id];
+			effect_exp->exp.sequence = cur_sequeue;
+			effect_exp->exp.time = effect_time->time;
+			effect_exp->exp.gain = effect_gain->gain;
+			mutex_lock(&priv->mutex);
+			list_add_tail(&effect_exp->list, &priv->effect_exp_head);
+			mutex_unlock(&priv->mutex);
+			sditf_event_exposure_notifier(priv, effect_exp);
+		} else {
+			v4l2_err(&dev->v4l2_dev, "Failed to alloc struct sditf_effect_exp\n");
+		}
+		if (effect_time)
+			kfree(effect_time);
+		if (effect_gain)
+			kfree(effect_gain);
+	} else {
+		if (effect_time)
+			kfree(effect_time);
+		if (effect_gain)
+			kfree(effect_gain);
+		v4l2_err(&dev->v4l2_dev, "Failed to get effect time or gain\n");
+	}
+}
+
+static int rkcif_get_exp_effect_stream_id(struct rkcif_device *dev, u32 effect_frame)
+{
+	u32 i = 0, pattern_cnt = 0, tmp = 0;
+	int id = 0;
+
+	for (i = 0; i < dev->channels[0].capture_info.one_to_multi.isp_num; i++)
+		pattern_cnt += dev->channels[0].capture_info.one_to_multi.frame_pattern[i];
+
+	if (pattern_cnt == 0) {
+		v4l2_info(&dev->v4l2_dev,
+			  "pattern_cnt is %d, pls check it\n",
+			  pattern_cnt);
+		return -EINVAL;
+	}
+	tmp = effect_frame % pattern_cnt;
+	pattern_cnt = 0;
+	for (i = 0; i < dev->channels[0].capture_info.one_to_multi.isp_num; i++) {
+		pattern_cnt += dev->channels[0].capture_info.one_to_multi.frame_pattern[i];
+		if (tmp < pattern_cnt) {
+			id = i;
+			break;
+		}
+	}
+	return id;
+}
+
+static void rkcif_exp_work(struct work_struct *exp_work)
+{
+	struct rkcif_device *dev = container_of(exp_work,
+						struct rkcif_device,
+						exp_work);
+	struct sditf_priv *priv = NULL;
+	struct rkcif_stream *stream = &dev->stream[0];
+	struct sditf_time *time;
+	struct sditf_gain *gain;
+	struct sditf_effect_time *effect_time;
+	struct sditf_effect_gain *effect_gain;
+	struct v4l2_ctrl *ctrl;
+	u32 cur_time = 0;
+	u32 cur_gain = 0;
+	int i = 0;
+	int id = 0;
+	int min_delay = 0;
+	int effect_frame = 0;
+	unsigned long flags;
+
+	id = rkcif_get_exp_effect_stream_id(dev, stream->frame_idx - 1);
+	if (id < 0) {
+		dev_err(dev->dev, "%s %d get exp_effect stream failed\n",
+			__func__, __LINE__);
+		return;
+	}
+	priv = dev->sditf[id];
+
+	if (stream->frame_idx == 0) {
+		cur_time = priv->cur_time;
+	} else {
+		effect_frame = stream->frame_idx + dev->exp_delay.time_delay - 1;
+		id = rkcif_get_exp_effect_stream_id(dev, effect_frame);
+		if (id < 0) {
+			dev_err(dev->dev, "%s %d get exp_effect stream failed\n",
+				__func__, __LINE__);
+			return;
+		}
+		priv = dev->sditf[id];
+		if (!list_empty(&priv->time_head)) {
+			time = list_first_entry(&priv->time_head,
+						struct sditf_time,
+						list);
+			if (time) {
+				mutex_lock(&priv->mutex);
+				list_del(&time->list);
+				mutex_unlock(&priv->mutex);
+				cur_time = time->time;
+				kfree(time);
+			}
+		} else {
+			cur_time = priv->cur_time;
+		}
+		if (dev->exp_dbg)
+			dev_info(priv->dev, "exp set id %d, val 0x%x\n",
+				  priv->connect_id, cur_time);
+	}
+	ctrl = v4l2_ctrl_find(dev->terminal_sensor.sd->ctrl_handler,
+			      V4L2_CID_EXPOSURE);
+	v4l2_ctrl_s_ctrl(ctrl, cur_time);
+	priv->cur_time = cur_time;
+	if (stream->frame_idx == 0) {
+		cur_gain = priv->cur_gain;
+	} else {
+		effect_frame = stream->frame_idx + dev->exp_delay.gain_delay - 1;
+		id = rkcif_get_exp_effect_stream_id(dev, effect_frame);
+		if (id < 0) {
+			dev_err(dev->dev, "%s %d get exp_effect stream failed\n",
+				__func__, __LINE__);
+			return;
+		}
+		priv = dev->sditf[id];
+		if (!list_empty(&priv->gain_head)) {
+			gain = list_first_entry(&priv->gain_head,
+						struct sditf_gain,
+						list);
+			if (gain) {
+				mutex_lock(&priv->mutex);
+				list_del(&gain->list);
+				mutex_unlock(&priv->mutex);
+				cur_gain = gain->gain;
+				kfree(gain);
+			}
+		} else {
+			cur_gain = priv->cur_gain;
+		}
+		if (dev->exp_dbg)
+			dev_info(priv->dev, "gain set id %d, val 0x%x\n",
+				  priv->connect_id, cur_gain);
+	}
+	ctrl = v4l2_ctrl_find(dev->terminal_sensor.sd->ctrl_handler,
+			      V4L2_CID_ANALOGUE_GAIN);
+	v4l2_ctrl_s_ctrl(ctrl, cur_gain);
+	priv->cur_gain = cur_gain;
+
+	id = rkcif_get_exp_effect_stream_id(dev, stream->frame_idx - 1);
+	if (id < 0) {
+		dev_err(dev->dev, "%s %d get exp_effect stream failed\n",
+			__func__, __LINE__);
+		return;
+	}
+	priv = dev->sditf[id];
+	if (stream->frame_idx == 0) {
+		for (i = 0; i < dev->exp_delay.time_delay; i++) {
+			effect_time = kzalloc(sizeof(*effect_time), GFP_KERNEL);
+			if (effect_time) {
+				effect_time->sequence = i;
+				effect_time->time = priv->cur_time;
+				list_add_tail(&effect_time->list, &dev->effect_time_head);
+				effect_time = NULL;
+			} else {
+				v4l2_err(&dev->v4l2_dev, "Failed to alloc struct sditf_effect_time\n");
+			}
+		}
+		for (i = 0; i < dev->exp_delay.gain_delay; i++) {
+			effect_gain = kzalloc(sizeof(*effect_gain), GFP_KERNEL);
+			if (effect_gain) {
+				effect_gain->sequence = i;
+				effect_gain->gain = priv->cur_gain;
+				list_add_tail(&effect_gain->list, &dev->effect_gain_head);
+				effect_gain = NULL;
+			} else {
+				v4l2_err(&dev->v4l2_dev, "Failed to alloc struct sditf_effect_gain\n");
+			}
+		}
+		if (dev->exp_delay.time_delay >= dev->exp_delay.gain_delay)
+			min_delay = dev->exp_delay.gain_delay;
+		else
+			min_delay = dev->exp_delay.time_delay;
+		for (i = 0; i < min_delay; i++)
+			rkcif_update_effect_exposure(dev);
+		return;
+	}
+
+	if (dev->stream[id].state == RKCIF_STATE_STREAMING)
+		sditf_event_inc_sof(priv);
+	effect_time = kzalloc(sizeof(*effect_time), GFP_KERNEL);
+	if (effect_time) {
+		effect_time->sequence = stream->frame_idx + dev->exp_delay.time_delay - 1;
+		effect_time->time = cur_time;
+		list_add_tail(&effect_time->list, &dev->effect_time_head);
+		effect_time = NULL;
+	} else {
+		v4l2_err(&dev->v4l2_dev, "Failed to alloc struct sditf_effect_time\n");
+	}
+	effect_gain = kzalloc(sizeof(*effect_gain), GFP_KERNEL);
+	if (effect_gain) {
+		effect_gain->sequence = stream->frame_idx + dev->exp_delay.gain_delay - 1;
+		effect_gain->gain = cur_gain;
+		list_add_tail(&effect_gain->list, &dev->effect_gain_head);
+		effect_gain = NULL;
+	} else {
+		v4l2_err(&dev->v4l2_dev, "Failed to alloc struct sditf_effect_gain\n");
+	}
+
+	rkcif_update_effect_exposure(dev);
+	if (dev->stream[id].state == RKCIF_STATE_STREAMING) {
+		spin_lock_irqsave(&stream->vbq_lock, flags);
+		priv->frame_idx.cur_frame_idx++;
+		spin_unlock_irqrestore(&stream->vbq_lock, flags);
+	}
+	priv->frame_idx.total_frame_idx = stream->frame_idx;
 }
 
 int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int inf_id)
@@ -1022,7 +1432,6 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 
 	mutex_init(&cif_dev->stream_lock);
 	spin_lock_init(&cif_dev->hdr_lock);
-	spin_lock_init(&cif_dev->reset_watchdog_timer.timer_lock);
 	spin_lock_init(&cif_dev->reset_watchdog_timer.csi2_err_lock);
 	atomic_set(&cif_dev->pipe.power_cnt, 0);
 	atomic_set(&cif_dev->pipe.stream_cnt, 0);
@@ -1034,6 +1443,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->isr_hdl = rkcif_irq_handler;
 	if (cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
 		cif_dev->isr_hdl = rkcif_irq_lite_handler;
+	spin_lock_init(&cif_dev->stream_spinlock);
 
 	if (cif_dev->chip_id < CHIP_RV1126_CIF) {
 		if (cif_dev->inf_id == RKCIF_MIPI_LVDS) {
@@ -1058,6 +1468,12 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->workmode = RKCIF_WORKMODE_ONEFRAME;
 #else
 	cif_dev->workmode = RKCIF_WORKMODE_PINGPONG;
+#endif
+
+#if defined(CONFIG_ROCKCHIP_CIF_USE_DUMMY_BUF)
+	cif_dev->is_use_dummybuf = true;
+#else
+	cif_dev->is_use_dummybuf = false;
 #endif
 
 	strlcpy(cif_dev->media_dev.model, dev_name(dev),
@@ -1092,6 +1508,16 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	mutex_lock(&rkcif_dev_mutex);
 	list_add_tail(&cif_dev->list, &rkcif_device_list);
 	mutex_unlock(&rkcif_dev_mutex);
+	atomic_set(&cif_dev->streamoff_cnt, 0);
+	INIT_WORK(&cif_dev->sensor_work.work, rkcif_set_sensor_stream);
+	cif_dev->resume_mode = 0;
+	cif_dev->exp_dbg = 0;
+	INIT_WORK(&cif_dev->exp_work, rkcif_exp_work);
+	cif_dev->exp_delay.time_delay = 2;
+	cif_dev->exp_delay.gain_delay = 2;
+	cif_dev->is_alloc_buf_user = false;
+	INIT_LIST_HEAD(&cif_dev->effect_time_head);
+	INIT_LIST_HEAD(&cif_dev->effect_gain_head);
 
 	return 0;
 
@@ -1149,6 +1575,24 @@ static const struct of_device_id rkcif_plat_of_match[] = {
 	{},
 };
 
+static void rkcif_parse_dts(struct rkcif_device *cif_dev)
+{
+	int ret = 0;
+	struct device_node *node = cif_dev->dev->of_node;
+
+	ret = of_property_read_u32(node,
+			     OF_CIF_WAIT_LINE,
+			     &cif_dev->wait_line);
+	if (ret != 0)
+		cif_dev->wait_line = 0;
+	dev_info(cif_dev->dev, "rkcif wait line %d\n", cif_dev->wait_line);
+
+	if (device_property_read_bool(cif_dev->dev, "camera-over-bridge"))
+		cif_dev->is_camera_over_bridge = true;
+	else
+		cif_dev->is_camera_over_bridge = false;
+}
+
 static int rkcif_plat_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -1177,16 +1621,18 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, cif_dev);
 	cif_dev->dev = dev;
 
-	if (sysfs_create_group(&pdev->dev.kobj, &dev_attr_grp))
-		return -ENODEV;
-
 	rkcif_attach_hw(cif_dev);
+
+	rkcif_parse_dts(cif_dev);
 
 	ret = rkcif_plat_init(cif_dev, node, data->inf_id);
 	if (ret) {
 		rkcif_detach_hw(cif_dev);
 		return ret;
 	}
+
+	if (sysfs_create_group(&pdev->dev.kobj, &dev_attr_grp))
+		return -ENODEV;
 
 	if (rkcif_proc_init(cif_dev))
 		dev_warn(dev, "dev:%s create proc failed\n", dev_name(dev));
@@ -1206,7 +1652,7 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 	rkcif_detach_hw(cif_dev);
 	rkcif_proc_cleanup(cif_dev);
 	rkcif_csi2_unregister_notifier(&cif_dev->reset_notifier);
-	del_timer_sync(&cif_dev->reset_watchdog_timer.timer);
+	sysfs_remove_group(&pdev->dev.kobj, &dev_attr_grp);
 
 	return 0;
 }
@@ -1214,21 +1660,28 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 static int __maybe_unused rkcif_runtime_suspend(struct device *dev)
 {
 	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
+	int ret = 0;
 
 	if (atomic_dec_return(&cif_dev->hw_dev->power_cnt))
 		return 0;
 
-	return pm_runtime_put(cif_dev->hw_dev->dev);
+	mutex_lock(&cif_dev->hw_dev->dev_lock);
+	ret = pm_runtime_put_sync(cif_dev->hw_dev->dev);
+	mutex_unlock(&cif_dev->hw_dev->dev_lock);
+	return (ret > 0) ? 0 : ret;
 }
 
 static int __maybe_unused rkcif_runtime_resume(struct device *dev)
 {
 	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
+	int ret = 0;
 
 	if (atomic_inc_return(&cif_dev->hw_dev->power_cnt) > 1)
 		return 0;
-
-	return pm_runtime_get_sync(cif_dev->hw_dev->dev);
+	mutex_lock(&cif_dev->hw_dev->dev_lock);
+	ret = pm_runtime_get_sync(cif_dev->hw_dev->dev);
+	mutex_unlock(&cif_dev->hw_dev->dev_lock);
+	return (ret > 0) ? 0 : ret;
 }
 
 static int __maybe_unused __rkcif_clr_unready_dev(void)
@@ -1238,8 +1691,9 @@ static int __maybe_unused __rkcif_clr_unready_dev(void)
 	mutex_lock(&rkcif_dev_mutex);
 
 	list_for_each_entry(cif_dev, &rkcif_device_list, list) {
-		subdev_asyn_register_itf(cif_dev);
 		v4l2_async_notifier_clr_unready_dev(&cif_dev->notifier);
+		if (!cif_dev->is_camera_over_bridge)
+			subdev_asyn_register_itf(cif_dev);
 	}
 
 	mutex_unlock(&rkcif_dev_mutex);
@@ -1269,9 +1723,25 @@ static int __init rkcif_clr_unready_dev(void)
 late_initcall(rkcif_clr_unready_dev);
 #endif
 
+static int __maybe_unused rkcif_runtime_prepare(struct device *dev)
+{
+	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
+
+	rkcif_stream_suspend(cif_dev);
+	return 0;
+}
+
+static void __maybe_unused rkcif_runtime_complete(struct device *dev)
+{
+	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
+
+	rkcif_stream_resume(cif_dev);
+}
+
+
 static const struct dev_pm_ops rkcif_plat_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	.prepare = rkcif_runtime_prepare,
+	.complete = rkcif_runtime_complete,
 	SET_RUNTIME_PM_OPS(rkcif_runtime_suspend, rkcif_runtime_resume, NULL)
 };
 

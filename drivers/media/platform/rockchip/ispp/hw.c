@@ -16,6 +16,7 @@
 #include <linux/reset.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
+#include <soc/rockchip/rockchip_iommu.h>
 
 #include "common.h"
 #include "dev.h"
@@ -40,10 +41,6 @@ struct irqs_data {
 
 void rkispp_soft_reset(struct rkispp_hw_dev *hw)
 {
-	struct iommu_domain *domain = iommu_get_domain_for_dev(hw->dev);
-
-	if (domain)
-		iommu_detach_device(domain, hw->dev);
 	writel(GLB_SOFT_RST_ALL, hw->base_addr + RKISPP_CTRL_RESET);
 	udelay(10);
 	if (hw->reset) {
@@ -52,8 +49,12 @@ void rkispp_soft_reset(struct rkispp_hw_dev *hw)
 		reset_control_deassert(hw->reset);
 		udelay(20);
 	}
-	if (domain)
-		iommu_attach_device(domain, hw->dev);
+
+	/* refresh iommu after reset */
+	if (hw->is_mmu) {
+		rockchip_iommu_disable(hw->dev);
+		rockchip_iommu_enable(hw->dev);
+	}
 
 	writel(SW_SCL_BYPASS, hw->base_addr + RKISPP_SCL0_CTRL);
 	writel(SW_SCL_BYPASS, hw->base_addr + RKISPP_SCL1_CTRL);
@@ -61,7 +62,11 @@ void rkispp_soft_reset(struct rkispp_hw_dev *hw)
 	writel(OTHER_FORCE_UPD, hw->base_addr + RKISPP_CTRL_UPDATE);
 	writel(GATE_DIS_ALL, hw->base_addr + RKISPP_CTRL_CLKGATE);
 	writel(SW_FEC2DDR_DIS, hw->base_addr + RKISPP_FEC_CORE_CTRL);
-	writel(0x6ffffff, hw->base_addr + RKISPP_CTRL_INT_MSK);
+	writel(NR_LOST_ERR | TNR_LOST_ERR | FBCH_EMPTY_NR |
+		FBCH_EMPTY_TNR | FBCD_DEC_ERR_NR | FBCD_DEC_ERR_TNR |
+		BUS_ERR_NR | BUS_ERR_TNR | SCL2_INT | SCL1_INT |
+		SCL0_INT | FEC_INT | ORB_INT | SHP_INT | NR_INT | TNR_INT,
+		hw->base_addr + RKISPP_CTRL_INT_MSK);
 	writel(GATE_DIS_NR, hw->base_addr + RKISPP_CTRL_CLKGATE);
 }
 
@@ -137,8 +142,6 @@ static int enable_sys_clk(struct rkispp_hw_dev *dev)
 		i = dev->clk_rate_tbl_num - 1;
 	dev->core_clk_max = dev->clk_rate_tbl[i].clk_rate * 1000000;
 	dev->core_clk_min = dev->clk_rate_tbl[0].clk_rate * 1000000;
-	rkispp_set_clk_rate(dev->clks[0], dev->core_clk_min);
-	dev_dbg(dev->dev, "set ispp clk:%luHz\n", clk_get_rate(dev->clks[0]));
 	return 0;
 err:
 	for (--i; i >= 0; --i)
@@ -323,13 +326,12 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 	atomic_set(&hw_dev->refcnt, 0);
 	INIT_LIST_HEAD(&hw_dev->list);
 	hw_dev->is_idle = true;
-	hw_dev->is_single = true;
+	hw_dev->is_single = false;
 	hw_dev->is_fec_ext = false;
 	hw_dev->is_dma_contig = true;
 	hw_dev->is_dma_sg_ops = false;
 	hw_dev->is_shutdown = false;
 	hw_dev->is_first = true;
-	hw_dev->first_frame_dma = -1;
 	hw_dev->is_mmu = is_iommu_enable(dev);
 	ret = of_reserved_mem_device_init(dev);
 	if (ret) {
@@ -398,14 +400,28 @@ static int __maybe_unused rkispp_runtime_resume(struct device *dev)
 	enable_sys_clk(hw_dev);
 	rkispp_soft_reset(hw_dev);
 
-	for (i = 0; i < hw_dev->dev_num; i++) {
-		void *buf = hw_dev->ispp[i]->sw_base_addr;
+	if (dev->power.runtime_status) {
+		rkispp_set_clk_rate(hw_dev->clks[0], hw_dev->core_clk_min);
+		dev_dbg(hw_dev->dev, "set ispp clk:%luHz\n", clk_get_rate(hw_dev->clks[0]));
 
-		memset(buf, 0, RKISP_ISPP_SW_MAX_SIZE);
-		memcpy_fromio(buf, base, RKISP_ISPP_SW_REG_SIZE);
-		default_sw_reg_flag(hw_dev->ispp[i]);
+		for (i = 0; i < hw_dev->dev_num; i++) {
+			void *buf = hw_dev->ispp[i]->sw_base_addr;
+
+			memset(buf, 0, RKISP_ISPP_SW_MAX_SIZE);
+			memcpy_fromio(buf, base, RKISP_ISPP_SW_REG_SIZE);
+			default_sw_reg_flag(hw_dev->ispp[i]);
+		}
+		hw_dev->is_idle = true;
+	} else {
+		if (hw_dev->ispp[hw_dev->cur_dev_id]->is_suspend) {
+			rkispp_update_regs(hw_dev->ispp[hw_dev->cur_dev_id], RKISPP_CTRL, RKISPP_TNR_CORE_WEIGHT);
+			rkispp_update_regs(hw_dev->ispp[hw_dev->cur_dev_id], RKISPP_NR, RKISPP_ORB_MAX_FEATURE);
+			rkispp_update_regs(hw_dev->ispp[hw_dev->cur_dev_id], RKISPP_FEC, RKISPP_FEC_CROP);
+			rkispp_update_regs(hw_dev->ispp[hw_dev->cur_dev_id], RKISPP_SCL0, RKISPP_SCL2_FACTOR);
+			writel(ALL_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
+		}
 	}
-	hw_dev->is_idle = true;
+
 	return 0;
 }
 

@@ -82,6 +82,7 @@ static int cdn_dp_grf_write(struct cdn_dp_device *dp,
 	ret = regmap_write(dp->grf, reg, val);
 	if (ret) {
 		DRM_DEV_ERROR(dp->dev, "Could not write to GRF: %d\n", ret);
+		clk_disable_unprepare(dp->grf_clk);
 		return ret;
 	}
 
@@ -307,8 +308,9 @@ static int cdn_dp_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static int cdn_dp_connector_mode_valid(struct drm_connector *connector,
-				       struct drm_display_mode *mode)
+static enum drm_mode_status
+cdn_dp_connector_mode_valid(struct drm_connector *connector,
+			    struct drm_display_mode *mode)
 {
 	struct cdn_dp_device *dp = connector_to_dp(connector);
 	struct drm_display_info *display_info = &dp->connector.display_info;
@@ -336,7 +338,7 @@ static int cdn_dp_connector_mode_valid(struct drm_connector *connector,
 		break;
 	}
 
-	if (!IS_ALIGNED(mode->hdisplay * bpc * 3, 32))
+	if (!IS_ALIGNED(mode->hdisplay * bpc, 8))
 		return MODE_H_ILLEGAL;
 
 	requested = mode->clock * bpc * 3 / 1000;
@@ -728,6 +730,8 @@ out:
 static void cdn_dp_encoder_disable(struct drm_encoder *encoder)
 {
 	struct cdn_dp_device *dp = encoder_to_dp(encoder);
+	struct drm_crtc *crtc = encoder->crtc;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 	int ret;
 
 	mutex_lock(&dp->lock);
@@ -751,6 +755,8 @@ static void cdn_dp_encoder_disable(struct drm_encoder *encoder)
 	 */
 	if (!dp->connected && cdn_dp_connected_port(dp))
 		schedule_work(&dp->event_work);
+
+	s->output_if &= ~VOP_OUTPUT_IF_DP0;
 }
 
 static int cdn_dp_encoder_atomic_check(struct drm_encoder *encoder,
@@ -772,6 +778,7 @@ static int cdn_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
+	s->output_if |= VOP_OUTPUT_IF_DP0;
 	s->output_type = DRM_MODE_CONNECTOR_DisplayPort;
 	s->tv_state = &conn_state->tv;
 	s->eotf = TRADITIONAL_GAMMA_SDR;
@@ -1356,6 +1363,7 @@ static int cdn_dp_probe(struct platform_device *pdev)
 	struct cdn_dp_device *dp;
 	struct extcon_dev *extcon;
 	struct phy *phy;
+	int ret;
 	int i, id;
 
 	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);
@@ -1401,9 +1409,19 @@ static int cdn_dp_probe(struct platform_device *pdev)
 	mutex_init(&dp->lock);
 	dev_set_drvdata(dev, dp);
 
-	cdn_dp_audio_codec_init(dp, dev);
+	ret = cdn_dp_audio_codec_init(dp, dev);
+	if (ret)
+		return ret;
 
-	return component_add(dev, &cdn_dp_component_ops);
+	ret = component_add(dev, &cdn_dp_component_ops);
+	if (ret)
+		goto err_audio_deinit;
+
+	return 0;
+
+err_audio_deinit:
+	platform_device_unregister(dp->audio_pdev);
+	return ret;
 }
 
 static int cdn_dp_remove(struct platform_device *pdev)

@@ -8,6 +8,7 @@
 #define SFC_VER_3		0x3
 #define SFC_VER_4		0x4
 #define SFC_VER_5		0x5
+#define SFC_VER_8		0x8
 
 #define SFC_EN_INT		(0)         /* enable interrupt */
 #define SFC_EN_DMA		(1)         /* enable dma */
@@ -68,8 +69,11 @@
 
 /* SFC_DLL_CTRL Register */
 #define SCLK_SMP_SEL_EN		BIT(15)	/* SCLK Sampling Selection */
-#define SCLK_SMP_SEL_MAX_V4	0xFF	/* SCLK Sampling Selection */
-#define SCLK_SMP_SEL_MAX_V5	0x1FF	/* SCLK Sampling Selection */
+#define SCLK_SMP_SEL_MAX_V4	0xFF
+#define SCLK_SMP_SEL_MAX_V5	0x1FF
+
+#define SFC_DLL_TRANING_STEP		10	/* Training step */
+#define SFC_DLL_TRANING_VALID_WINDOW	80	/* Valid DLL winbow */
 
 /* SFC_SR Register */
 /* sfc busy flag. When busy, don't try to set the control register */
@@ -215,10 +219,10 @@ u16 sfc_get_version(void);
 void sfc_clean_irq(void);
 u32 sfc_get_max_iosize(void);
 void sfc_set_delay_lines(u16 cells);
-void sfc_disable_delay_lines(void);
 void sfc_handle_irq(void);
 unsigned long rksfc_dma_map_single(unsigned long ptr, int size, int dir);
 void rksfc_dma_unmap_single(unsigned long ptr, int size, int dir);
 void rksfc_irq_flag_init(void);
 void rksfc_wait_for_irq_completed(void);
+u32 sfc_get_max_dll_cells(void);
 #endif

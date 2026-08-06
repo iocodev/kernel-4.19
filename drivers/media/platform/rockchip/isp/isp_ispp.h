@@ -29,11 +29,21 @@
 #define RKISP_ISPP_CMD_GET_REG_WITHSTREAM	\
 	_IOW('V', BASE_VIDIOC_PRIVATE + 3, bool)
 
+enum frame_end_state {
+	FRAME_INIT,
+	FRAME_IRQ,
+	FRAME_WORK,
+};
+
 enum rkisp_ispp_dev {
 	DEV_ID0 = 0,
 	DEV_ID1,
 	DEV_ID2,
 	DEV_ID3,
+	DEV_ID4,
+	DEV_ID5,
+	DEV_ID6,
+	DEV_ID7,
 	DEV_MAX,
 };
 
@@ -65,6 +75,7 @@ struct frame_debug_info {
 	u32 interval;
 	u32 delay;
 	u32 id;
+	u32 frameloss;
 };
 
 struct max_input {
@@ -115,7 +126,7 @@ struct rkisp_ispp_buf {
 
 int __init rkispp_hw_drv_init(void);
 
-#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP)
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V20)
 void rkisp_get_bridge_sd(struct platform_device *dev,
 			 struct v4l2_subdev **sd);
 #else

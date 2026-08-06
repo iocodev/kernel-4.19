@@ -48,6 +48,8 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-device.h>
+#include <linux/rockchip/cpu.h>
+#include <linux/rk-camera-module.h>
 
 /* GRF */
 #define RK1808_GRF_PD_VI_CON_OFFSET	0x0430
@@ -146,6 +148,17 @@
 #define RK3326_CSI_DPHY_LANE3_WR_THS_SETTLE	\
 		(RK3326_CSI_DPHY_LANE2_WR_THS_SETTLE + 0x80)
 
+#define RK3326S_CSI_DPHY_CLK_WR_THS_SETTLE	0x160
+#define RK3326S_CSI_DPHY_LANE0_WR_THS_SETTLE	\
+		(RK3326S_CSI_DPHY_CLK_WR_THS_SETTLE + 0x80)
+#define RK3326S_CSI_DPHY_LANE1_WR_THS_SETTLE	\
+		(RK3326S_CSI_DPHY_LANE0_WR_THS_SETTLE + 0x80)
+#define RK3326S_CSI_DPHY_LANE2_WR_THS_SETTLE	\
+		(RK3326S_CSI_DPHY_LANE1_WR_THS_SETTLE + 0x80)
+#define RK3326S_CSI_DPHY_LANE3_WR_THS_SETTLE	\
+		(RK3326S_CSI_DPHY_LANE2_WR_THS_SETTLE + 0x80)
+#define RK3326S_CSI_DPHY_CLK_MODE		0x128
+
 #define RK3368_CSI_DPHY_CLK_WR_THS_SETTLE	0x100
 #define RK3368_CSI_DPHY_LANE0_WR_THS_SETTLE	\
 		(RK3368_CSI_DPHY_CLK_WR_THS_SETTLE + 0x80)
@@ -218,6 +231,7 @@ enum mipi_dphy_chip_id {
 	CHIP_ID_RK3368,
 	CHIP_ID_RK3399,
 	CHIP_ID_RK1126,
+	CHIP_ID_RK3326S,
 };
 
 enum mipi_dphy_rx_pads {
@@ -287,6 +301,7 @@ enum csiphy_reg_id {
 	//rv1126 only
 	CSIPHY_MIPI_LVDS_MODEL,
 	CSIPHY_LVDS_MODE,
+	CSIPHY_CLK_MODE,
 };
 
 enum mipi_dphy_ctl_type {
@@ -473,6 +488,23 @@ static const struct csiphy_reg rk3326_csiphy_regs[] = {
 	[CSIPHY_LANE3_CALIB_ENABLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE3_CALIB_EN),
 };
 
+static const struct csiphy_reg rk3326s_csiphy_regs[] = {
+	[CSIPHY_CTRL_LANE_ENABLE] = CSIPHY_REG(RK3326_CSI_DPHY_CTRL_LANE_ENABLE),
+	[CSIPHY_CTRL_PWRCTL] = CSIPHY_REG(RK3326_CSI_DPHY_CTRL_PWRCTL),
+	[CSIPHY_CTRL_DIG_RST] = CSIPHY_REG(RK3326_CSI_DPHY_CTRL_DIG_RST),
+	[CSIPHY_CLK_THS_SETTLE] = CSIPHY_REG(RK3326S_CSI_DPHY_CLK_WR_THS_SETTLE),
+	[CSIPHY_LANE0_THS_SETTLE] = CSIPHY_REG(RK3326S_CSI_DPHY_LANE0_WR_THS_SETTLE),
+	[CSIPHY_LANE1_THS_SETTLE] = CSIPHY_REG(RK3326S_CSI_DPHY_LANE1_WR_THS_SETTLE),
+	[CSIPHY_LANE2_THS_SETTLE] = CSIPHY_REG(RK3326S_CSI_DPHY_LANE2_WR_THS_SETTLE),
+	[CSIPHY_LANE3_THS_SETTLE] = CSIPHY_REG(RK3326S_CSI_DPHY_LANE3_WR_THS_SETTLE),
+	[CSIPHY_CLK_CALIB_ENABLE] = CSIPHY_REG(RK3326_CSI_DPHY_CLK_CALIB_EN),
+	[CSIPHY_LANE0_CALIB_ENABLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE0_CALIB_EN),
+	[CSIPHY_LANE1_CALIB_ENABLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE1_CALIB_EN),
+	[CSIPHY_LANE2_CALIB_ENABLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE2_CALIB_EN),
+	[CSIPHY_LANE3_CALIB_ENABLE] = CSIPHY_REG(RK3326_CSI_DPHY_LANE3_CALIB_EN),
+	[CSIPHY_CLK_MODE] = CSIPHY_REG(RK3326S_CSI_DPHY_CLK_MODE),
+};
+
 static const struct csiphy_reg rk3368_csiphy_regs[] = {
 	[CSIPHY_CTRL_LANE_ENABLE] = CSIPHY_REG(RK3368_CSI_DPHY_CTRL_LANE_ENABLE),
 	[CSIPHY_CTRL_PWRCTL] = CSIPHY_REG(RK3368_CSI_DPHY_CTRL_PWRCTL),
@@ -525,6 +557,8 @@ struct dphy_drv_data {
 	enum mipi_dphy_ctl_type ctl_type;
 	void (*individual_init)(struct mipidphy_priv *priv);
 	enum mipi_dphy_chip_id chip_id;
+	int (*quick_stream_on)(struct mipidphy_priv *priv, struct v4l2_subdev *sd);
+	int (*quick_stream_off)(struct mipidphy_priv *priv, struct v4l2_subdev *sd);
 };
 
 struct sensor_async_subdev {
@@ -962,6 +996,49 @@ static int mipidphy_get_selection(struct v4l2_subdev *sd,
 	return v4l2_subdev_call(sensor, pad, get_selection, NULL, sel);
 }
 
+static long mipidphy_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct mipidphy_priv *priv = to_dphy_priv(sd);
+	long ret = 0;
+	int on = 0;
+
+	switch (cmd) {
+	case RKMODULE_SET_QUICK_STREAM:
+		if (!priv->drv_data->quick_stream_off ||
+		    !priv->drv_data->quick_stream_on) {
+			ret = -EINVAL;
+			break;
+		}
+		on = *(int *)arg;
+		if (on)
+			priv->drv_data->quick_stream_on(priv, sd);
+		else
+			priv->drv_data->quick_stream_off(priv, sd);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long mipidphy_compat_ioctl32(struct v4l2_subdev *sd,
+				      unsigned int cmd, unsigned long arg)
+{
+	long ret;
+
+	switch (cmd) {
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+#endif
+
 static const struct v4l2_subdev_pad_ops mipidphy_subdev_pad_ops = {
 	.set_fmt = mipidphy_get_set_fmt,
 	.get_fmt = mipidphy_get_set_fmt,
@@ -970,6 +1047,10 @@ static const struct v4l2_subdev_pad_ops mipidphy_subdev_pad_ops = {
 
 static const struct v4l2_subdev_core_ops mipidphy_core_ops = {
 	.s_power = mipidphy_s_power,
+	.ioctl = mipidphy_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = mipidphy_compat_ioctl32,
+#endif
 };
 
 static const struct v4l2_subdev_video_ops mipidphy_video_ops = {
@@ -1009,6 +1090,12 @@ static const struct hsfreq_range rk3326_mipidphy_hsfreq_ranges[] = {
 	{ 299, 0x04}, { 399, 0x05}, { 499, 0x06}, { 599, 0x07},
 	{ 699, 0x08}, { 799, 0x09}, { 899, 0x0a}, {1099, 0x0b},
 	{1249, 0x0c}, {1349, 0x0d}, {1500, 0x0e}
+};
+
+static const struct hsfreq_range rk3326s_mipidphy_hsfreq_ranges[] = {
+	{ 109, 0x02}, { 149, 0x03}, { 199, 0x06}, { 249, 0x06},
+	{ 299, 0x06}, { 399, 0x08}, { 499, 0x0b}, { 599, 0x0e},
+	{ 699, 0x10}, { 799, 0x12}, { 999, 0x16}, {1199, 0x1e},
 };
 
 static const struct hsfreq_range rk3368_mipidphy_hsfreq_ranges[] = {
@@ -1325,6 +1412,7 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 	int num_hsfreq_ranges = drv_data->num_hsfreq_ranges;
 	int i, hsfreq = 0;
 	u32 val = 0;
+	u32 clk_mode = 0x03;
 
 	write_grf_reg(priv, GRF_DVP_V18SEL, 0x1);
 
@@ -1344,6 +1432,13 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 		/* Reset dphy digital part */
 		write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x1e);
 		write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x1f);
+		if (drv_data->chip_id == CHIP_ID_RK3326S) {
+			if (sensor->mbus.flags & V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)
+				clk_mode = 0x03;
+			else if (sensor->mbus.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK)
+				clk_mode = 0;
+			write_csiphy_reg(priv, CSIPHY_CLK_MODE, clk_mode);
+		}
 	} else {
 		/* Disable MIPI internal logical and switch to LVDS bank */
 		write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x3e);
@@ -1431,6 +1526,35 @@ static int csi_mipidphy_stream_off(struct mipidphy_priv *priv,
 	return 0;
 }
 
+static int csi_mipidphy_quick_stream_on(struct mipidphy_priv *priv,
+					 struct v4l2_subdev *sd)
+{
+	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
+	struct mipidphy_sensor *sensor = sd_to_sensor(priv, sensor_sd);
+
+	/* phy start */
+	write_csiphy_reg(priv, CSIPHY_CTRL_PWRCTL, 0xe4);
+
+	/* set data lane num and enable clock lane */
+	write_csiphy_reg(priv, CSIPHY_CTRL_LANE_ENABLE,
+		((GENMASK(sensor->lanes - 1, 0) << MIPI_CSI_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT) |
+		(0x1 << MIPI_CSI_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT) | 0x1));
+
+	/* Reset dphy analog part */
+	write_csiphy_reg(priv, CSIPHY_CTRL_PWRCTL, 0xe0);
+	return 0;
+}
+
+static int csi_mipidphy_quick_stream_off(struct mipidphy_priv *priv,
+					 struct v4l2_subdev *sd)
+{
+	/* disable all lanes */
+	write_csiphy_reg(priv, CSIPHY_CTRL_LANE_ENABLE, 0x01);
+	/* disable pll and ldo */
+	write_csiphy_reg(priv, CSIPHY_CTRL_PWRCTL, 0xe3);
+	return 0;
+}
+
 static const struct dphy_drv_data rk1808_mipidphy_drv_data = {
 	.clks = rk1808_mipidphy_clks,
 	.num_clks = ARRAY_SIZE(rk1808_mipidphy_clks),
@@ -1467,6 +1591,18 @@ static const struct dphy_drv_data rk3326_mipidphy_drv_data = {
 	.chip_id = CHIP_ID_RK3326,
 };
 
+static const struct dphy_drv_data rk3326s_mipidphy_drv_data = {
+	.clks = rk3326_mipidphy_clks,
+	.num_clks = ARRAY_SIZE(rk3326_mipidphy_clks),
+	.hsfreq_ranges = rk3326s_mipidphy_hsfreq_ranges,
+	.num_hsfreq_ranges = ARRAY_SIZE(rk3326s_mipidphy_hsfreq_ranges),
+	.grf_regs = rk3326_grf_dphy_regs,
+	.csiphy_regs = rk3326s_csiphy_regs,
+	.ctl_type = MIPI_DPHY_CTL_CSI_HOST,
+	.individual_init = default_mipidphy_individual_init,
+	.chip_id = CHIP_ID_RK3326S,
+};
+
 static const struct dphy_drv_data rk3368_mipidphy_drv_data = {
 	.clks = rk3368_mipidphy_clks,
 	.num_clks = ARRAY_SIZE(rk3368_mipidphy_clks),
@@ -1500,6 +1636,8 @@ static const struct dphy_drv_data rv1126_mipidphy_drv_data = {
 	.ctl_type = MIPI_DPHY_CTL_CSI_HOST,
 	.individual_init = rv1126_mipidphy_individual_init,
 	.chip_id = CHIP_ID_RK1126,
+	.quick_stream_on = csi_mipidphy_quick_stream_on,
+	.quick_stream_off = csi_mipidphy_quick_stream_off,
 };
 
 static const struct of_device_id rockchip_mipidphy_match_id[] = {
@@ -1514,6 +1652,10 @@ static const struct of_device_id rockchip_mipidphy_match_id[] = {
 	{
 		.compatible = "rockchip,rk3326-mipi-dphy",
 		.data = &rk3326_mipidphy_drv_data,
+	},
+	{
+		.compatible = "rockchip,rk3326s-mipi-dphy",
+		.data = &rk3326s_mipidphy_drv_data,
 	},
 	{
 		.compatible = "rockchip,rk3368-mipi-dphy",
@@ -1719,6 +1861,9 @@ static int rockchip_mipidphy_probe(struct platform_device *pdev)
 		priv->phy_index = 0;
 
 	drv_data = of_id->data;
+	if (soc_is_px30s())
+		drv_data = &rk3326s_mipidphy_drv_data;
+
 	for (i = 0; i < drv_data->num_clks; i++) {
 		priv->clks[i] = devm_clk_get(dev, drv_data->clks[i]);
 
@@ -1780,6 +1925,14 @@ static int rockchip_mipidphy_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void rockchip_mipidphy_shutdown(struct platform_device *pdev)
+{
+	struct media_entity *me = platform_get_drvdata(pdev);
+	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(me);
+
+	mipidphy_s_stream_stop(sd);
+}
+
 static const struct dev_pm_ops rockchip_mipidphy_pm_ops = {
 	SET_RUNTIME_PM_OPS(mipidphy_runtime_suspend,
 			   mipidphy_runtime_resume, NULL)
@@ -1788,6 +1941,7 @@ static const struct dev_pm_ops rockchip_mipidphy_pm_ops = {
 static struct platform_driver rockchip_isp_mipidphy_driver = {
 	.probe = rockchip_mipidphy_probe,
 	.remove = rockchip_mipidphy_remove,
+	.shutdown = rockchip_mipidphy_shutdown,
 	.driver = {
 			.name = "rockchip-mipi-dphy-rx",
 			.pm = &rockchip_mipidphy_pm_ops,

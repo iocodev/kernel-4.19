@@ -45,12 +45,14 @@
 #include "isp_stats.h"
 #include "isp_mipi_luma.h"
 #include "procfs.h"
+#include "version.h"
 
 #define DRIVER_NAME "rkisp"
 #define ISP_VDEV_NAME DRIVER_NAME  "_ispdev"
 #define SP_VDEV_NAME DRIVER_NAME   "_selfpath"
 #define MP_VDEV_NAME DRIVER_NAME   "_mainpath"
 #define DMA_VDEV_NAME DRIVER_NAME  "_dmapath"
+#define VIR_VDEV_NAME DRIVER_NAME  "_iqtool"
 #define RAW_VDEV_NAME DRIVER_NAME  "_rawpath"
 #define DMATX0_VDEV_NAME DRIVER_NAME "_rawwr0"
 #define DMATX1_VDEV_NAME DRIVER_NAME "_rawwr1"
@@ -159,11 +161,19 @@ struct rkisp_hdr {
 	u8 esp_mode;
 	u8 index[HDR_DMA_MAX];
 	atomic_t refcnt;
+	atomic_t stopcnt;
 	struct v4l2_subdev *sensor;
 	struct list_head q_tx[HDR_DMA_MAX];
 	struct list_head q_rx[HDR_DMA_MAX];
 	struct rkisp_dummy_buffer *rx_cur_buf[HDR_DMA_MAX];
 	struct rkisp_dummy_buffer dummy_buf[HDR_DMA_MAX][HDR_MAX_DUMMY_BUF];
+};
+
+struct rkisp_pm_work {
+	struct work_struct work;
+	int on;
+	int already_on;
+	struct mutex oneframe_lock;
 };
 
 /*
@@ -228,6 +238,8 @@ struct rkisp_device {
 	bool send_fbcgain;
 	struct rkisp_ispp_buf *cur_fbcgain;
 	struct rkisp_buffer *cur_spbuf;
+	struct completion pm_cmpl;
+	bool is_thunderboot;
 
 	struct kfifo rdbk_kfifo;
 	spinlock_t rdbk_lock;
@@ -237,5 +249,21 @@ struct rkisp_device {
 	int rdbk_cnt_x3;
 	u32 rd_mode;
 	u8 filt_state[RDBK_F_MAX];
+	bool is_probe_end;
+	bool is_suspend;
+	bool suspend_sync;
+	bool only_rawwr;
+	struct rkisp_pm_work pm_work;
+	struct completion stop_cmpl;
+	int resume_mode;
+	bool wait_stop;
+	bool single_cap;
+	bool add_oneframe;
+	bool csi_start;
 };
+
+static inline bool rkisp_link_sensor(u32 isp_inp)
+{
+	return isp_inp & (INP_CSI | INP_DVP | INP_LVDS);
+}
 #endif

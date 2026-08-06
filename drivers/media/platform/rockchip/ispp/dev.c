@@ -60,6 +60,14 @@ unsigned int rkispp_debug_reg = 0x1F;
 module_param_named(debug_reg, rkispp_debug_reg, uint, 0644);
 MODULE_PARM_DESC(debug_reg, "rkispp debug register");
 
+static unsigned int rkispp_wait_line;
+module_param_named(wait_line, rkispp_wait_line, uint, 0644);
+MODULE_PARM_DESC(wait_line, "rkispp wait line to buf done early");
+
+char rkispp_dump_path[128];
+module_param_string(dump_path, rkispp_dump_path, sizeof(rkispp_dump_path), 0644);
+MODULE_PARM_DESC(dump_path, "rkispp dump debug file path");
+
 void rkispp_set_clk_rate(struct clk *clk, unsigned long rate)
 {
 	if (rkispp_clk_dbg)
@@ -131,7 +139,21 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 
 	/* params links */
 	flags = MEDIA_LNK_FL_ENABLED;
-	source = &ispp_dev->params_vdev.vnode.vdev.entity;
+	source = &ispp_dev->params_vdev[PARAM_VDEV_TNR].vnode.vdev.entity;
+	ret = media_create_pad_link(source, 0, sink,
+				    RKISPP_PAD_SINK_PARAMS, flags);
+	if (ret < 0)
+		return ret;
+
+	flags = MEDIA_LNK_FL_ENABLED;
+	source = &ispp_dev->params_vdev[PARAM_VDEV_NR].vnode.vdev.entity;
+	ret = media_create_pad_link(source, 0, sink,
+				    RKISPP_PAD_SINK_PARAMS, flags);
+	if (ret < 0)
+		return ret;
+
+	flags = MEDIA_LNK_FL_ENABLED;
+	source = &ispp_dev->params_vdev[PARAM_VDEV_FEC].vnode.vdev.entity;
 	ret = media_create_pad_link(source, 0, sink,
 				    RKISPP_PAD_SINK_PARAMS, flags);
 	if (ret < 0)
@@ -140,7 +162,15 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 	/* stats links */
 	flags = MEDIA_LNK_FL_ENABLED;
 	source = &ispp_dev->ispp_sdev.sd.entity;
-	sink = &ispp_dev->stats_vdev.vnode.vdev.entity;
+	sink = &ispp_dev->stats_vdev[STATS_VDEV_TNR].vnode.vdev.entity;
+	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE_STATS,
+				    sink, 0, flags);
+	if (ret < 0)
+		return ret;
+
+	flags = MEDIA_LNK_FL_ENABLED;
+	source = &ispp_dev->ispp_sdev.sd.entity;
+	sink = &ispp_dev->stats_vdev[STATS_VDEV_NR].vnode.vdev.entity;
 	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE_STATS,
 				    sink, 0, flags);
 	if (ret < 0)
@@ -202,11 +232,11 @@ static int rkispp_register_platform_subdevs(struct rkispp_device *ispp_dev)
 	if (ret < 0)
 		return ret;
 
-	ret = rkispp_register_params_vdev(ispp_dev);
+	ret = rkispp_register_params_vdevs(ispp_dev);
 	if (ret < 0)
 		goto err_unreg_stream_vdevs;
 
-	ret = rkispp_register_stats_vdev(ispp_dev);
+	ret = rkispp_register_stats_vdevs(ispp_dev);
 	if (ret < 0)
 		goto err_unreg_params_vdev;
 
@@ -221,9 +251,9 @@ static int rkispp_register_platform_subdevs(struct rkispp_device *ispp_dev)
 err_unreg_ispp_subdev:
 	rkispp_unregister_subdev(ispp_dev);
 err_unreg_stats_vdev:
-	rkispp_unregister_stats_vdev(ispp_dev);
+	rkispp_unregister_stats_vdevs(ispp_dev);
 err_unreg_params_vdev:
-	rkispp_unregister_params_vdev(ispp_dev);
+	rkispp_unregister_params_vdevs(ispp_dev);
 err_unreg_stream_vdevs:
 	rkispp_unregister_stream_vdevs(ispp_dev);
 	return ret;
@@ -297,6 +327,9 @@ static int rkispp_plat_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_unreg_media_dev;
 
+	rkispp_wait_line = 0;
+	of_property_read_u32(pdev->dev.of_node, "wait-line",
+			     &rkispp_wait_line);
 	rkispp_proc_init(ispp_dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -317,8 +350,8 @@ static int rkispp_plat_remove(struct platform_device *pdev)
 
 	rkispp_proc_cleanup(ispp_dev);
 	rkispp_unregister_subdev(ispp_dev);
-	rkispp_unregister_stats_vdev(ispp_dev);
-	rkispp_unregister_params_vdev(ispp_dev);
+	rkispp_unregister_stats_vdevs(ispp_dev);
+	rkispp_unregister_params_vdevs(ispp_dev);
 	rkispp_unregister_stream_vdevs(ispp_dev);
 
 	media_device_unregister(&ispp_dev->media_dev);
@@ -347,6 +380,7 @@ static int __maybe_unused rkispp_runtime_resume(struct device *dev)
 	ispp_dev->isp_mode = rkisp_ispp_mode;
 	ispp_dev->stream_sync = rkispp_stream_sync;
 	ispp_dev->stream_vdev.monitor.is_en = rkispp_monitor;
+	ispp_dev->stream_vdev.wait_line = rkispp_wait_line;
 
 	mutex_lock(&ispp_dev->hw_dev->dev_lock);
 	ret = pm_runtime_get_sync(ispp_dev->hw_dev->dev);
@@ -354,9 +388,50 @@ static int __maybe_unused rkispp_runtime_resume(struct device *dev)
 	return (ret > 0) ? 0 : ret;
 }
 
+static int rkispp_pm_prepare(struct device *dev)
+{
+	struct rkispp_device *ispp_dev = dev_get_drvdata(dev);
+	struct rkispp_hw_dev *hw = ispp_dev->hw_dev;
+	unsigned long lock_flags = 0;
+	int time = 200;
+
+	if (ispp_dev->ispp_sdev.state == ISPP_STOP)
+		return 0;
+
+	ispp_dev->is_suspend = true;
+	ispp_dev->suspend_sync = false;
+
+	spin_lock_irqsave(&hw->buf_lock, lock_flags);
+	if (!hw->is_idle && hw->cur_dev_id == ispp_dev->dev_id)
+		ispp_dev->suspend_sync = true;
+	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
+
+	if (ispp_dev->suspend_sync) {
+		wait_for_completion_timeout(&ispp_dev->pm_cmpl, msecs_to_jiffies(time));
+		ispp_dev->suspend_sync = false;
+	}
+
+	return 0;
+}
+
+static void rkispp_pm_complete(struct device *dev)
+{
+	struct rkispp_device *ispp_dev = dev_get_drvdata(dev);
+	struct rkispp_hw_dev *hw = ispp_dev->hw_dev;
+
+	if (ispp_dev->ispp_sdev.state == ISPP_STOP)
+		return;
+
+	ispp_dev->is_suspend = false;
+	ispp_dev->ispp_sdev.state = ISPP_START;
+
+	if (hw->cur_dev_id == ispp_dev->dev_id)
+		rkispp_event_handle(ispp_dev, CMD_QUEUE_DMABUF, NULL);
+}
+
 static const struct dev_pm_ops rkispp_plat_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	.prepare = rkispp_pm_prepare,
+	.complete = rkispp_pm_complete,
 	SET_RUNTIME_PM_OPS(rkispp_runtime_suspend,
 			   rkispp_runtime_resume, NULL)
 };

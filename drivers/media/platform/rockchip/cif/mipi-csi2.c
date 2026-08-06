@@ -16,116 +16,15 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-event.h>
-
+#include <linux/rk-camera-module.h>
+#include <media/v4l2-ioctl.h>
 #include "mipi-csi2.h"
 
 static int csi2_debug;
 module_param_named(debug_csi2, csi2_debug, int, 0644);
 MODULE_PARM_DESC(debug_csi2, "Debug level (0-1)");
-
-/*
- * there must be 5 pads: 1 input pad from sensor, and
- * the 4 virtual channel output pads
- */
-#define CSI2_SINK_PAD			0
-#define CSI2_NUM_SINK_PADS		1
-#define CSI2_NUM_SRC_PADS		4
-#define CSI2_NUM_PADS			5
-#define CSI2_NUM_PADS_SINGLE_LINK	2
-#define MAX_CSI2_SENSORS		2
-
-#define RKCIF_DEFAULT_WIDTH	640
-#define RKCIF_DEFAULT_HEIGHT	480
-
-/*
- * The default maximum bit-rate per lane in Mbps, if the
- * source subdev does not provide V4L2_CID_LINK_FREQ.
- */
-#define CSI2_DEFAULT_MAX_MBPS 849
-
-#define IMX_MEDIA_GRP_ID_CSI2      BIT(8)
-#define CSIHOST_MAX_ERRINT_COUNT	10
-
-/*
- * add new chip id in tail in time order
- * by increasing to distinguish csi2 host version
- */
-enum rkcsi2_chip_id {
-	CHIP_PX30_CSI2,
-	CHIP_RK1808_CSI2,
-	CHIP_RK3128_CSI2,
-	CHIP_RK3288_CSI2,
-	CHIP_RV1126_CSI2,
-	CHIP_RK3568_CSI2,
-};
-
-enum csi2_pads {
-	RK_CSI2_PAD_SINK = 0,
-	RK_CSI2X_PAD_SOURCE0,
-	RK_CSI2X_PAD_SOURCE1,
-	RK_CSI2X_PAD_SOURCE2,
-	RK_CSI2X_PAD_SOURCE3
-};
-
-enum csi2_err {
-	RK_CSI2_ERR_SOTSYN = 0x0,
-	RK_CSI2_ERR_FS_FE_MIS,
-	RK_CSI2_ERR_FRM_SEQ_ERR,
-	RK_CSI2_ERR_CRC_ONCE,
-	RK_CSI2_ERR_CRC,
-	RK_CSI2_ERR_ALL,
-	RK_CSI2_ERR_MAX
-};
-
-enum host_type_t {
-	RK_CSI_RXHOST,
-	RK_DSI_RXHOST
-};
-
-struct csi2_match_data {
-	int chip_id;
-	int num_pads;
-};
-
-struct csi2_sensor {
-	struct v4l2_subdev *sd;
-	struct v4l2_mbus_config mbus;
-	int lanes;
-};
-
-struct csi2_err_stats {
-	unsigned int cnt;
-};
-
-struct csi2_dev {
-	struct device		*dev;
-	struct v4l2_subdev	sd;
-	struct media_pad	pad[CSI2_NUM_PADS];
-	struct clk_bulk_data	*clks_bulk;
-	int			clks_num;
-	struct reset_control	*rsts_bulk;
-
-	void __iomem		*base;
-	struct v4l2_async_notifier	notifier;
-	struct v4l2_fwnode_bus_mipi_csi2	bus;
-
-	/* lock to protect all members below */
-	struct mutex lock;
-
-	struct v4l2_mbus_framefmt	format_mbus;
-	struct v4l2_rect	crop;
-	int			stream_count;
-	struct v4l2_subdev	*src_sd;
-	bool			sink_linked[CSI2_NUM_SRC_PADS];
-	struct csi2_sensor	sensors[MAX_CSI2_SENSORS];
-	const struct csi2_match_data	*match_data;
-	int			num_sensors;
-	atomic_t		frm_sync_seq;
-	struct csi2_err_stats err_list[RK_CSI2_ERR_MAX];
-};
 
 #define DEVICE_NAME "rockchip-mipi-csi2"
 
@@ -209,9 +108,39 @@ static struct v4l2_subdev *get_remote_sensor(struct v4l2_subdev *sd)
 	return media_entity_to_v4l2_subdev(sensor_me);
 }
 
+static void get_remote_terminal_sensor(struct v4l2_subdev *sd,
+				       struct v4l2_subdev **sensor_sd)
+{
+	struct media_graph graph;
+	struct media_entity *entity = &sd->entity;
+	struct media_device *mdev = entity->graph_obj.mdev;
+	int ret;
+
+	/* Walk the graph to locate sensor nodes. */
+	mutex_lock(&mdev->graph_mutex);
+	ret = media_graph_walk_init(&graph, mdev);
+	if (ret) {
+		mutex_unlock(&mdev->graph_mutex);
+		*sensor_sd = NULL;
+		return;
+	}
+	media_graph_walk_start(&graph, entity);
+	while ((entity = media_graph_walk_next(&graph))) {
+		if (entity->function == MEDIA_ENT_F_CAM_SENSOR)
+			break;
+	}
+	mutex_unlock(&mdev->graph_mutex);
+	media_graph_walk_cleanup(&graph);
+	if (entity)
+		*sensor_sd = media_entity_to_v4l2_subdev(entity);
+	else
+		*sensor_sd = NULL;
+}
+
 static void csi2_update_sensor_info(struct csi2_dev *csi2)
 {
 	struct csi2_sensor *sensor = &csi2->sensors[0];
+	struct v4l2_subdev *terminal_sensor_sd = NULL;
 	struct v4l2_mbus_config mbus;
 	int ret = 0;
 
@@ -221,6 +150,13 @@ static void csi2_update_sensor_info(struct csi2_dev *csi2)
 		return;
 	}
 
+	get_remote_terminal_sensor(&csi2->sd, &terminal_sensor_sd);
+	if (terminal_sensor_sd) {
+		ret = v4l2_subdev_call(terminal_sensor_sd, core, ioctl,
+				       RKMODULE_GET_CSI_DSI_INFO, &csi2->dsi_input_en);
+		if (ret)
+			csi2->dsi_input_en = 0;
+	}
 	csi2->bus.flags = mbus.flags;
 	switch (csi2->bus.flags & V4L2_MBUS_CSI2_LANES) {
 	case V4L2_MBUS_CSI2_1_LANE:
@@ -297,7 +233,7 @@ static void csi2_enable(struct csi2_dev *csi2,
 		write_csihost_reg(base, CSIHOST_CONTROL,
 				  SW_CPHY_EN(0) | SW_DSI_EN(0));
 		write_csihost_reg(base, CSIHOST_MSK1, 0);
-		write_csihost_reg(base, CSIHOST_MSK2, 0);
+		write_csihost_reg(base, CSIHOST_MSK2, 0xf000);
 	}
 
 	write_csihost_reg(base, CSIHOST_RESETN, 1);
@@ -319,7 +255,7 @@ static int csi2_start(struct csi2_dev *csi2)
 
 	csi2_update_sensor_info(csi2);
 
-	if (csi2->format_mbus.code == MEDIA_BUS_FMT_RGB888_1X24)
+	if (csi2->dsi_input_en == RKMODULE_DSI_INPUT)
 		host_type = RK_DSI_RXHOST;
 	else
 		host_type = RK_CSI_RXHOST;
@@ -350,6 +286,7 @@ static void csi2_stop(struct csi2_dev *csi2)
 	v4l2_subdev_call(csi2->src_sd, video, s_stream, 0);
 
 	csi2_disable(csi2);
+	csi2_hw_do_reset(csi2);
 	csi2_disable_clks(csi2);
 }
 
@@ -1039,14 +976,15 @@ static struct platform_driver csi2_driver = {
 	.remove = csi2_remove,
 };
 
-#ifdef MODULE
 int __init rkcif_csi2_plat_drv_init(void)
 {
 	return platform_driver_register(&csi2_driver);
 }
-#else
-module_platform_driver(csi2_driver);
-#endif
+
+void __exit rkcif_csi2_plat_drv_exit(void)
+{
+	platform_driver_unregister(&csi2_driver);
+}
 
 MODULE_DESCRIPTION("Rockchip MIPI CSI2 driver");
 MODULE_AUTHOR("Macrofly.xu <xuhf@rock-chips.com>");

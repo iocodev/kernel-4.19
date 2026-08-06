@@ -59,6 +59,10 @@
 #define SW_TX_CTL_CON5(x)	UPDATE(x, 10, 10)
 #define SW_TX_CTL_CON4_MASK	GENMASK(9, 8)
 #define SW_TX_CTL_CON4(x)	UPDATE(x, 9, 8)
+#define BYPASS_095V_LDO_MASK	BIT(3)
+#define BYPASS_095V_LDO(x)	UPDATE(x, 3, 3)
+#define TX_COM_VOLT_ADJ_MASK	GENMASK(2, 0)
+#define TX_COM_VOLT_ADJ(x)	UPDATE(x, 2, 0)
 #define COMBTXPHY_CON8		REG(0x0020)
 #define COMBTXPHY_CON9		REG(0x0024)
 #define SW_DSI_FSET_EN_MASK	BIT(29)
@@ -143,8 +147,13 @@ static int rk628_combtxphy_lvds_power_on(struct rk628_combtxphy *combtxphy)
 	u32 val;
 	int ret;
 
+	/* Adjust terminal resistance 133 ohm, bypass 0.95v ldo for driver. */
 	regmap_update_bits(combtxphy->regmap, COMBTXPHY_CON7,
-			   SW_TX_MODE_MASK, SW_TX_MODE(3));
+			   SW_TX_RTERM_MASK | SW_TX_MODE_MASK |
+			   BYPASS_095V_LDO_MASK | TX_COM_VOLT_ADJ_MASK,
+			   SW_TX_RTERM(6) | SW_TX_MODE(3) |
+			   BYPASS_095V_LDO(1) | TX_COM_VOLT_ADJ(0));
+
 	regmap_write(combtxphy->regmap, COMBTXPHY_CON10,
 		     TX7_CKDRV_EN | TX2_CKDRV_EN);
 	regmap_update_bits(combtxphy->regmap, COMBTXPHY_CON0,
@@ -165,7 +174,7 @@ static int rk628_combtxphy_lvds_power_on(struct rk628_combtxphy *combtxphy)
 		     SW_PLL_FRAC_DIV(combtxphy->frac_div) |
 		     SW_RATE(combtxphy->rate_div / 2));
 	regmap_update_bits(combtxphy->regmap, COMBTXPHY_CON0,
-			   SW_PD_PLL | SW_TX_PD_MASK, 0);
+			   SW_PD_PLL, 0);
 
 	ret = regmap_read_poll_timeout(combtxphy->grf, GRF_DPHY0_STATUS,
 				       val, val & DPHY_PHYLOCK, 0, 1000);
@@ -176,7 +185,7 @@ static int rk628_combtxphy_lvds_power_on(struct rk628_combtxphy *combtxphy)
 
 	usleep_range(100, 200);
 	regmap_update_bits(combtxphy->regmap, COMBTXPHY_CON0,
-			   SW_TX_IDLE_MASK, 0);
+			   SW_TX_IDLE_MASK | SW_TX_PD_MASK, 0);
 
 	return 0;
 }
@@ -472,9 +481,6 @@ static int rk628_combtxphy_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to allocate register map: %d\n", ret);
 		return ret;
 	}
-
-	regmap_write(combtxphy->regmap, COMBTXPHY_CON0,
-		     SW_TX_IDLE(0x3ff) | SW_TX_PD(0x3ff) | SW_PD_PLL);
 
 	phy = devm_phy_create(dev, NULL, &rk628_combtxphy_ops);
 	if (IS_ERR(phy)) {

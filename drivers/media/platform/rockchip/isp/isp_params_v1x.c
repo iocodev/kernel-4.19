@@ -43,26 +43,6 @@ static inline u32 rkisp1_ioread32(struct rkisp_isp_params_vdev *params_vdev,
 	return ioread32(params_vdev->dev->base_addr + addr);
 }
 
-static inline void isp_param_set_bits(struct rkisp_isp_params_vdev
-				      *params_vdev,
-				      u32 reg, u32 bit_mask)
-{
-	u32 val;
-
-	val = rkisp1_ioread32(params_vdev, reg);
-	rkisp1_iowrite32(params_vdev, val | bit_mask, reg);
-}
-
-static inline void isp_param_clear_bits(struct rkisp_isp_params_vdev
-					*params_vdev,
-					u32 reg, u32 bit_mask)
-{
-	u32 val;
-
-	val = rkisp1_ioread32(params_vdev, reg);
-	rkisp1_iowrite32(params_vdev, val & ~bit_mask, reg);
-}
-
 /* ISP BP interface function */
 static void isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
 			    const struct cifisp_dpcc_config *arg)
@@ -769,10 +749,6 @@ static void isp_aec_config_v12(struct rkisp_isp_params_vdev *params_vdev,
 static void isp_cproc_config(struct rkisp_isp_params_vdev *params_vdev,
 			     const struct cifisp_cproc_config *arg)
 {
-	struct cifisp_isp_other_cfg *cur_other_cfg =
-		&params_vdev->isp1x_params->others;
-	struct cifisp_ie_config *cur_ie_config = &cur_other_cfg->ie_config;
-	u32 effect = cur_ie_config->effect;
 	u32 quantization = params_vdev->quantization;
 
 	rkisp1_iowrite32(params_vdev, arg->contrast, CIF_C_PROC_CONTRAST);
@@ -780,8 +756,7 @@ static void isp_cproc_config(struct rkisp_isp_params_vdev *params_vdev,
 	rkisp1_iowrite32(params_vdev, arg->sat, CIF_C_PROC_SATURATION);
 	rkisp1_iowrite32(params_vdev, arg->brightness, CIF_C_PROC_BRIGHTNESS);
 
-	if (quantization != V4L2_QUANTIZATION_FULL_RANGE ||
-	    effect != V4L2_COLORFX_NONE) {
+	if (quantization != V4L2_QUANTIZATION_FULL_RANGE) {
 		isp_param_clear_bits(params_vdev, CIF_C_PROC_CTRL,
 				     CIF_C_PROC_YOUT_FULL |
 				     CIF_C_PROC_YIN_FULL |
@@ -2266,18 +2241,6 @@ rkisp1_get_param_size_v1x(struct rkisp_isp_params_vdev *params_vdev, unsigned in
 	sizes[0] = sizeof(struct rkisp1_isp_params_cfg);
 }
 
-static void
-rkisp_params_get_ldchbuf_inf_v1x(struct rkisp_isp_params_vdev *params_vdev,
-				 struct rkisp_ldchbuf_info *ldchbuf)
-{
-}
-
-static void
-rkisp_params_set_ldchbuf_size_v1x(struct rkisp_isp_params_vdev *params_vdev,
-				  struct rkisp_ldchbuf_size *ldchsize)
-{
-}
-
 /* Not called when the camera active, thus not isr protection. */
 static void rkisp1_params_disable_isp_v1x(struct rkisp_isp_params_vdev *params_vdev)
 {
@@ -2359,8 +2322,6 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.first_cfg = rkisp1_params_first_cfg_v1x,
 	.disable_isp = rkisp1_params_disable_isp_v1x,
 	.isr_hdl = rkisp1_params_isr_v1x,
-	.get_ldchbuf_inf = rkisp_params_get_ldchbuf_inf_v1x,
-	.set_ldchbuf_size = rkisp_params_set_ldchbuf_size_v1x,
 };
 
 int rkisp_init_params_vdev_v1x(struct rkisp_isp_params_vdev *params_vdev)

@@ -2653,6 +2653,19 @@ static inline void raw_wr_enable(struct rkisp_stream *stream)
 	void __iomem *addr = base + stream->config->dma.ctrl;
 	u32 val = readl(addr);
 
+	if (stream->ispdev->only_rawwr) {
+		u32 ret;
+
+		stream->rawwr_starting = true;
+
+		ret = wait_event_timeout(stream->rawwr_start,
+					 stream->rawwr_fe_count == stream->rawwr_fs_count,
+					 msecs_to_jiffies(300));
+		if (ret == 0)
+			v4l2_warn(&stream->ispdev->v4l2_dev, "%s timeout\n", __func__);
+		stream->rawwr_starting = false;
+	}
+
 	val |= ISP21_RAW_FORCE_UPD | SW_CSI_RAW_WR_EN_ORG;
 	writel(val, addr);
 }
@@ -2697,8 +2710,6 @@ static inline void mi_raw_length(struct rkisp_stream *stream)
 		is_direct = false;
 	rkisp_write(stream->ispdev, stream->config->mi.length,
 		    stream->out_fmt.plane_fmt[0].bytesperline, is_direct);
-	if (stream->ispdev->isp_ver == ISP_V21)
-		rkisp_set_bits(stream->ispdev, MI_RD_CTRL2, 0, BIT(30), false);
 }
 
 static inline void rx_force_upd(void __iomem *base)

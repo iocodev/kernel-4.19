@@ -107,10 +107,12 @@ extern bool rkispp_reg_withstream;
 extern char rkispp_reg_withstream_video_name[RKISPP_VIDEO_NAME_LEN];
 extern unsigned int rkispp_debug_reg;
 extern struct platform_driver rkispp_plat_drv;
+extern char rkispp_dump_path[128];
 
 void rkispp_write(struct rkispp_device *dev, u32 reg, u32 val);
 void rkispp_set_bits(struct rkispp_device *dev, u32 reg, u32 mask, u32 val);
 u32 rkispp_read(struct rkispp_device *dev, u32 reg);
+u32 rkispp_read_reg_cache(struct rkispp_device *dev, u32 reg);
 void rkispp_clear_bits(struct rkispp_device *dev, u32 reg, u32 mask);
 void rkispp_update_regs(struct rkispp_device *dev, u32 start, u32 end);
 int rkispp_allow_buffer(struct rkispp_device *dev,

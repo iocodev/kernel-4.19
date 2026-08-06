@@ -184,7 +184,7 @@ struct rkvenc_dev {
 	struct mpp_clk_info hclk_info;
 	struct mpp_clk_info core_clk_info;
 	u32 default_max_load;
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 	struct proc_dir_entry *procfs;
 #endif
 	struct reset_control *rst_a;
@@ -439,6 +439,7 @@ static int rkvenc_run(struct mpp_dev *mpp,
 		int i;
 		struct mpp_request *req;
 		u32 reg_en = mpp_task->hw_info->reg_en;
+		u32 timing_en = mpp->srv->timing_en;
 
 		/*
 		 * Tips: ensure osd plt clock is 0 before setting register,
@@ -466,11 +467,20 @@ static int rkvenc_run(struct mpp_dev *mpp,
 				rkvenc_write_req_backward(mpp, task->reg, s, e, reg_en);
 			}
 		}
+
+		/* flush tlb before starting hardware */
+		mpp_iommu_flush_tlb(mpp->iommu_info);
+
 		/* init current task */
 		mpp->cur_task = mpp_task;
+
+		mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
+
 		/* Flush the register before the start the device */
 		wmb();
 		mpp_write(mpp, RKVENC_ENC_START_BASE, task->reg[reg_en]);
+
+		mpp_task_run_end(mpp_task, timing_en);
 	} break;
 	case RKVENC_MODE_LINKTABLE_FIX:
 	case RKVENC_MODE_LINKTABLE_UPDATE:
@@ -714,7 +724,7 @@ static int rkvenc_init_session(struct mpp_session *session)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 static int rkvenc_procfs_remove(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
@@ -802,6 +812,10 @@ static int rkvenc_procfs_init(struct mpp_dev *mpp)
 		enc->procfs = NULL;
 		return -EIO;
 	}
+
+	/* for common mpp_dev options */
+	mpp_procfs_create_common(enc->procfs, mpp);
+
 	/* for debug */
 	mpp_procfs_create_u32("aclk", 0644,
 			      enc->procfs, &enc->aclk_info.debug_rate_hz);
@@ -942,13 +956,13 @@ static struct devfreq_governor devfreq_venc_ondemand = {
 static unsigned long rkvenc_get_static_power(struct devfreq *devfreq,
 					     unsigned long voltage)
 {
-	struct rkvenc_dev *enc = devfreq->data;
+	struct device *dev = devfreq->dev.parent;
+	struct rkvenc_dev *enc = dev_get_drvdata(dev);
 
-	if (!enc->model_data)
+	if (!enc || !enc->model_data)
 		return 0;
-	else
-		return rockchip_ipa_get_static_power(enc->model_data,
-						     voltage);
+
+	return rockchip_ipa_get_static_power(enc->model_data, voltage);
 }
 
 static struct devfreq_cooling_power venc_cooling_power_data = {
@@ -961,8 +975,9 @@ static struct monitor_dev_profile enc_mdevp = {
 	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
 };
 
-static int rv1126_get_soc_info(struct device *dev, struct device_node *np,
-			       int *bin, int *process)
+static int __maybe_unused rv1126_get_soc_info(struct device *dev,
+					      struct device_node *np,
+					      int *bin, int *process)
 {
 	int ret = 0;
 	u8 value = 0;
@@ -985,6 +1000,7 @@ static int rv1126_get_soc_info(struct device *dev, struct device_node *np,
 }
 
 static const struct of_device_id rockchip_rkvenc_of_match[] = {
+#ifdef CONFIG_CPU_RV1126
 	{
 		.compatible = "rockchip,rv1109",
 		.data = (void *)&rv1126_get_soc_info,
@@ -993,6 +1009,7 @@ static const struct of_device_id rockchip_rkvenc_of_match[] = {
 		.compatible = "rockchip,rv1126",
 		.data = (void *)&rv1126_get_soc_info,
 	},
+#endif
 	{},
 };
 
@@ -1261,7 +1278,7 @@ static int rkvenc_reset(struct mpp_dev *mpp)
 	mpp_write(mpp, RKVENC_INT_STATUS_BASE, 0);
 	/* cru reset */
 	if (enc->rst_a && enc->rst_h && enc->rst_core) {
-		rockchip_pmu_idle_request(mpp->dev, true);
+		mpp_pmu_idle_request(mpp, true);
 		mpp_safe_reset(enc->rst_a);
 		mpp_safe_reset(enc->rst_h);
 		mpp_safe_reset(enc->rst_core);
@@ -1269,7 +1286,7 @@ static int rkvenc_reset(struct mpp_dev *mpp)
 		mpp_safe_unreset(enc->rst_a);
 		mpp_safe_unreset(enc->rst_h);
 		mpp_safe_unreset(enc->rst_core);
-		rockchip_pmu_idle_request(mpp->dev, false);
+		mpp_pmu_idle_request(mpp, false);
 	}
 #ifdef CONFIG_PM_DEVFREQ
 	if (enc->devfreq)
@@ -1450,6 +1467,8 @@ static int rkvenc_probe(struct platform_device *pdev)
 
 	mpp->session_max_buffers = RKVENC_SESSION_MAX_BUFFERS;
 	rkvenc_procfs_init(mpp);
+	/* register current device to mpp service */
+	mpp_dev_register_srv(mpp, mpp->srv);
 	dev_info(dev, "probing finish\n");
 
 	return 0;

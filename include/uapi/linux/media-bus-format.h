@@ -68,8 +68,9 @@
 #define MEDIA_BUS_FMT_SRGB888_DUMMY_4X8		0x101f
 #define MEDIA_BUS_FMT_SBGR888_DUMMY_4X8		0x1020
 #define MEDIA_BUS_FMT_SRBG888_DUMMY_4X8		0x1021
-#define MEDIA_BUS_FMT_RGB101010_1X7X5_SPWG      0x1022
-#define MEDIA_BUS_FMT_RGB101010_1X7X5_JEIDA     0x1023
+#define MEDIA_BUS_FMT_RGB101010_1X7X5_SPWG	0x1022
+#define MEDIA_BUS_FMT_RGB101010_1X7X5_JEIDA	0x1023
+#define MEDIA_BUS_FMT_RGB565_1X24_CPADLO	0x1100
 
 /* YUV (including grey) - next is	0x202d */
 #define MEDIA_BUS_FMT_Y8_1X8			0x2001
@@ -165,5 +166,13 @@
 
 /* HSV - next is	0x6002 */
 #define MEDIA_BUS_FMT_AHSV8888_1X32		0x6001
+
+/*
+ * This format should be used when the same driver handles
+ * both sides of the link and the bus format is a fixed
+ * metadata format that is not configurable from userspace.
+ * Width and height will be set to 0 for this format.
+ */
+#define MEDIA_BUS_FMT_METADATA_FIXED		0x7001
 
 #endif /* __LINUX_MEDIA_BUS_FORMAT_H */

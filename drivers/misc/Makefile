@@ -4,6 +4,7 @@
 #
 
 obj-$(CONFIG_ROCKCHIP_SCR)	+= rk_scr.o
+obj-y				+= rockchip/
 obj-$(CONFIG_IBM_ASM)		+= ibmasm/
 obj-$(CONFIG_IBMVMC)		+= ibmvmc.o
 obj-$(CONFIG_AD525X_DPOT)	+= ad525x_dpot.o
@@ -61,3 +62,4 @@ obj-$(CONFIG_OCXL)		+= ocxl/
 obj-$(CONFIG_MISC_RTSX)		+= cardreader/
 obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats.o
 obj-$(CONFIG_PIR_ASCHIP)	+= pir-aschip.o
+obj-$(CONFIG_RK803)		+= rk803.o

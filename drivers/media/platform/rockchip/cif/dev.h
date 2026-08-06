@@ -29,6 +29,13 @@
 #define CIF_VIDEODEVICE_NAME	"stream_cif"
 
 #define OF_CIF_MONITOR_PARA	"rockchip,cif-monitor"
+#define OF_CIF_WAIT_LINE	"wait-line"
+
+/*
+ * max wait time for stream stop
+ */
+#define RKCIF_STOP_MAX_WAIT_TIME_MS	(500)
+
 #define CIF_MONITOR_PARA_NUM	(5)
 
 #define RKCIF_SINGLE_STREAM	1
@@ -59,6 +66,8 @@
 #define RKCIF_MAX_STREAM_DVP	4
 #define RKCIF_STREAM_DVP	4
 
+#define RKCIF_MAX_DEV		8
+
 #define RKCIF_MAX_SENSOR	2
 #define RKCIF_MAX_CSI_CHANNEL	4
 #define RKCIF_MAX_PIPELINE	4
@@ -66,6 +75,8 @@
 #define RKCIF_DEFAULT_WIDTH	640
 #define RKCIF_DEFAULT_HEIGHT	480
 #define RKCIF_FS_DETECTED_NUM	2
+
+#define RKCIF_MAX_SDITF         4
 
 /*
  * for HDR mode sync buf
@@ -97,11 +108,6 @@ enum rkcif_state {
 	RKCIF_STATE_READY,
 	RKCIF_STATE_STREAMING,
 	RKCIF_STATE_RESET_IN_STREAMING,
-};
-
-enum host_type_t {
-	RK_CSI_RXHOST,
-	RK_DSI_RXHOST
 };
 
 enum rkcif_lvds_pad {
@@ -166,6 +172,13 @@ struct rkcif_buffer {
 		u32 buff_addr[VIDEO_MAX_PLANES];
 		void *vaddr[VIDEO_MAX_PLANES];
 	};
+	int id;
+};
+
+struct rkcif_dummy_buffer {
+	void *vaddr;
+	dma_addr_t dma_addr;
+	u32 size;
 };
 
 extern int rkcif_debug;
@@ -186,6 +199,7 @@ struct rkcif_sensor_info {
 	int lanes;
 	struct v4l2_rect raw_rect;
 	struct v4l2_subdev_selection selection;
+	int dsi_input_en;
 };
 
 enum cif_fmt_type {
@@ -247,7 +261,9 @@ struct csi_channel_info {
 	unsigned int virtual_width;
 	unsigned int crop_st_x;
 	unsigned int crop_st_y;
+	unsigned int dsi_input;
 	struct rkmodule_lvds_cfg lvds_cfg;
+	struct rkmodule_capture_info capture_info;
 };
 
 struct rkcif_vdev_node {
@@ -283,6 +299,23 @@ struct rkcif_fps_stats {
 	u64 frm1_timestamp;
 };
 
+/* struct rkcif_fps_stats - take notes on timestamp of buf
+ * @fs_timestamp: timesstamp of frame start
+ * @fe_timestamp: timesstamp of frame end
+ * @wk_timestamp: timesstamp of buf send to user in wake up mode
+ * @readout_time: one frame of readout time
+ * @early_time: early time of buf send to user
+ * @total_time: totaltime of readout time in hdr
+ */
+struct rkcif_readout_stats {
+	u64 fs_timestamp;
+	u64 fe_timestamp;
+	u64 wk_timestamp;
+	u64 readout_time;
+	u64 early_time;
+	u64 total_time;
+};
+
 /* struct rkcif_irq_stats - take notes on irq number
  * @csi_overflow_cnt: count of csi overflow irq
  * @csi_bwidth_lack_cnt: count of csi bandwidth lack irq
@@ -306,17 +339,6 @@ struct rkcif_irq_stats {
 };
 
 /*
- * the detecting mode of cif reset timer
- * related with dts property:rockchip,cif-monitor
- */
-enum rkcif_monitor_mode {
-	RKCIF_MONITOR_MODE_IDLE = 0x0,
-	RKCIF_MONITOR_MODE_CONTINUE,
-	RKCIF_MONITOR_MODE_TRIGGER,
-	RKCIF_MONITOR_MODE_HOTPLUG,
-};
-
-/*
  * the parameters to resume when reset cif in running
  */
 struct rkcif_resume_info {
@@ -330,36 +352,18 @@ struct rkcif_work_struct {
 };
 
 struct rkcif_timer {
-	struct timer_list	timer;
-	spinlock_t		timer_lock;
 	spinlock_t		csi2_err_lock;
-	unsigned long		cycle;
-	/* unit: us */
-	unsigned long		line_end_cycle;
-	unsigned int		run_cnt;
-	unsigned int		max_run_cnt;
-	unsigned int		stop_index_of_run_cnt;
-	unsigned int		last_buf_wakeup_cnt;
+	unsigned int		last_buf_wakeup_cnt[RKCIF_MAX_CSI_CHANNEL];
 	unsigned long		csi2_err_cnt_even;
 	unsigned long		csi2_err_cnt_odd;
-	unsigned int		csi2_err_ref_cnt;
 	unsigned int		csi2_err_fs_fe_cnt;
 	unsigned int		csi2_err_fs_fe_detect_cnt;
-	unsigned int		frm_num_of_monitor_cycle;
-	unsigned int		triggered_frame_num;
-	unsigned int		vts;
-	unsigned int		raw_height;
-	/* unit: ms */
-	unsigned int		err_time_interval;
-	unsigned long		frame_end_cycle_us;
+	unsigned int		csi2_err_triggered_cnt;
 	unsigned int		notifer_called_cnt;
+	u64			csi2_first_err_timestamp;
 	bool			is_triggered;
 	bool			is_buf_stop_update;
-	bool			is_running;
 	bool			is_csi2_err_occurred;
-	bool			has_been_init;
-	enum rkcif_monitor_mode	monitor_mode;
-	enum rkmodule_reset_src	reset_src;
 };
 
 struct rkcif_extend_info {
@@ -385,16 +389,14 @@ struct rkcif_stream {
 	struct rkcif_device		*cifdev;
 	struct rkcif_vdev_node		vnode;
 	enum rkcif_state		state;
-	bool				stopping;
-	bool				crop_enable;
-	bool				crop_dyn_en;
-	bool				is_compact;
 	wait_queue_head_t		wq_stopped;
 	unsigned int			frame_idx;
 	int				frame_phase;
+	int				frame_phase_cache;
 	unsigned int			crop_mask;
 	/* lock between irq and buf_queue */
 	struct list_head		buf_head;
+	struct list_head		buf_head_multi_cache;
 	struct rkcif_buffer		*curr_buf;
 	struct rkcif_buffer		*next_buf;
 
@@ -409,9 +411,31 @@ struct rkcif_stream {
 	struct v4l2_rect		crop[CROP_SRC_MAX];
 	struct rkcif_fps_stats		fps_stats;
 	struct rkcif_extend_info	extend_line;
+	struct rkcif_readout_stats	readout;
+	unsigned int			fs_cnt_in_single_frame;
+	u64				line_int_cnt;
+	int				vc;
+	u64				streamon_timestamp;
+	struct completion		stop_complete;
+	struct completion		start_complete;
+	struct tasklet_struct           vb_done_tasklet;
+	struct list_head                vb_done_list;
+	atomic_t			sub_stream_buf_cnt;
+	bool				stopping;
+	bool				crop_enable;
+	bool				crop_dyn_en;
+	bool				is_compact;
 	bool				is_dvp_yuv_addr_init;
 	bool				is_fs_fe_not_paired;
-	unsigned int			fs_cnt_in_single_frame;
+	bool				is_line_wake_up;
+	bool				is_line_inten;
+	bool				is_can_stop;
+	bool				is_buf_active;
+	bool				is_high_align;
+	bool				is_single_cap;
+	bool				is_wait_stop_complete;
+	bool				is_finish_single_cap;
+	bool				is_wait_single_cap;
 };
 
 struct rkcif_lvds_subdev {
@@ -463,6 +487,17 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 	return &vnode->buf_queue;
 }
 
+struct rkcif_sensor_work {
+	struct work_struct work;
+	int on;
+};
+
+struct rkcif_stream_info {
+	u32 id;
+	u32 frame_idx_end;
+	struct sditf_priv *priv;
+};
+
 /*
  * struct rkcif_device - ISP platform device
  * @base_addr: base register address
@@ -489,6 +524,7 @@ struct rkcif_device {
 	int				chip_id;
 	atomic_t			stream_cnt;
 	atomic_t			fh_cnt;
+	atomic_t			streamoff_cnt;
 	struct mutex			stream_lock; /* lock between streams */
 	enum rkcif_workmode		workmode;
 	bool				can_be_reset;
@@ -501,20 +537,34 @@ struct rkcif_device {
 	irqreturn_t (*isr_hdl)(int irq, struct rkcif_device *cif_dev);
 	int inf_id;
 
-	struct sditf_priv		*sditf;
+	struct sditf_priv		*sditf[RKCIF_MAX_SDITF];
+	int                             sditf_cnt;
 	struct proc_dir_entry		*proc_dir;
 	struct rkcif_irq_stats		irq_stats;
 	spinlock_t			hdr_lock; /* lock for hdr buf sync */
-	bool				is_start_hdr;
-
+	struct rkcif_timer		reset_watchdog_timer;
 	struct notifier_block		reset_notifier; /* reset for mipi csi crc err */
 	struct rkcif_work_struct	reset_work;
-	bool				reset_work_cancel;
-	struct rkcif_timer		reset_watchdog_timer;
-	unsigned int			buf_wake_up_cnt;
-
-	bool				iommu_en;
 	unsigned int			dvp_sof_in_oneframe;
+	unsigned int			wait_line;
+	unsigned int			wait_line_bak;
+	unsigned int			wait_line_cache;
+	struct rkcif_dummy_buffer	dummy_buf;
+	struct rkcif_sensor_work	sensor_work;
+	int				resume_mode;
+	struct rkcif_stream_info	cur_stream;
+	struct rkcif_exp_delay		exp_delay;
+	struct work_struct		exp_work;
+	struct rkcif_dummy_buffer	*buf_user[VIDEO_MAX_FRAME];
+	struct list_head		effect_time_head;
+	struct list_head		effect_gain_head;
+	spinlock_t                      stream_spinlock;
+	int				exp_dbg;
+	bool				is_start_hdr;
+	bool				iommu_en;
+	bool				is_use_dummybuf;
+	bool				is_alloc_buf_user;
+	bool				is_camera_over_bridge;
 };
 
 extern struct platform_driver rkcif_plat_drv;
@@ -537,6 +587,7 @@ int rkcif_register_stream_vdevs(struct rkcif_device *dev,
 				int stream_num,
 				bool is_multi_input);
 void rkcif_stream_init(struct rkcif_device *dev, u32 id);
+void rkcif_set_default_fmt(struct rkcif_device *cif_dev);
 void rkcif_irq_oneframe(struct rkcif_device *cif_dev);
 void rkcif_irq_pingpong(struct rkcif_device *cif_dev);
 void rkcif_soft_reset(struct rkcif_device *cif_dev,
@@ -557,4 +608,8 @@ void rkcif_config_dvp_clk_sampling_edge(struct rkcif_device *dev,
 					enum rkcif_clk_edge edge);
 void rkcif_enable_dvp_clk_dual_edge(struct rkcif_device *dev, bool on);
 void rkcif_reset_work(struct work_struct *work);
+void rkcif_monitor_reset_event(struct rkcif_hw *hw);
+int rkcif_stream_suspend(struct rkcif_device *cif_dev);
+int rkcif_stream_resume(struct rkcif_device *cif_dev);
+
 #endif

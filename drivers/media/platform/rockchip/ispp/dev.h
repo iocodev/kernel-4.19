@@ -36,8 +36,8 @@ struct rkispp_device {
 	struct rkispp_hw_dev *hw_dev;
 	struct rkispp_subdev ispp_sdev;
 	struct rkispp_stream_vdev stream_vdev;
-	struct rkispp_params_vdev params_vdev;
-	struct rkispp_stats_vdev stats_vdev;
+	struct rkispp_params_vdev params_vdev[PARAM_VDEV_MAX];
+	struct rkispp_stats_vdev stats_vdev[STATS_VDEV_MAX];
 	struct proc_dir_entry *procfs;
 
 	struct work_struct irq_work;
@@ -46,6 +46,7 @@ struct rkispp_device {
 	struct mutex apilock;
 	/* mutex to serialize the calls of iq */
 	struct mutex iqlock;
+	struct completion pm_cmpl;
 	enum rkispp_input inp;
 	u32 dev_id;
 	u32 isp_mode;
@@ -54,6 +55,8 @@ struct rkispp_device {
 	u32 mis_val;
 	wait_queue_head_t sync_onoff;
 	bool stream_sync;
+	bool is_suspend;
+	bool suspend_sync;
 
 	void (*irq_hdl)(u32 mis, struct rkispp_device *dev);
 };

@@ -131,9 +131,9 @@ static int __dwc2_lowlevel_phy_enable(struct dwc2_hsotg *hsotg)
 	} else if (hsotg->plat && hsotg->plat->phy_init) {
 		ret = hsotg->plat->phy_init(pdev, hsotg->plat->phy_type);
 	} else {
-		ret = phy_power_on(hsotg->phy);
+		ret = phy_init(hsotg->phy);
 		if (ret == 0)
-			ret = phy_init(hsotg->phy);
+			ret = phy_power_on(hsotg->phy);
 	}
 
 	return ret;
@@ -165,9 +165,9 @@ static int __dwc2_lowlevel_phy_disable(struct dwc2_hsotg *hsotg)
 	} else if (hsotg->plat && hsotg->plat->phy_exit) {
 		ret = hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
 	} else {
-		ret = phy_exit(hsotg->phy);
+		ret = phy_power_off(hsotg->phy);
 		if (ret == 0)
-			ret = phy_power_off(hsotg->phy);
+			ret = phy_exit(hsotg->phy);
 	}
 
 	return ret;
@@ -628,19 +628,48 @@ static int __maybe_unused dwc2_resume(struct device *dev)
 			return ret;
 	}
 
-	/* Stop hcd if dr_mode is host and PD is power off when suspend */
-	if (dwc2->op_state == OTG_STATE_A_HOST && dwc2_is_device_mode(dwc2)) {
+	if (dwc2->dr_mode == USB_DR_MODE_HOST && dwc2_is_device_mode(dwc2)) {
+		/* Reinit for Host mode if lost power */
+		dwc2_force_mode(dwc2, true);
+
+		spin_lock_irqsave(&dwc2->lock, flags);
+		dwc2_hsotg_disconnect(dwc2);
+		spin_unlock_irqrestore(&dwc2->lock, flags);
+
+		dwc2->op_state = OTG_STATE_A_HOST;
+		/* Initialize the Core for Host mode */
+		dwc2_core_init(dwc2, false);
+		dwc2_enable_global_interrupts(dwc2);
+		dwc2_hcd_start(dwc2);
+	} else if (dwc2->dr_mode == USB_DR_MODE_OTG &&
+		   dwc2->op_state == OTG_STATE_A_HOST &&
+		   !(dwc2_readl(dwc2, HPRT0) & HPRT0_PWR)) {
+		/*
+		 * Reinit the core to device mode, and later
+		 * after do dwc2_hsotg_resume, it can trigger
+		 * the ID status change interrupt if the OTG
+		 * cable is still connected, then we can init
+		 * for Host mode in the ID status change
+		 * interrupt handler.
+		 */
 		spin_lock_irqsave(&dwc2->lock, flags);
 		dwc2_hcd_disconnect(dwc2, true);
 		dwc2->op_state = OTG_STATE_B_PERIPHERAL;
 		dwc2->lx_state = DWC2_L3;
+#if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || \
+	IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 		if (!dwc2->driver)
 			dwc2_hsotg_core_init_disconnected(dwc2, false);
+#endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
 		spin_unlock_irqrestore(&dwc2->lock, flags);
-	}
 
-	if (dwc2_is_device_mode(dwc2))
 		ret = dwc2_hsotg_resume(dwc2);
+	} else if (dwc2_is_device_mode(dwc2) ||
+		   (dwc2_is_host_mode(dwc2) &&
+		    dwc2->dr_mode == USB_DR_MODE_OTG &&
+		    dwc2->op_state == OTG_STATE_B_PERIPHERAL)) {
+		ret = dwc2_hsotg_resume(dwc2);
+	}
 
 	return ret;
 }

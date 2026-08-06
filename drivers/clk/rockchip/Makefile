@@ -7,12 +7,12 @@ obj-y	+= clk.o
 obj-y	+= clk-pll.o
 obj-y	+= clk-cpu.o
 obj-y	+= clk-half-divider.o
-obj-y	+= clk-inverter.o
 obj-y	+= clk-mmc-phase.o
 obj-y	+= clk-muxgrf.o
 obj-y	+= clk-ddr.o
-obj-y	+= clk-pvtm.o
-obj-y	+= clk-dclk-divider.o
+obj-$(CONFIG_ROCKCHIP_CLK_INV)	+= clk-inverter.o
+obj-$(CONFIG_ROCKCHIP_CLK_PVTM)	+= clk-pvtm.o
+obj-$(CONFIG_ROCKCHIP_DCLK_DIV)	+= clk-dclk-divider.o
 obj-$(CONFIG_RESET_CONTROLLER)	+= softrst.o
 
 obj-$(CONFIG_CPU_PX30)		+= clk-px30.o
@@ -27,7 +27,10 @@ obj-$(CONFIG_CPU_RK3288)	+= clk-rk3288.o
 obj-$(CONFIG_CPU_RK3308)	+= clk-rk3308.o
 obj-$(CONFIG_CPU_RK3328)	+= clk-rk3328.o
 obj-$(CONFIG_CPU_RK3368)	+= clk-rk3368.o
+obj-$(CONFIG_CPU_RK3528)	+= clk-rk3528.o
 obj-$(CONFIG_CPU_RK3568)	+= clk-rk3568.o
 obj-$(CONFIG_CPU_RK3399)	+= clk-rk3399.o
 
 obj-$(CONFIG_COMMON_CLK_ROCKCHIP_REGMAP)	+= regmap/
+
+obj-$(CONFIG_ROCKCHIP_CLK_OUT)  += clk-out.o

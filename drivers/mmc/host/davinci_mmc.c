@@ -1389,8 +1389,12 @@ static int davinci_mmcsd_suspend(struct device *dev)
 static int davinci_mmcsd_resume(struct device *dev)
 {
 	struct mmc_davinci_host *host = dev_get_drvdata(dev);
+	int ret;
 
-	clk_enable(host->clk);
+	ret = clk_enable(host->clk);
+	if (ret)
+		return ret;
+
 	mmc_davinci_reset_ctrl(host, 0);
 
 	return 0;
@@ -1409,6 +1413,7 @@ static const struct dev_pm_ops davinci_mmcsd_pm = {
 static struct platform_driver davinci_mmcsd_driver = {
 	.driver		= {
 		.name	= "davinci_mmc",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm	= davinci_mmcsd_pm_ops,
 		.of_match_table = davinci_mmc_dt_ids,
 	},
